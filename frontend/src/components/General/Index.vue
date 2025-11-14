@@ -137,7 +137,7 @@ const secondaryButtonLabel = computed(() =>
     ? t('components.general.import.clear')
     : t('components.general.import.upload'),
 )
-const secondaryButtonVariant = computed(() => 'outline')
+const secondaryButtonVariant = computed<'outline'>(() => 'outline')
 
 const processImportResult = async (result?: ConfigImportResult | null) => {
   if (!result) return

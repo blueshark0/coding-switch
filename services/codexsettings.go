@@ -78,18 +78,19 @@ func (css *CodexSettingsService) EnableProxy() error {
 	if raw == nil {
 		raw = make(map[string]any)
 	}
-	raw["preferred_auth_method"] = codexPreferredAuth
-	raw["model"] = codexDefaultModel
+	// 只更新 model_provider，保留其他配置
 	raw["model_provider"] = codexProviderKey
 
-	modelProviders := ensureTomlTable(raw, "model_providers")
-	provider := ensureProviderTable(modelProviders, codexProviderKey)
+	// 清空 model_providers，只保留 code-switch 一个 provider
+	modelProviders := make(map[string]map[string]any)
+	provider := make(map[string]any)
 	provider["name"] = codexProviderKey
 	provider["base_url"] = css.baseURL()
 	provider["env_key"] = codexEnvKey
 	provider["wire_api"] = codexWireAPI
 	provider["requires_openai_auth"] = false
 	modelProviders[codexProviderKey] = provider
+	raw["model_providers"] = modelProviders
 
 	data, err := toml.Marshal(raw)
 	if err != nil {

@@ -60,22 +60,51 @@ func (css *ClaudeSettingsService) EnableProxy() error {
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		return err
 	}
+
+	// 读取并备份现有配置
+	var raw map[string]any
 	if _, err := os.Stat(settingsPath); err == nil {
 		content, readErr := os.ReadFile(settingsPath)
 		if readErr != nil {
 			return readErr
 		}
+		// 备份原文件
 		if err := os.WriteFile(backupPath, content, 0o600); err != nil {
 			return err
 		}
+		// 解析现有配置
+		if err := json.Unmarshal(content, &raw); err != nil {
+			// 如果解析失败，创建新配置
+			raw = make(map[string]any)
+		}
+	} else {
+		// 文件不存在，创建新配置
+		raw = make(map[string]any)
 	}
-	settings := claudeSettingsFile{
-		Env: map[string]string{
-			"ANTHROPIC_AUTH_TOKEN": claudeAuthTokenValue,
-			"ANTHROPIC_BASE_URL":   css.baseURL(),
-		},
+
+	// 确保 raw 已初始化
+	if raw == nil {
+		raw = make(map[string]any)
 	}
-	payload, err := json.MarshalIndent(settings, "", "  ")
+
+	// 获取或创建 env 字段
+	var envMap map[string]any
+	if envVal, ok := raw["env"]; ok {
+		if envMapTyped, ok := envVal.(map[string]any); ok {
+			envMap = envMapTyped
+		} else {
+			envMap = make(map[string]any)
+		}
+	} else {
+		envMap = make(map[string]any)
+	}
+
+	// 只更新代理相关的配置，保留其他配置
+	envMap["ANTHROPIC_AUTH_TOKEN"] = claudeAuthTokenValue
+	envMap["ANTHROPIC_BASE_URL"] = css.baseURL()
+	raw["env"] = envMap
+
+	payload, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
 		return err
 	}

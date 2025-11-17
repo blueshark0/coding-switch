@@ -3,7 +3,6 @@ package services
 import (
 	"database/sql"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/daodao97/xgo/xdb"
@@ -17,9 +16,7 @@ const (
 )
 
 // SessionService 会话管理服务，负责维护会话与供应商的绑定关系
-type SessionService struct {
-	mu sync.Mutex
-}
+type SessionService struct{}
 
 func NewSessionService() *SessionService {
 	return &SessionService{}
@@ -28,9 +25,6 @@ func NewSessionService() *SessionService {
 // GetSessionProvider 获取会话绑定的供应商名称
 // 返回空字符串表示该会话未绑定或已过期
 func (s *SessionService) GetSessionProvider(platform, sessionID string) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if sessionID == "" {
 		return "", nil
 	}
@@ -69,9 +63,6 @@ func (s *SessionService) GetSessionProvider(platform, sessionID string) (string,
 
 // BindSessionToProvider 绑定会话到指定供应商
 func (s *SessionService) BindSessionToProvider(platform, sessionID, providerName string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if sessionID == "" || providerName == "" {
 		return nil // 参数无效时静默返回
 	}
@@ -98,9 +89,6 @@ func (s *SessionService) BindSessionToProvider(platform, sessionID, providerName
 
 // UpdateSessionSuccess 更新会话的最后成功时间（延长会话有效期）
 func (s *SessionService) UpdateSessionSuccess(platform, sessionID string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if sessionID == "" {
 		return nil
 	}
@@ -129,9 +117,6 @@ func (s *SessionService) UpdateSessionSuccess(platform, sessionID string) error 
 
 // IsSessionExpired 检查会话是否过期
 func (s *SessionService) IsSessionExpired(platform, sessionID string) (bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if sessionID == "" {
 		return true, nil
 	}
@@ -158,9 +143,6 @@ func (s *SessionService) IsSessionExpired(platform, sessionID string) (bool, err
 
 // CleanExpiredSessions 清理所有过期的会话绑定记录
 func (s *SessionService) CleanExpiredSessions() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	db, err := xdb.DB("default")
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)

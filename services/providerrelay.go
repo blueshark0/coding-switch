@@ -40,7 +40,7 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 		{
 			Name:   "default",
 			Driver: "sqlite",
-			DSN:    filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc"),
+			DSN:    filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"),
 		},
 	}); err != nil {
 		fmt.Printf("初始化数据库失败: %v\n", err)

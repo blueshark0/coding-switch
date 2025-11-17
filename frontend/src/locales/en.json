@@ -90,6 +90,10 @@
         "empty": "Everything from cc-switch is already in sync",
         "error": "Failed to import cc-switch config"
       },
+      "setDefault": "Set as default provider",
+      "removeDefault": "Remove default provider",
+      "providerDisabledWarning": "This provider is disabled and cannot be set as default. Please enable it first.",
+      "saveFailed": "Failed to save settings, please try again.",
       "providers": {
         "requests": "Requests",
         "tokens": "Tokens",
@@ -222,11 +226,15 @@
         "theme": "Theme mode",
         "heatmap": "Show dashboard heatmap",
         "homeTitle": "Show home title",
-        "autoStart": "Launch at login"
+        "autoStart": "Launch at login",
+        "providerFallback": "Provider Fallback",
+        "routingMode": "Routing Mode"
       },
-      "subLabel": {
+      "sublabel": {
         "sb_assistant_access": "Accessibility permission is required to operate clipboard contents",
-        "sb_disk_access": "Full disk access is required to implement file preview"
+        "sb_disk_access": "Full disk access is required to implement file preview",
+        "providerFallback": "Automatically try other providers when requests fail",
+        "routingMode": "Choose between automatic priority routing or manual session routing"
       },
       "buttons": {
         "authorized": "Auth",
@@ -248,6 +256,11 @@
         "loadError": "Failed to read selected config",
         "clear": "Clear selection",
         "reupload": "Upload another JSON"
+      },
+      "routingMode": {
+        "auto": "Automatic Priority Routing",
+        "manual": "Manual Session Routing",
+        "requireDefault": "Please set a default provider first. Click the star icon on a provider card in the main page, then switch to manual routing mode."
       }
     },
     "mcp": {

@@ -148,6 +148,40 @@ func (ps *ProviderService) LoadProviders(kind string) ([]Provider, error) {
 	return envelope.Providers, nil
 }
 
+// GetProviderByName 根据名称获取指定的供应商
+// 如果供应商不存在，返回 nil 和 error
+func (ps *ProviderService) GetProviderByName(kind, name string) (*Provider, error) {
+	providers, err := ps.LoadProviders(kind)
+	if err != nil {
+		return nil, fmt.Errorf("加载供应商配置失败: %w", err)
+	}
+
+	for _, p := range providers {
+		if p.Name == name {
+			return &p, nil
+		}
+	}
+
+	return nil, fmt.Errorf("供应商 %s 不存在", name)
+}
+
+// GetEnabledProviderNames 获取所有已启用的供应商名称列表
+func (ps *ProviderService) GetEnabledProviderNames(kind string) ([]string, error) {
+	providers, err := ps.LoadProviders(kind)
+	if err != nil {
+		return nil, fmt.Errorf("加载供应商配置失败: %w", err)
+	}
+
+	names := make([]string, 0)
+	for _, p := range providers {
+		if p.Enabled {
+			names = append(names, p.Name)
+		}
+	}
+
+	return names, nil
+}
+
 // IsModelSupported 检查 provider 是否支持指定的模型
 // 支持条件：1) 模型在 SupportedModels 中（精确或通配符匹配）
 //          2) 模型在 ModelMapping 的 key 中（精确或通配符匹配）

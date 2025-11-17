@@ -91,6 +91,10 @@
         "empty": "cc-switch 中的供应商与 MCP 均已同步",
         "error": "导入 cc-switch 配置失败"
       },
+      "setDefault": "设为默认供应商",
+      "removeDefault": "取消默认供应商",
+      "providerDisabledWarning": "该供应商已被禁用，无法设为默认供应商。请先启用该供应商。",
+      "saveFailed": "保存设置失败，请重试。",
       "providers": {
         "requests": "请求数",
         "tokens": "Tokens",
@@ -222,12 +226,16 @@
         "heatmap": "显示主界面热力墙",
         "homeTitle": "显示首页标题",
         "autoStart": "开机自启动",
+        "providerFallback": "Provider 自动降级",
         "automatic_up": "自动检查更新",
-        "next_up": "下次启动自动检查更新"
+        "next_up": "下次启动自动检查更新",
+        "routingMode": "路由模式"
       },
-      "subLabel": {
+      "sublabel": {
         "sb_assistant_access": "需要无障碍访问权限来操作剪切板内容",
-        "sb_disk_access": "需要完全磁盘访问权限来实现文件预览"
+        "sb_disk_access": "需要完全磁盘访问权限来实现文件预览",
+        "providerFallback": "请求失败时自动尝试其他 Provider",
+        "routingMode": "选择自动优先级路由或手动会话路由"
       },
       "buttons": {
         "authorized": "已授权",
@@ -249,6 +257,11 @@
         "loadError": "读取配置文件失败",
         "clear": "清除选择",
         "reupload": "重新上传"
+      },
+      "routingMode": {
+        "auto": "自动优先级路由",
+        "manual": "手动会话路由",
+        "requireDefault": "请先设置默认供应商。在主页面点击供应商卡片上的星星图标设置默认供应商，然后再切换到手动路由模式。"
       }
     },
     "mcp": {

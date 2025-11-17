@@ -22,12 +22,14 @@ import (
 )
 
 type ProviderRelayService struct {
-	providerService *ProviderService
-	server          *http.Server
-	addr            string
+	providerService    *ProviderService
+	appSettingsService *AppSettingsService
+	sessionService     *SessionService
+	server             *http.Server
+	addr               string
 }
 
-func NewProviderRelayService(providerService *ProviderService, addr string) *ProviderRelayService {
+func NewProviderRelayService(providerService *ProviderService, appSettingsService *AppSettingsService, sessionService *SessionService, addr string) *ProviderRelayService {
 	if addr == "" {
 		addr = ":18100"
 	}
@@ -42,13 +44,20 @@ func NewProviderRelayService(providerService *ProviderService, addr string) *Pro
 		},
 	}); err != nil {
 		fmt.Printf("初始化数据库失败: %v\n", err)
-	} else if err := ensureRequestLogTable(); err != nil {
-		fmt.Printf("初始化 request_log 表失败: %v\n", err)
+	} else {
+		if err := ensureRequestLogTable(); err != nil {
+			fmt.Printf("初始化 request_log 表失败: %v\n", err)
+		}
+		if err := ensureSessionBindingTable(); err != nil {
+			fmt.Printf("初始化 session_provider_binding 表失败: %v\n", err)
+		}
 	}
 
 	return &ProviderRelayService{
-		providerService: providerService,
-		addr:            addr,
+		providerService:    providerService,
+		appSettingsService: appSettingsService,
+		sessionService:     sessionService,
+		addr:               addr,
 	}
 }
 
@@ -210,6 +219,40 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		}
 		fmt.Println()
 
+		// 读取应用设置
+		appSettings, err := prs.appSettingsService.GetAppSettings()
+		if err != nil {
+			fmt.Printf("[WARN] 无法读取应用设置，使用默认行为: %v\n", err)
+		}
+
+		query := flattenQuery(c.Request.URL.Query())
+		clientHeaders := cloneHeaders(c.Request.Header)
+
+		// 检查路由模式
+		if appSettings.RoutingMode == "manual" {
+			// 手动路由模式
+			fmt.Printf("[INFO] 使用手动路由模式\n")
+			ok, err := prs.routeToManualProvider(c, kind, endpoint, bodyBytes, requestedModel, isStream, query, clientHeaders, appSettings)
+			if !ok {
+				errorMsg := "手动路由失败"
+				if err != nil {
+					errorMsg = err.Error()
+				}
+				c.JSON(http.StatusBadGateway, gin.H{"error": errorMsg})
+			}
+			return
+		}
+
+		// 自动路由模式（原有逻辑）
+		fmt.Printf("[INFO] 使用自动优先级路由模式\n")
+		enableFallback := appSettings.EnableProviderFallback
+
+		// 如果禁用 fallback，只保留第一个可用的 provider
+		if !enableFallback && len(active) > 0 {
+			active = active[:1]
+			fmt.Printf("[INFO] Provider fallback 已禁用，仅使用第一个可用的 Provider: %s\n", active[0].Name)
+		}
+
 		// 按 Level 分组
 		levelGroups := make(map[int][]Provider)
 		for _, provider := range active {
@@ -228,9 +271,6 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		sort.Ints(levels)
 
 		fmt.Printf("[INFO] 共 %d 个 Level 分组：%v\n", len(levels), levels)
-
-		query := flattenQuery(c.Request.URL.Query())
-		clientHeaders := cloneHeaders(c.Request.Header)
 
 		var lastErr error
 		attemptCount := 0
@@ -438,6 +478,39 @@ func ensureRequestLogTable() error {
 	return ensureRequestLogTableWithDB(db)
 }
 
+func ensureSessionBindingTable() error {
+	db, err := xdb.DB("default")
+	if err != nil {
+		return err
+	}
+	return ensureSessionBindingTableWithDB(db)
+}
+
+func ensureSessionBindingTableWithDB(db *sql.DB) error {
+	const createTableSQL = `CREATE TABLE IF NOT EXISTS session_provider_binding (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		platform TEXT NOT NULL,
+		session_id TEXT NOT NULL,
+		provider_name TEXT NOT NULL,
+		last_success_at DATETIME NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(platform, session_id)
+	)`
+
+	if _, err := db.Exec(createTableSQL); err != nil {
+		return err
+	}
+
+	const createIndexSQL = `CREATE INDEX IF NOT EXISTS idx_session_lookup
+		ON session_provider_binding(platform, session_id, last_success_at)`
+
+	if _, err := db.Exec(createIndexSQL); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ensureRequestLogTableWithDB(db *sql.DB) error {
 	const createTableSQL = `CREATE TABLE IF NOT EXISTS request_log (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -556,4 +629,140 @@ func ReplaceModelInRequestBody(bodyBytes []byte, newModel string) ([]byte, error
 	}
 
 	return modified, nil
+}
+
+// extractSessionID 从请求中提取会话标识
+// Claude Code: metadata.user_id (请求体)
+// Codex: session_id (请求头)
+func (prs *ProviderRelayService) extractSessionID(c *gin.Context, kind string, bodyBytes []byte) string {
+	if kind == "claude" {
+		// Claude Code 从请求体中提取 metadata.user_id
+		sessionID := gjson.GetBytes(bodyBytes, "metadata.user_id").String()
+		return sessionID
+	} else if kind == "codex" {
+		// Codex 从请求头中提取 session_id
+		sessionID := c.GetHeader("session_id")
+		return sessionID
+	}
+	return ""
+}
+
+// routeToManualProvider 手动路由模式下的请求处理
+// 返回值：(是否成功, 错误信息)
+func (prs *ProviderRelayService) routeToManualProvider(
+	c *gin.Context,
+	kind string,
+	endpoint string,
+	bodyBytes []byte,
+	requestedModel string,
+	isStream bool,
+	query map[string]string,
+	clientHeaders map[string]string,
+	appSettings AppSettings,
+) (bool, error) {
+	sessionID := prs.extractSessionID(c, kind, bodyBytes)
+	fmt.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
+
+	var targetProviderName string
+
+	// 步骤1：检查会话是否已绑定
+	if sessionID != "" {
+		boundProvider, err := prs.sessionService.GetSessionProvider(kind, sessionID)
+		if err != nil {
+			fmt.Printf("[WARN] 查询会话绑定失败: %v\n", err)
+		} else if boundProvider != "" {
+			targetProviderName = boundProvider
+			fmt.Printf("[INFO] [手动路由] 会话已绑定到供应商: %s\n", boundProvider)
+		}
+	}
+
+	// 步骤2：如果未绑定或已过期，使用默认供应商
+	if targetProviderName == "" {
+		if kind == "claude" {
+			targetProviderName = appSettings.DefaultClaudeProvider
+		} else {
+			targetProviderName = appSettings.DefaultCodexProvider
+		}
+
+		if targetProviderName == "" {
+			return false, fmt.Errorf("未配置默认供应商")
+		}
+
+		fmt.Printf("[INFO] [手动路由] 使用默认供应商: %s\n", targetProviderName)
+	}
+
+	// 步骤3：加载目标供应商配置
+	provider, err := prs.providerService.GetProviderByName(kind, targetProviderName)
+	if err != nil {
+		return false, fmt.Errorf("加载供应商失败: %w", err)
+	}
+
+	// 步骤4：验证供应商配置
+	if !provider.Enabled {
+		return false, fmt.Errorf("供应商 %s 已被禁用", provider.Name)
+	}
+
+	if provider.APIURL == "" || provider.APIKey == "" {
+		return false, fmt.Errorf("供应商 %s 配置不完整", provider.Name)
+	}
+
+	if errs := provider.ValidateConfiguration(); len(errs) > 0 {
+		return false, fmt.Errorf("供应商 %s 配置验证失败: %v", provider.Name, errs)
+	}
+
+	// 步骤5：检查模型支持
+	if requestedModel != "" && !provider.IsModelSupported(requestedModel) {
+		return false, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, requestedModel)
+	}
+
+	// 步骤6：获取有效模型名（可能需要映射）
+	effectiveModel := provider.GetEffectiveModel(requestedModel)
+	currentBodyBytes := bodyBytes
+
+	if effectiveModel != requestedModel && requestedModel != "" {
+		fmt.Printf("[INFO] [手动路由] 映射模型: %s -> %s\n", requestedModel, effectiveModel)
+		modifiedBody, err := ReplaceModelInRequestBody(bodyBytes, effectiveModel)
+		if err != nil {
+			return false, fmt.Errorf("替换模型名失败: %w", err)
+		}
+		currentBodyBytes = modifiedBody
+	}
+
+	// 步骤7：转发请求
+	fmt.Printf("[INFO] [手动路由] 转发请求到供应商: %s | 模型: %s\n", provider.Name, effectiveModel)
+	startTime := time.Now()
+	ok, err := prs.forwardRequest(c, kind, *provider, endpoint, query, clientHeaders, currentBodyBytes, isStream, effectiveModel)
+	duration := time.Since(startTime)
+
+	if ok {
+		fmt.Printf("[INFO] [手动路由] ✓ 请求成功: %s | 耗时: %.2fs\n", provider.Name, duration.Seconds())
+
+		// 步骤8：请求成功后的处理
+		if sessionID != "" {
+			// 如果会话未绑定，现在绑定它
+			boundProvider, _ := prs.sessionService.GetSessionProvider(kind, sessionID)
+			if boundProvider == "" {
+				if err := prs.sessionService.BindSessionToProvider(kind, sessionID, provider.Name); err != nil {
+					fmt.Printf("[WARN] 绑定会话失败: %v\n", err)
+				}
+			} else {
+				// 如果已绑定，更新最后成功时间
+				if err := prs.sessionService.UpdateSessionSuccess(kind, sessionID); err != nil {
+					fmt.Printf("[WARN] 更新会话时间失败: %v\n", err)
+				}
+			}
+		}
+
+		return true, nil
+	}
+
+	// 步骤9：请求失败
+	errorMsg := "未知错误"
+	if err != nil {
+		errorMsg = err.Error()
+	}
+	fmt.Printf("[WARN] [手动路由] ✗ 请求失败: %s | 错误: %s | 耗时: %.2fs\n",
+		provider.Name, errorMsg, duration.Seconds())
+
+	return false, err
 }

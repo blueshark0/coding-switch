@@ -283,6 +283,29 @@
               <input type="checkbox" v-model="card.enabled" @change="persistProviders(activeTab)" />
               <span></span>
             </label>
+            <button
+              class="ghost-icon star-icon"
+              :class="{ 'is-default': isDefaultProvider(card.name) }"
+              @click="toggleDefaultProvider(card)"
+              :title="isDefaultProvider(card.name) ? $t('main.removeDefault') : $t('main.setDefault')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  v-if="isDefaultProvider(card.name)"
+                  d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                  fill="currentColor"
+                />
+                <path
+                  v-else
+                  d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
             <button class="ghost-icon" @click="configure(card)">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -507,7 +530,7 @@ import { LoadProviders, SaveProviders } from '../../../bindings/codeswitch/servi
 import { fetchProxyStatus, enableProxy, disableProxy } from '../../services/claudeSettings'
 import { fetchHeatmapStats, fetchProviderDailyStats, type ProviderDailyStat } from '../../services/logs'
 import { fetchCurrentVersion } from '../../services/version'
-import { fetchAppSettings, type AppSettings } from '../../services/appSettings'
+import { fetchAppSettings, saveAppSettings, type AppSettings } from '../../services/appSettings'
 import { getCurrentTheme, setTheme, type ThemeMode } from '../../utils/ThemeManager'
 import { useRouter } from 'vue-router'
 
@@ -553,6 +576,15 @@ let providerStatsTimer: number | undefined
 let updateTimer: number | undefined
 const showHeatmap = ref(true)
 const showHomeTitle = ref(true)
+const appSettings = ref<AppSettings>({
+  show_heatmap: true,
+  show_home_title: true,
+  auto_start: false,
+  enable_provider_fallback: true,
+  routing_mode: 'auto',
+  default_claude_provider: '',
+  default_codex_provider: '',
+})
 const mcpIcon = lobeIcons['mcp'] ?? ''
 const appVersion = ref('')
 const hasUpdateAvailable = ref(false)
@@ -710,12 +742,56 @@ const hideUsageTooltip = () => {
 const loadAppSettings = async () => {
   try {
     const data: AppSettings = await fetchAppSettings()
+    appSettings.value = data
     showHeatmap.value = data?.show_heatmap ?? true
     showHomeTitle.value = data?.show_home_title ?? true
   } catch (error) {
     console.error('failed to load app settings', error)
     showHeatmap.value = true
     showHomeTitle.value = true
+  }
+}
+
+const isDefaultProvider = (providerName: string): boolean => {
+  const tab = activeTab.value
+  if (tab === 'claude') {
+    return appSettings.value.default_claude_provider === providerName
+  } else {
+    return appSettings.value.default_codex_provider === providerName
+  }
+}
+
+const toggleDefaultProvider = async (card: AutomationCard) => {
+  const tab = activeTab.value
+
+  // 检查供应商是否已启用
+  if (!card.enabled) {
+    alert(t('main.providerDisabledWarning'))
+    return
+  }
+
+  // 如果已经是默认供应商，清除默认设置
+  if (isDefaultProvider(card.name)) {
+    if (tab === 'claude') {
+      appSettings.value.default_claude_provider = ''
+    } else {
+      appSettings.value.default_codex_provider = ''
+    }
+  } else {
+    // 设置为默认供应商
+    if (tab === 'claude') {
+      appSettings.value.default_claude_provider = card.name
+    } else {
+      appSettings.value.default_codex_provider = card.name
+    }
+  }
+
+  // 保存设置
+  try {
+    await saveAppSettings(appSettings.value)
+  } catch (error) {
+    console.error('Failed to save app settings', error)
+    alert(t('main.saveFailed'))
   }
 }
 
@@ -1497,5 +1573,38 @@ const onTabChange = (idx: number) => {
 
 .level-option.selected .level-name {
   color: var(--mac-accent);
+}
+
+/* 星标按钮样式 */
+.star-icon {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.star-icon svg {
+  width: 18px;
+  height: 18px;
+  transition: all 0.2s ease;
+}
+
+.star-icon:not(.is-default) {
+  opacity: 0.5;
+}
+
+.star-icon:not(.is-default):hover {
+  opacity: 0.8;
+  transform: scale(1.1);
+}
+
+.star-icon.is-default {
+  color: #f59e0b; /* 金色 */
+}
+
+.star-icon.is-default:hover {
+  transform: scale(1.15) rotate(15deg);
+}
+
+:global(.dark) .star-icon.is-default {
+  color: #fbbf24; /* 亮金色，暗黑模式下更明显 */
 }
 </style>

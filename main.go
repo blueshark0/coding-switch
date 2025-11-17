@@ -68,12 +68,13 @@ func main() {
 		// 处理错误，比如日志或退出
 	}
 	providerService := services.NewProviderService()
-	providerRelay := services.NewProviderRelayService(providerService, ":18100")
+	autoStartService := services.NewAutoStartService()
+	appSettings := services.NewAppSettingsService(autoStartService)
+	sessionService := services.NewSessionService()
+	providerRelay := services.NewProviderRelayService(providerService, appSettings, sessionService, ":18100")
 	claudeSettings := services.NewClaudeSettingsService(providerRelay.Addr())
 	codexSettings := services.NewCodexSettingsService(providerRelay.Addr())
 	logService := services.NewLogService()
-	autoStartService := services.NewAutoStartService()
-	appSettings := services.NewAppSettingsService(autoStartService)
 	mcpService := services.NewMCPService()
 	skillService := services.NewSkillService()
 	importService := services.NewImportService(providerService, mcpService)
@@ -85,6 +86,9 @@ func main() {
 			log.Printf("provider relay start error: %v", err)
 		}
 	}()
+
+	// 启动会话清理定时任务
+	sessionService.StartCleanupTask()
 
 	//fmt.Println(clipboardService)
 	// Create a new Wails application by providing the necessary options.
@@ -99,6 +103,7 @@ func main() {
 			application.NewService(appservice),
 			application.NewService(suiService),
 			application.NewService(providerService),
+			application.NewService(sessionService),
 			application.NewService(claudeSettings),
 			application.NewService(codexSettings),
 			application.NewService(logService),

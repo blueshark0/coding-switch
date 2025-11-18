@@ -2,7 +2,7 @@ package services
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -95,11 +95,11 @@ type Hotkey struct {
 func (cs *SuiStore) UpHotkey(id int, key int, modifier int) error {
 
 	_, err := cs.db.Exec(`
-        UPDATE hotkeys 
-        SET keycode = ?, modifiers = ? 
+        UPDATE hotkeys
+        SET keycode = ?, modifiers = ?
         WHERE id = ?
     `, key, modifier, id)
-	fmt.Println("🌂🌂🌂🌂🌂🌂", key, modifier)
+	log.Println("🌂🌂🌂🌂🌂🌂", key, modifier)
 	return err
 }
 

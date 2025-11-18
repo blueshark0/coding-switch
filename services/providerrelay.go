@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -43,13 +44,13 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 			DSN:    filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"),
 		},
 	}); err != nil {
-		fmt.Printf("初始化数据库失败: %v\n", err)
+		log.Printf("初始化数据库失败: %v\n", err)
 	} else {
 		if err := ensureRequestLogTable(); err != nil {
-			fmt.Printf("初始化 request_log 表失败: %v\n", err)
+			log.Printf("初始化 request_log 表失败: %v\n", err)
 		}
 		if err := ensureSessionBindingTable(); err != nil {
-			fmt.Printf("初始化 session_provider_binding 表失败: %v\n", err)
+			log.Printf("初始化 session_provider_binding 表失败: %v\n", err)
 		}
 	}
 
@@ -64,12 +65,16 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 func (prs *ProviderRelayService) Start() error {
 	// 启动前验证配置
 	if warnings := prs.validateConfig(); len(warnings) > 0 {
-		fmt.Println("======== Provider 配置验证警告 ========")
+		log.Println("======== Provider 配置验证警告 ========")
 		for _, warn := range warnings {
-			fmt.Printf("⚠️  %s\n", warn)
+			log.Printf("⚠️  %s\n", warn)
 		}
-		fmt.Println("========================================")
+		log.Println("========================================")
 	}
+
+	// 配置 Gin 为 Release 模式（生产环境），减少详细日志
+	// 因为已有 request_log 数据库记录，无需重复记录 HTTP 请求
+	gin.SetMode(gin.ReleaseMode)
 
 	router := gin.Default()
 	prs.registerRoutes(router)
@@ -79,11 +84,11 @@ func (prs *ProviderRelayService) Start() error {
 		Handler: router,
 	}
 
-	fmt.Printf("provider relay server listening on %s\n", prs.addr)
+	log.Printf("provider relay server listening on %s\n", prs.addr)
 
 	go func() {
 		if err := prs.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("provider relay server error: %v\n", err)
+			log.Printf("provider relay server error: %v\n", err)
 		}
 	}()
 	return nil
@@ -168,7 +173,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 
 		// 如果未指定模型，记录警告但不拦截
 		if requestedModel == "" {
-			fmt.Printf("[WARN] 请求未指定模型名，无法执行模型智能降级\n")
+			log.Printf("[WARN] 请求未指定模型名，无法执行模型智能降级\n")
 		}
 
 		providers, err := prs.providerService.LoadProviders(kind)
@@ -187,14 +192,14 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 
 			// 配置验证：失败则自动跳过
 			if errs := provider.ValidateConfiguration(); len(errs) > 0 {
-				fmt.Printf("[WARN] Provider %s 配置验证失败，已自动跳过: %v\n", provider.Name, errs)
+				log.Printf("[WARN] Provider %s 配置验证失败，已自动跳过: %v\n", provider.Name, errs)
 				skippedCount++
 				continue
 			}
 
 			// 核心过滤：只保留支持请求模型的 provider
 			if requestedModel != "" && !provider.IsModelSupported(requestedModel) {
-				fmt.Printf("[INFO] Provider %s 不支持模型 %s，已跳过\n", provider.Name, requestedModel)
+				log.Printf("[INFO] Provider %s 不支持模型 %s，已跳过\n", provider.Name, requestedModel)
 				skippedCount++
 				continue
 			}
@@ -213,16 +218,16 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 			return
 		}
 
-		fmt.Printf("[INFO] 找到 %d 个可用的 provider（已过滤 %d 个）：", len(active), skippedCount)
+		log.Printf("[INFO] 找到 %d 个可用的 provider（已过滤 %d 个）：", len(active), skippedCount)
 		for _, p := range active {
-			fmt.Printf("%s ", p.Name)
+			log.Printf("%s ", p.Name)
 		}
-		fmt.Println()
+		log.Println()
 
 		// 读取应用设置
 		appSettings, err := prs.appSettingsService.GetAppSettings()
 		if err != nil {
-			fmt.Printf("[WARN] 无法读取应用设置，使用默认行为: %v\n", err)
+			log.Printf("[WARN] 无法读取应用设置，使用默认行为: %v\n", err)
 		}
 
 		query := flattenQuery(c.Request.URL.Query())
@@ -231,7 +236,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		// 检查路由模式
 		if appSettings.RoutingMode == "manual" {
 			// 手动路由模式
-			fmt.Printf("[INFO] 使用手动路由模式\n")
+			log.Printf("[INFO] 使用手动路由模式\n")
 			ok, err := prs.routeToManualProvider(c, kind, endpoint, bodyBytes, requestedModel, isStream, query, clientHeaders, appSettings)
 			if !ok {
 				errorMsg := "手动路由失败"
@@ -244,13 +249,13 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		}
 
 		// 自动路由模式（原有逻辑）
-		fmt.Printf("[INFO] 使用自动优先级路由模式\n")
+		log.Printf("[INFO] 使用自动优先级路由模式\n")
 		enableFallback := appSettings.EnableProviderFallback
 
 		// 如果禁用 fallback，只保留第一个可用的 provider
 		if !enableFallback && len(active) > 0 {
 			active = active[:1]
-			fmt.Printf("[INFO] Provider fallback 已禁用，仅使用第一个可用的 Provider: %s\n", active[0].Name)
+			log.Printf("[INFO] Provider fallback 已禁用，仅使用第一个可用的 Provider: %s\n", active[0].Name)
 		}
 
 		// 按 Level 分组
@@ -270,7 +275,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		}
 		sort.Ints(levels)
 
-		fmt.Printf("[INFO] 共 %d 个 Level 分组：%v\n", len(levels), levels)
+		log.Printf("[INFO] 共 %d 个 Level 分组：%v\n", len(levels), levels)
 
 		var lastErr error
 		attemptCount := 0
@@ -278,7 +283,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 		// 外层循环：遍历 Level（从低到高，优先级从高到低）
 		for _, level := range levels {
 			providersInLevel := levelGroups[level]
-			fmt.Printf("[INFO] === 尝试 Level %d（%d 个 provider）===\n", level, len(providersInLevel))
+			log.Printf("[INFO] === 尝试 Level %d（%d 个 provider）===\n", level, len(providersInLevel))
 
 			// 内层循环：遍历该 Level 的所有 provider（按数组顺序）
 			for i, provider := range providersInLevel {
@@ -290,11 +295,11 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 				// 如果需要映射，修改请求体
 				currentBodyBytes := bodyBytes
 				if effectiveModel != requestedModel && requestedModel != "" {
-					fmt.Printf("[INFO]   Provider %s 映射模型: %s -> %s\n", provider.Name, requestedModel, effectiveModel)
+					log.Printf("[INFO]   Provider %s 映射模型: %s -> %s\n", provider.Name, requestedModel, effectiveModel)
 
 					modifiedBody, err := ReplaceModelInRequestBody(bodyBytes, effectiveModel)
 					if err != nil {
-						fmt.Printf("[ERROR]   替换模型名失败: %v\n", err)
+						log.Printf("[ERROR]   替换模型名失败: %v\n", err)
 						lastErr = err
 						continue
 					}
@@ -302,7 +307,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 				}
 
 				// 详细模式日志：记录 provider、model、level
-				fmt.Printf("[INFO]   [%d/%d] Provider: %s | Model: %s\n",
+				log.Printf("[INFO]   [%d/%d] Provider: %s | Model: %s\n",
 					i+1, len(providersInLevel), provider.Name, effectiveModel)
 
 				startTime := time.Now()
@@ -310,7 +315,7 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 				duration := time.Since(startTime)
 
 				if ok {
-					fmt.Printf("[INFO]   ✓ Level %d 成功: %s | 耗时: %.2fs\n", level, provider.Name, duration.Seconds())
+					log.Printf("[INFO]   ✓ Level %d 成功: %s | 耗时: %.2fs\n", level, provider.Name, duration.Seconds())
 					return
 				}
 
@@ -319,13 +324,13 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 				if err != nil {
 					errorMsg = err.Error()
 				}
-				fmt.Printf("[WARN]   ✗ Level %d 失败: %s | 错误: %s | 耗时: %.2fs\n",
+				log.Printf("[WARN]   ✗ Level %d 失败: %s | 错误: %s | 耗时: %.2fs\n",
 					level, provider.Name, errorMsg, duration.Seconds())
 				lastErr = err
 			}
 
 			// 当前 Level 所有 provider 都失败
-			fmt.Printf("[WARN] Level %d 的所有 %d 个 provider 均失败，尝试下一 Level\n", level, len(providersInLevel))
+			log.Printf("[WARN] Level %d 的所有 %d 个 provider 均失败，尝试下一 Level\n", level, len(providersInLevel))
 		}
 
 		// 所有 Level 的所有 provider 都失败
@@ -377,7 +382,7 @@ func (prs *ProviderRelayService) forwardRequest(
 			"is_stream":           boolToInt(requestLog.IsStream),
 			"duration_sec":        requestLog.DurationSec,
 		}); err != nil {
-			fmt.Printf("写入 request_log 失败: %v\n", err)
+			log.Printf("写入 request_log 失败: %v\n", err)
 		}
 	}()
 
@@ -385,7 +390,7 @@ func (prs *ProviderRelayService) forwardRequest(
 		SetHeaders(headers).
 		SetQueryParams(query).
 		SetRetry(1, 500*time.Millisecond).
-		SetTimeout(60 * time.Second)
+		SetTimeout(360 * time.Second)
 
 	reqBody := bytes.NewReader(bodyBytes)
 	req = req.SetBody(reqBody)
@@ -610,7 +615,7 @@ func CodexParseTokenUsageFromResponse(data string, usage *ReqeustLog) {
 	usage.OutputTokens += int(gjson.Get(data, "response.usage.output_tokens").Int())
 	usage.CacheReadTokens += int(gjson.Get(data, "response.usage.input_tokens_details.cached_tokens").Int())
 	usage.ReasoningTokens += int(gjson.Get(data, "response.usage.output_tokens_details.reasoning_tokens").Int())
-	fmt.Println("data ---->", data, fmt.Sprintf("%v", usage))
+	log.Println("data ---->", data, fmt.Sprintf("%v", usage))
 }
 
 // ReplaceModelInRequestBody 替换请求体中的模型名
@@ -661,7 +666,7 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	appSettings AppSettings,
 ) (bool, error) {
 	sessionID := prs.extractSessionID(c, kind, bodyBytes)
-	fmt.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
+	log.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
 
 	var targetProviderName string
 
@@ -669,10 +674,10 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	if sessionID != "" {
 		boundProvider, err := prs.sessionService.GetSessionProvider(kind, sessionID)
 		if err != nil {
-			fmt.Printf("[WARN] 查询会话绑定失败: %v\n", err)
+			log.Printf("[WARN] 查询会话绑定失败: %v\n", err)
 		} else if boundProvider != "" {
 			targetProviderName = boundProvider
-			fmt.Printf("[INFO] [手动路由] 会话已绑定到供应商: %s\n", boundProvider)
+			log.Printf("[INFO] [手动路由] 会话已绑定到供应商: %s\n", boundProvider)
 		}
 	}
 
@@ -688,7 +693,7 @@ func (prs *ProviderRelayService) routeToManualProvider(
 			return false, fmt.Errorf("未配置默认供应商")
 		}
 
-		fmt.Printf("[INFO] [手动路由] 使用默认供应商: %s\n", targetProviderName)
+		log.Printf("[INFO] [手动路由] 使用默认供应商: %s\n", targetProviderName)
 	}
 
 	// 步骤3：加载目标供应商配置
@@ -720,7 +725,7 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	currentBodyBytes := bodyBytes
 
 	if effectiveModel != requestedModel && requestedModel != "" {
-		fmt.Printf("[INFO] [手动路由] 映射模型: %s -> %s\n", requestedModel, effectiveModel)
+		log.Printf("[INFO] [手动路由] 映射模型: %s -> %s\n", requestedModel, effectiveModel)
 		modifiedBody, err := ReplaceModelInRequestBody(bodyBytes, effectiveModel)
 		if err != nil {
 			return false, fmt.Errorf("替换模型名失败: %w", err)
@@ -729,13 +734,13 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	}
 
 	// 步骤7：转发请求
-	fmt.Printf("[INFO] [手动路由] 转发请求到供应商: %s | 模型: %s\n", provider.Name, effectiveModel)
+	log.Printf("[INFO] [手动路由] 转发请求到供应商: %s | 模型: %s\n", provider.Name, effectiveModel)
 	startTime := time.Now()
 	ok, err := prs.forwardRequest(c, kind, *provider, endpoint, query, clientHeaders, currentBodyBytes, isStream, effectiveModel)
 	duration := time.Since(startTime)
 
 	if ok {
-		fmt.Printf("[INFO] [手动路由] ✓ 请求成功: %s | 耗时: %.2fs\n", provider.Name, duration.Seconds())
+		log.Printf("[INFO] [手动路由] ✓ 请求成功: %s | 耗时: %.2fs\n", provider.Name, duration.Seconds())
 
 		// 步骤8：请求成功后的处理
 		if sessionID != "" {
@@ -743,12 +748,12 @@ func (prs *ProviderRelayService) routeToManualProvider(
 			boundProvider, _ := prs.sessionService.GetSessionProvider(kind, sessionID)
 			if boundProvider == "" {
 				if err := prs.sessionService.BindSessionToProvider(kind, sessionID, provider.Name); err != nil {
-					fmt.Printf("[WARN] 绑定会话失败: %v\n", err)
+					log.Printf("[WARN] 绑定会话失败: %v\n", err)
 				}
 			} else {
 				// 如果已绑定，更新最后成功时间
 				if err := prs.sessionService.UpdateSessionSuccess(kind, sessionID); err != nil {
-					fmt.Printf("[WARN] 更新会话时间失败: %v\n", err)
+					log.Printf("[WARN] 更新会话时间失败: %v\n", err)
 				}
 			}
 		}
@@ -761,7 +766,7 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	if err != nil {
 		errorMsg = err.Error()
 	}
-	fmt.Printf("[WARN] [手动路由] ✗ 请求失败: %s | 错误: %s | 耗时: %.2fs\n",
+	log.Printf("[WARN] [手动路由] ✗ 请求失败: %s | 错误: %s | 耗时: %.2fs\n",
 		provider.Name, errorMsg, duration.Seconds())
 
 	return false, err

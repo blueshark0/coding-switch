@@ -35,7 +35,7 @@ func (a *AppService) SetApp(app *application.App) {
 
 func (a *AppService) OpenSecondWindow() {
 	if a.App == nil {
-		fmt.Println("[ERROR] app not initialized")
+		log.Println("[ERROR] app not initialized")
 		return
 	}
 	name := fmt.Sprintf("logs-%d", time.Now().UnixNano())
@@ -61,6 +61,12 @@ func (a *AppService) OpenSecondWindow() {
 // and starts a goroutine that emits a time-based event every second. It subsequently runs the application and
 // logs any error that might occur.
 func main() {
+	// 初始化日志系统
+	logFile := services.SetupLogger()
+	if logFile != nil {
+		defer logFile.Close()
+	}
+
 	appservice := &AppService{}
 
 	suiService, errt := services.NewSuiStore()

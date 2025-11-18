@@ -3,6 +3,7 @@ package services
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/daodao97/xgo/xdb"
@@ -53,7 +54,7 @@ func (s *SessionService) GetSessionProvider(platform, sessionID string) (string,
 	if s.isExpired(platform, lastSuccessAt) {
 		// 过期则删除记录
 		if err := s.deleteSessionBinding(db, platform, sessionID); err != nil {
-			fmt.Printf("[WARN] 删除过期会话失败: %v\n", err)
+			log.Printf("[WARN] 删除过期会话失败: %v\n", err)
 		}
 		return "", nil
 	}
@@ -83,7 +84,7 @@ func (s *SessionService) BindSessionToProvider(platform, sessionID, providerName
 		return fmt.Errorf("绑定会话失败: %w", err)
 	}
 
-	fmt.Printf("[INFO] 会话绑定: %s/%s -> %s\n", platform, sessionID, providerName)
+	log.Printf("[INFO] 会话绑定: %s/%s -> %s\n", platform, sessionID, providerName)
 	return nil
 }
 
@@ -109,7 +110,7 @@ func (s *SessionService) UpdateSessionSuccess(platform, sessionID string) error 
 
 	rows, _ := result.RowsAffected()
 	if rows > 0 {
-		fmt.Printf("[INFO] 会话续期: %s/%s\n", platform, sessionID)
+		log.Printf("[INFO] 会话续期: %s/%s\n", platform, sessionID)
 	}
 
 	return nil
@@ -163,7 +164,7 @@ func (s *SessionService) CleanExpiredSessions() error {
 
 	rows, _ := result.RowsAffected()
 	if rows > 0 {
-		fmt.Printf("[INFO] 清理了 %d 个过期会话\n", rows)
+		log.Printf("[INFO] 清理了 %d 个过期会话\n", rows)
 	}
 
 	return nil
@@ -175,11 +176,11 @@ func (s *SessionService) StartCleanupTask() {
 	go func() {
 		for range ticker.C {
 			if err := s.CleanExpiredSessions(); err != nil {
-				fmt.Printf("[ERROR] 定时清理过期会话失败: %v\n", err)
+				log.Printf("[ERROR] 定时清理过期会话失败: %v\n", err)
 			}
 		}
 	}()
-	fmt.Println("[INFO] 会话清理定时任务已启动（每5分钟执行）")
+	log.Println("[INFO] 会话清理定时任务已启动（每5分钟执行）")
 }
 
 // isExpired 检查给定的时间是否已过期（内部辅助方法）

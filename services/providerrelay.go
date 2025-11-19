@@ -218,11 +218,11 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 			return
 		}
 
-		log.Printf("[INFO] 找到 %d 个可用的 provider（已过滤 %d 个）：", len(active), skippedCount)
-		for _, p := range active {
-			log.Printf("%s ", p.Name)
+		names := make([]string, len(active))
+		for i, p := range active {
+			names[i] = p.Name
 		}
-		log.Println()
+		log.Printf("[INFO] 找到 %d 个可用的 provider（已过滤 %d 个）：%s", len(active), skippedCount, strings.Join(names, ", "))
 
 		// 读取应用设置
 		appSettings, err := prs.appSettingsService.GetAppSettings()
@@ -607,6 +607,7 @@ func ClaudeCodeParseTokenUsageFromResponse(data string, usage *ReqeustLog) {
 
 	usage.InputTokens += int(gjson.Get(data, "usage.input_tokens").Int())
 	usage.OutputTokens += int(gjson.Get(data, "usage.output_tokens").Int())
+	log.Println("claudecode response data -->", data, fmt.Sprintf("%v", usage))
 }
 
 // codex usage parser
@@ -615,7 +616,7 @@ func CodexParseTokenUsageFromResponse(data string, usage *ReqeustLog) {
 	usage.OutputTokens += int(gjson.Get(data, "response.usage.output_tokens").Int())
 	usage.CacheReadTokens += int(gjson.Get(data, "response.usage.input_tokens_details.cached_tokens").Int())
 	usage.ReasoningTokens += int(gjson.Get(data, "response.usage.output_tokens_details.reasoning_tokens").Int())
-	log.Println("data ---->", data, fmt.Sprintf("%v", usage))
+	log.Println("codex response data -->", data, fmt.Sprintf("%v", usage))
 }
 
 // ReplaceModelInRequestBody 替换请求体中的模型名

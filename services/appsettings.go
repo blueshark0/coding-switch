@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	appSettingsDir  = ".codex-swtich"
+	appSettingsDir  = ".code-swtich"
 	appSettingsFile = "app.json"
 )
 
@@ -17,9 +17,9 @@ type AppSettings struct {
 	ShowHomeTitle          bool   `json:"show_home_title"`
 	AutoStart              bool   `json:"auto_start"`
 	EnableProviderFallback bool   `json:"enable_provider_fallback"`
-	RoutingMode            string `json:"routing_mode"`              // "auto" 或 "manual"
-	DefaultClaudeProvider  string `json:"default_claude_provider"`   // Claude 默认供应商名称
-	DefaultCodexProvider   string `json:"default_codex_provider"`    // Codex 默认供应商名称
+	RoutingMode            string `json:"routing_mode"`            // "auto" 或 "manual"
+	DefaultClaudeProvider  string `json:"default_claude_provider"` // Claude 默认供应商名称
+	DefaultCodexProvider   string `json:"default_codex_provider"`  // Codex 默认供应商名称
 }
 
 type AppSettingsService struct {
@@ -54,9 +54,9 @@ func (as *AppSettingsService) defaultSettings() AppSettings {
 		ShowHomeTitle:          true,
 		AutoStart:              autoStartEnabled,
 		EnableProviderFallback: true,
-		RoutingMode:            "auto",  // 默认使用自动路由模式
-		DefaultClaudeProvider:  "",      // 默认无指定供应商
-		DefaultCodexProvider:   "",      // 默认无指定供应商
+		RoutingMode:            "auto", // 默认使用自动路由模式
+		DefaultClaudeProvider:  "",     // 默认无指定供应商
+		DefaultCodexProvider:   "",     // 默认无指定供应商
 	}
 }
 

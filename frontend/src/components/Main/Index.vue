@@ -895,7 +895,7 @@ const openSessionDialog = async (providerName: string) => {
   sessionDialogOpen.value = true
 
   try {
-    providerSessions.value = await GetProviderSessions(providerName)
+    providerSessions.value = await GetProviderSessions(activeTab.value, providerName)
   } catch (error) {
     console.error('Failed to load sessions:', error)
     providerSessions.value = []

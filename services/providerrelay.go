@@ -670,6 +670,8 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	log.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
 
 	var targetProviderName string
+	boundProviderName := ""
+	sessionAlreadyBound := false
 
 	// 步骤1：检查会话是否已绑定
 	if sessionID != "" {
@@ -678,6 +680,8 @@ func (prs *ProviderRelayService) routeToManualProvider(
 			log.Printf("[WARN] 查询会话绑定失败: %v\n", err)
 		} else if boundProvider != "" {
 			targetProviderName = boundProvider
+			boundProviderName = boundProvider
+			sessionAlreadyBound = true
 			log.Printf("[INFO] [手动路由] 会话已绑定到供应商: %s\n", boundProvider)
 		}
 	}
@@ -745,13 +749,14 @@ func (prs *ProviderRelayService) routeToManualProvider(
 
 		// 步骤8：请求成功后的处理
 		if sessionID != "" {
-			// 如果会话未绑定，现在绑定它
-			boundProvider, _ := prs.sessionService.GetSessionProvider(kind, sessionID)
-			if boundProvider == "" {
+			if !sessionAlreadyBound {
 				if err := prs.sessionService.BindSessionToProvider(kind, sessionID, provider.Name); err != nil {
 					log.Printf("[WARN] 绑定会话失败: %v\n", err)
+				} else {
+					boundProviderName = provider.Name
+					sessionAlreadyBound = true
 				}
-			} else {
+			} else if boundProviderName != "" {
 				// 如果已绑定，更新最后成功时间
 				if err := prs.sessionService.UpdateSessionSuccess(kind, sessionID); err != nil {
 					log.Printf("[WARN] 更新会话时间失败: %v\n", err)

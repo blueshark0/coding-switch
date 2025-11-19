@@ -209,8 +209,8 @@ func (s *SessionService) deleteSessionBinding(db *sql.DB, platform, sessionID st
 }
 
 // GetProviderSessions 获取指定供应商的所有活跃会话绑定
-func (s *SessionService) GetProviderSessions(providerName string) ([]SessionBinding, error) {
-	if providerName == "" {
+func (s *SessionService) GetProviderSessions(platform, providerName string) ([]SessionBinding, error) {
+	if platform == "" || providerName == "" {
 		return []SessionBinding{}, nil
 	}
 
@@ -221,10 +221,10 @@ func (s *SessionService) GetProviderSessions(providerName string) ([]SessionBind
 
 	query := `SELECT platform, session_id, provider_name, last_success_at, created_at
 		FROM session_provider_binding
-		WHERE provider_name = ?
+		WHERE platform = ? AND provider_name = ?
 		ORDER BY last_success_at DESC`
 
-	rows, err := db.Query(query, providerName)
+	rows, err := db.Query(query, platform, providerName)
 	if err != nil {
 		return nil, fmt.Errorf("查询会话绑定失败: %w", err)
 	}

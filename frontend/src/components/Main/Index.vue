@@ -287,7 +287,7 @@
               class="ghost-icon star-icon"
               :class="{ 'is-default': isDefaultProvider(card.name) }"
               @click="toggleDefaultProvider(card)"
-              :title="isDefaultProvider(card.name) ? $t('main.removeDefault') : $t('main.setDefault')"
+              :title="isDefaultProvider(card.name) ? $t('components.main.removeDefault') : $t('components.main.setDefault')"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -298,6 +298,30 @@
                 <path
                   v-else
                   d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              class="ghost-icon"
+              @click="openSessionDialog(card.name)"
+              :title="$t('components.main.viewSessions')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 15a3 3 0 100-6 3 3 0 000 6z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M12 21a9 9 0 009-9 9 9 0 00-9-9 9 9 0 00-9 9 9 9 0 009 9z"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="1.5"
@@ -499,6 +523,65 @@
         </BaseButton>
       </footer>
       </BaseModal>
+
+      <!-- Session Management Dialog -->
+      <Dialog :open="sessionDialogOpen" @close="closeSessionDialog" class="relative z-50">
+        <div class="fixed inset-0 bg-black/30" aria-hidden="true" />
+        <div class="fixed inset-0 flex items-center justify-center p-4">
+          <DialogPanel class="mx-auto max-w-2xl rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl">
+            <DialogTitle class="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              {{ t('components.main.sessionDialogTitle', { provider: currentProviderName }) }}
+            </DialogTitle>
+
+            <div class="mt-4">
+              <div v-if="sessionLoading" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                {{ t('components.main.loadingSessions') }}
+              </div>
+
+              <div v-else-if="providerSessions.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                {{ t('components.main.noSessions') }}
+              </div>
+
+              <div v-else class="space-y-3">
+                <div
+                  v-for="session in providerSessions"
+                  :key="`${session.platform}-${session.session_id}`"
+                  class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <div class="flex-1 space-y-1">
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="text-sm font-mono text-gray-900 dark:text-gray-100"
+                        :title="session.session_id"
+                      >
+                        {{ truncateSessionId(session.session_id) }}
+                      </span>
+                    </div>
+                    <div class="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                      <div>{{ t('components.main.bindTime') }}: {{ formatRelativeTime(session.created_at) }}</div>
+                      <div>{{ t('components.main.lastSuccess') }}: {{ formatRelativeTime(session.last_success_at) }}</div>
+                    </div>
+                  </div>
+
+                  <button
+                    @click="unbindSession(session)"
+                    class="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  >
+                    {{ t('components.main.unbind') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-6 flex justify-end">
+              <BaseButton variant="outline" @click="closeSessionDialog">
+                {{ t('components.main.close') }}
+              </BaseButton>
+            </div>
+          </DialogPanel>
+        </div>
+      </Dialog>
+
       <footer v-if="appVersion" class="main-version">
         {{ t('components.main.versionLabel', { version: appVersion }) }}
       </footer>
@@ -509,7 +592,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
+import { Listbox, ListboxButton, ListboxOptions, ListboxOption, Dialog, DialogPanel, DialogTitle } from '@headlessui/vue'
 import { Browser } from '@wailsio/runtime'
 import {
 	buildUsageHeatmapMatrix,
@@ -527,12 +610,22 @@ import BaseInput from '../common/BaseInput.vue'
 import ModelWhitelistEditor from '../common/ModelWhitelistEditor.vue'
 import ModelMappingEditor from '../common/ModelMappingEditor.vue'
 import { LoadProviders, SaveProviders } from '../../../bindings/codeswitch/services/providerservice'
+import { GetProviderSessions, UnbindSession } from '../../../bindings/codeswitch/services/sessionservice'
 import { fetchProxyStatus, enableProxy, disableProxy } from '../../services/claudeSettings'
 import { fetchHeatmapStats, fetchProviderDailyStats, type ProviderDailyStat } from '../../services/logs'
 import { fetchCurrentVersion } from '../../services/version'
 import { fetchAppSettings, saveAppSettings, type AppSettings } from '../../services/appSettings'
 import { getCurrentTheme, setTheme, type ThemeMode } from '../../utils/ThemeManager'
 import { useRouter } from 'vue-router'
+
+// Session management types
+interface SessionBinding {
+  platform: string
+  session_id: string
+  provider_name: string
+  last_success_at: Date
+  created_at: Date
+}
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -766,7 +859,7 @@ const toggleDefaultProvider = async (card: AutomationCard) => {
 
   // 检查供应商是否已启用
   if (!card.enabled) {
-    alert(t('main.providerDisabledWarning'))
+    alert(t('components.main.providerDisabledWarning'))
     return
   }
 
@@ -791,7 +884,66 @@ const toggleDefaultProvider = async (card: AutomationCard) => {
     await saveAppSettings(appSettings.value)
   } catch (error) {
     console.error('Failed to save app settings', error)
-    alert(t('main.saveFailed'))
+    alert(t('components.main.saveFailed'))
+  }
+}
+
+// Session management functions
+const openSessionDialog = async (providerName: string) => {
+  currentProviderName.value = providerName
+  sessionLoading.value = true
+  sessionDialogOpen.value = true
+
+  try {
+    providerSessions.value = await GetProviderSessions(providerName)
+  } catch (error) {
+    console.error('Failed to load sessions:', error)
+    providerSessions.value = []
+  } finally {
+    sessionLoading.value = false
+  }
+}
+
+const closeSessionDialog = () => {
+  sessionDialogOpen.value = false
+  currentProviderName.value = ''
+  providerSessions.value = []
+}
+
+const unbindSession = async (session: SessionBinding) => {
+  if (!confirm(t('components.main.confirmUnbindSession'))) {
+    return
+  }
+
+  try {
+    await UnbindSession(session.platform, session.session_id)
+    // Refresh session list
+    providerSessions.value = await GetProviderSessions(currentProviderName.value)
+  } catch (error) {
+    console.error('Failed to unbind session:', error)
+    alert(t('components.main.unbindSessionFailed'))
+  }
+}
+
+const truncateSessionId = (sessionId: string): string => {
+  if (sessionId.length <= 12) {
+    return sessionId
+  }
+  return sessionId.substring(0, 12) + '...'
+}
+
+const formatRelativeTime = (date: Date): string => {
+  const now = new Date()
+  const diffMs = now.getTime() - new Date(date).getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) {
+    return t('components.main.justNow')
+  } else if (diffMinutes < 60) {
+    return t('components.main.minutesAgo', { count: diffMinutes })
+  } else {
+    const diffHours = Math.floor(diffMinutes / 60)
+    return t('components.main.hoursAgo', { count: diffHours })
   }
 }
 
@@ -1176,6 +1328,12 @@ const modalState = reactive({
 
 const editingCard = ref<AutomationCard | null>(null)
 const confirmState = reactive({ open: false, card: null as AutomationCard | null, tabId: tabs[0].id as ProviderTab })
+
+// Session management state
+const sessionDialogOpen = ref(false)
+const currentProviderName = ref('')
+const providerSessions = ref<SessionBinding[]>([])
+const sessionLoading = ref(false)
 
 const openCreateModal = () => {
   modalState.tabId = activeTab.value

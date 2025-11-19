@@ -16,6 +16,15 @@ const (
 	CodexSessionTimeout = 15 * time.Minute
 )
 
+// SessionBinding 会话绑定信息
+type SessionBinding struct {
+	Platform      string    `json:"platform"`
+	SessionID     string    `json:"session_id"`
+	ProviderName  string    `json:"provider_name"`
+	LastSuccessAt time.Time `json:"last_success_at"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
 // SessionService 会话管理服务，负责维护会话与供应商的绑定关系
 type SessionService struct{}
 
@@ -197,4 +206,66 @@ func (s *SessionService) deleteSessionBinding(db *sql.DB, platform, sessionID st
 	query := `DELETE FROM session_provider_binding WHERE platform = ? AND session_id = ?`
 	_, err := db.Exec(query, platform, sessionID)
 	return err
+}
+
+// GetProviderSessions 获取指定供应商的所有活跃会话绑定
+func (s *SessionService) GetProviderSessions(providerName string) ([]SessionBinding, error) {
+	if providerName == "" {
+		return []SessionBinding{}, nil
+	}
+
+	db, err := xdb.DB("default")
+	if err != nil {
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+
+	query := `SELECT platform, session_id, provider_name, last_success_at, created_at
+		FROM session_provider_binding
+		WHERE provider_name = ?
+		ORDER BY last_success_at DESC`
+
+	rows, err := db.Query(query, providerName)
+	if err != nil {
+		return nil, fmt.Errorf("查询会话绑定失败: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []SessionBinding
+	for rows.Next() {
+		var session SessionBinding
+		if err := rows.Scan(&session.Platform, &session.SessionID, &session.ProviderName, &session.LastSuccessAt, &session.CreatedAt); err != nil {
+			log.Printf("[WARN] 扫描会话记录失败: %v\n", err)
+			continue
+		}
+
+		// 过滤掉已过期的会话
+		if !s.isExpired(session.Platform, session.LastSuccessAt) {
+			sessions = append(sessions, session)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历会话记录失败: %w", err)
+	}
+
+	return sessions, nil
+}
+
+// UnbindSession 解除指定会话的绑定
+func (s *SessionService) UnbindSession(platform, sessionID string) error {
+	if platform == "" || sessionID == "" {
+		return fmt.Errorf("平台和会话ID不能为空")
+	}
+
+	db, err := xdb.DB("default")
+	if err != nil {
+		return fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+
+	if err := s.deleteSessionBinding(db, platform, sessionID); err != nil {
+		return fmt.Errorf("解除会话绑定失败: %w", err)
+	}
+
+	log.Printf("[INFO] 会话解绑: %s/%s\n", platform, sessionID)
+	return nil
 }

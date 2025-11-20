@@ -238,7 +238,6 @@
         "theme": "主题模式",
         "heatmap": "显示主界面热力墙",
         "homeTitle": "显示首页标题",
-        "autoStart": "开机自启动",
         "providerFallback": "Provider 自动降级",
         "automatic_up": "自动检查更新",
         "next_up": "下次启动自动检查更新",

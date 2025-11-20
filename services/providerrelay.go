@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/daodao97/xgo/xdb"
@@ -22,12 +23,24 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const (
+	requestLogBufferSize      = 1024
+	requestLogBatchSize       = 50
+	requestLogFlushInterval   = 500 * time.Millisecond
+	requestLogCleanupInterval = 6 * time.Hour
+	requestLogRetentionDays   = 60
+)
+
 type ProviderRelayService struct {
 	providerService    *ProviderService
 	appSettingsService *AppSettingsService
 	sessionService     *SessionService
 	server             *http.Server
 	addr               string
+	requestLogCh       chan *ReqeustLog
+	shutdown           chan struct{}
+	backgroundWG       sync.WaitGroup
+	shutdownOnce       sync.Once
 }
 
 func NewProviderRelayService(providerService *ProviderService, appSettingsService *AppSettingsService, sessionService *SessionService, addr string) *ProviderRelayService {
@@ -39,9 +52,11 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 
 	if err := xdb.Inits([]xdb.Config{
 		{
-			Name:   "default",
-			Driver: "sqlite",
-			DSN:    filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"),
+			Name:        "default",
+			Driver:      "sqlite",
+			DSN:         filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"),
+			MaxOpenConn: 1,
+			MaxIdleConn: 1,
 		},
 	}); err != nil {
 		log.Printf("初始化数据库失败: %v\n", err)
@@ -52,14 +67,25 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 		if err := ensureSessionBindingTable(); err != nil {
 			log.Printf("初始化 session_provider_binding 表失败: %v\n", err)
 		}
+		configureSQLitePragmas()
+		if err := cleanupOldRequestLogs(requestLogRetentionDays); err != nil {
+			log.Printf("启动时清理历史 request_log 失败: %v\n", err)
+		}
 	}
 
-	return &ProviderRelayService{
+	prs := &ProviderRelayService{
 		providerService:    providerService,
 		appSettingsService: appSettingsService,
 		sessionService:     sessionService,
 		addr:               addr,
+		requestLogCh:       make(chan *ReqeustLog, requestLogBufferSize),
+		shutdown:           make(chan struct{}),
 	}
+
+	prs.startLogWriter()
+	prs.startRequestLogRetentionTask()
+
+	return prs
 }
 
 func (prs *ProviderRelayService) Start() error {
@@ -138,12 +164,14 @@ func (prs *ProviderRelayService) validateConfig() []string {
 }
 
 func (prs *ProviderRelayService) Stop() error {
-	if prs.server == nil {
-		return nil
+	var err error
+	if prs.server != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		err = prs.server.Shutdown(ctx)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	return prs.server.Shutdown(ctx)
+	prs.stopBackgroundWorkers()
+	return err
 }
 
 func (prs *ProviderRelayService) Addr() string {
@@ -369,21 +397,7 @@ func (prs *ProviderRelayService) forwardRequest(
 	start := time.Now()
 	defer func() {
 		requestLog.DurationSec = time.Since(start).Seconds()
-		if _, err := xdb.New("request_log").Insert(xdb.Record{
-			"platform":            requestLog.Platform,
-			"model":               requestLog.Model,
-			"provider":            requestLog.Provider,
-			"http_code":           requestLog.HttpCode,
-			"input_tokens":        requestLog.InputTokens,
-			"output_tokens":       requestLog.OutputTokens,
-			"cache_create_tokens": requestLog.CacheCreateTokens,
-			"cache_read_tokens":   requestLog.CacheReadTokens,
-			"reasoning_tokens":    requestLog.ReasoningTokens,
-			"is_stream":           boolToInt(requestLog.IsStream),
-			"duration_sec":        requestLog.DurationSec,
-		}); err != nil {
-			log.Printf("写入 request_log 失败: %v\n", err)
-		}
+		prs.enqueueRequestLog(requestLog)
 	}()
 
 	req := xrequest.New().
@@ -512,6 +526,15 @@ func ensureSessionBindingTableWithDB(db *sql.DB) error {
 	if _, err := db.Exec(createIndexSQL); err != nil {
 		return err
 	}
+	extraIndexes := []string{
+		"CREATE INDEX IF NOT EXISTS idx_session_cleanup ON session_provider_binding(platform, last_success_at)",
+		"CREATE INDEX IF NOT EXISTS idx_session_provider_lookup ON session_provider_binding(platform, provider_name, last_success_at DESC)",
+	}
+	for _, stmt := range extraIndexes {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -546,8 +569,191 @@ func ensureRequestLogTableWithDB(db *sql.DB) error {
 	if err := ensureRequestLogColumn(db, "duration_sec", "REAL DEFAULT 0"); err != nil {
 		return err
 	}
+	indexStatements := []string{
+		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_created_at ON request_log(platform, created_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_request_log_provider_created_at ON request_log(provider, created_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_provider_created_at ON request_log(platform, provider, created_at DESC)",
+		"CREATE INDEX IF NOT EXISTS idx_request_log_created_at ON request_log(created_at)",
+	}
+	for _, stmt := range indexStatements {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
 
 	return nil
+}
+
+func (prs *ProviderRelayService) startLogWriter() {
+	if prs == nil {
+		return
+	}
+	prs.backgroundWG.Add(1)
+	go func() {
+		defer prs.backgroundWG.Done()
+		ticker := time.NewTicker(requestLogFlushInterval)
+		defer ticker.Stop()
+		batch := make([]xdb.Record, 0, requestLogBatchSize)
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			if _, err := xdb.New("request_log").InsertBatch(batch); err != nil {
+				log.Printf("批量写入 request_log 失败: %v\n", err)
+				for _, record := range batch {
+					if _, insertErr := xdb.New("request_log").Insert(record); insertErr != nil {
+						log.Printf("写入 request_log 失败: %v\n", insertErr)
+					}
+				}
+			}
+			batch = batch[:0]
+		}
+		for {
+			select {
+			case logEntry, ok := <-prs.requestLogCh:
+				if !ok {
+					flush()
+					return
+				}
+				if logEntry == nil {
+					continue
+				}
+				batch = append(batch, recordFromRequestLog(logEntry))
+				if len(batch) >= requestLogBatchSize {
+					flush()
+				}
+			case <-ticker.C:
+				flush()
+			case <-prs.shutdown:
+				flush()
+				return
+			}
+		}
+	}()
+}
+
+func (prs *ProviderRelayService) startRequestLogRetentionTask() {
+	if prs == nil {
+		return
+	}
+	if requestLogRetentionDays <= 0 {
+		return
+	}
+	prs.backgroundWG.Add(1)
+	go func() {
+		defer prs.backgroundWG.Done()
+		ticker := time.NewTicker(requestLogCleanupInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := cleanupOldRequestLogs(requestLogRetentionDays); err != nil {
+					log.Printf("定时清理 request_log 失败: %v\n", err)
+				}
+			case <-prs.shutdown:
+				return
+			}
+		}
+	}()
+}
+
+func (prs *ProviderRelayService) stopBackgroundWorkers() {
+	if prs == nil {
+		return
+	}
+	prs.shutdownOnce.Do(func() {
+		close(prs.shutdown)
+		close(prs.requestLogCh)
+	})
+	prs.backgroundWG.Wait()
+}
+
+func (prs *ProviderRelayService) enqueueRequestLog(logEntry *ReqeustLog) {
+	if prs == nil || logEntry == nil {
+		return
+	}
+	select {
+	case <-prs.shutdown:
+		prs.writeRequestLogSync(logEntry)
+		return
+	default:
+	}
+	select {
+	case prs.requestLogCh <- logEntry:
+	default:
+		log.Printf("request_log 缓冲已满，回退为同步写入\n")
+		prs.writeRequestLogSync(logEntry)
+	}
+}
+
+func (prs *ProviderRelayService) writeRequestLogSync(logEntry *ReqeustLog) {
+	if logEntry == nil {
+		return
+	}
+	if _, err := xdb.New("request_log").Insert(recordFromRequestLog(logEntry)); err != nil {
+		log.Printf("写入 request_log 失败: %v\n", err)
+	}
+}
+
+func recordFromRequestLog(logEntry *ReqeustLog) xdb.Record {
+	return xdb.Record{
+		"platform":            logEntry.Platform,
+		"model":               logEntry.Model,
+		"provider":            logEntry.Provider,
+		"http_code":           logEntry.HttpCode,
+		"input_tokens":        logEntry.InputTokens,
+		"output_tokens":       logEntry.OutputTokens,
+		"cache_create_tokens": logEntry.CacheCreateTokens,
+		"cache_read_tokens":   logEntry.CacheReadTokens,
+		"reasoning_tokens":    logEntry.ReasoningTokens,
+		"is_stream":           boolToInt(logEntry.IsStream),
+		"duration_sec":        logEntry.DurationSec,
+	}
+}
+
+func cleanupOldRequestLogs(retentionDays int) error {
+	if retentionDays <= 0 {
+		return nil
+	}
+	db, err := xdb.DB("default")
+	if err != nil {
+		return err
+	}
+	cutoff := fmt.Sprintf("-%d day", retentionDays)
+	res, err := db.Exec("DELETE FROM request_log WHERE created_at < datetime('now', ?)", cutoff)
+	if err != nil {
+		if isNoSuchTableErr(err) {
+			return nil
+		}
+		return err
+	}
+	if rows, err := res.RowsAffected(); err == nil && rows > 0 {
+		log.Printf("清理 %d 条过期 request_log 记录\n", rows)
+	}
+	if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		log.Printf("执行 wal_checkpoint 失败: %v\n", err)
+	}
+	if _, err := db.Exec("PRAGMA optimize"); err != nil {
+		log.Printf("执行 PRAGMA optimize 失败: %v\n", err)
+	}
+	return nil
+}
+
+func configureSQLitePragmas() {
+	db, err := xdb.DB("default")
+	if err != nil {
+		return
+	}
+	statements := []string{
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA journal_size_limit = 67108864",
+		"PRAGMA wal_autocheckpoint = 1000",
+	}
+	for _, stmt := range statements {
+		if _, err := db.Exec(stmt); err != nil {
+			log.Printf("设置 SQLite PRAGMA 失败 (%s): %v\n", stmt, err)
+		}
+	}
 }
 
 func ReqeustLogHook(c *gin.Context, kind string, usage *ReqeustLog) func(data []byte) (bool, []byte) { // SSE 钩子：累计字节和解析 token 用量

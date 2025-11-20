@@ -672,7 +672,6 @@ const showHomeTitle = ref(true)
 const appSettings = ref<AppSettings>({
   show_heatmap: true,
   show_home_title: true,
-  auto_start: false,
   enable_provider_fallback: true,
   routing_mode: 'auto',
   default_claude_provider: '',
@@ -918,7 +917,7 @@ const unbindSession = async (session: SessionBinding) => {
   try {
     await UnbindSession(session.platform, session.session_id)
     // Refresh session list
-    providerSessions.value = await GetProviderSessions(currentProviderName.value)
+    providerSessions.value = await GetProviderSessions(activeTab.value, currentProviderName.value)
   } catch (error) {
     console.error('Failed to unbind session:', error)
     alert(t('components.main.unbindSessionFailed'))

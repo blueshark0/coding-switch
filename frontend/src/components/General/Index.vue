@@ -22,7 +22,6 @@ const router = useRouter()
 const { t } = useI18n()
 const heatmapEnabled = ref(true)
 const homeTitleVisible = ref(true)
-const autoStartEnabled = ref(false)
 const providerFallbackEnabled = ref(true)
 const routingMode = ref<'auto' | 'manual'>('auto')
 const fullAppSettings = ref<AppSettings | null>(null)
@@ -43,14 +42,12 @@ const loadAppSettings = async () => {
     fullAppSettings.value = data  // 保存完整设置，用于后续保存时保留其他字段
     heatmapEnabled.value = data?.show_heatmap ?? true
     homeTitleVisible.value = data?.show_home_title ?? true
-    autoStartEnabled.value = data?.auto_start ?? false
     providerFallbackEnabled.value = data?.enable_provider_fallback ?? true
     routingMode.value = data?.routing_mode ?? 'auto'
   } catch (error) {
     console.error('failed to load app settings', error)
     heatmapEnabled.value = true
     homeTitleVisible.value = true
-    autoStartEnabled.value = false
     providerFallbackEnabled.value = true
     routingMode.value = 'auto'
   } finally {
@@ -85,7 +82,6 @@ const persistAppSettings = async () => {
       // 只更新当前页面管理的字段
       show_heatmap: heatmapEnabled.value,
       show_home_title: homeTitleVisible.value,
-      auto_start: autoStartEnabled.value,
       enable_provider_fallback: providerFallbackEnabled.value,
       routing_mode: routingMode.value,
     }
@@ -307,17 +303,6 @@ const handleSecondaryImportAction = async () => {
                 type="checkbox"
                 :disabled="settingsLoading || saveBusy"
                 v-model="homeTitleVisible"
-                @change="persistAppSettings"
-              />
-              <span></span>
-            </label>
-          </ListItem>
-          <ListItem :label="$t('components.general.label.autoStart')">
-            <label class="mac-switch">
-              <input
-                type="checkbox"
-                :disabled="settingsLoading || saveBusy"
-                v-model="autoStartEnabled"
                 @change="persistAppSettings"
               />
               <span></span>

@@ -74,8 +74,7 @@ func main() {
 		// 处理错误，比如日志或退出
 	}
 	providerService := services.NewProviderService()
-	autoStartService := services.NewAutoStartService()
-	appSettings := services.NewAppSettingsService(autoStartService)
+	appSettings := services.NewAppSettingsService()
 	sessionService := services.NewSessionService()
 	providerRelay := services.NewProviderRelayService(providerService, appSettings, sessionService, ":18100")
 	claudeSettings := services.NewClaudeSettingsService(providerRelay.Addr())

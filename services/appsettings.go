@@ -8,14 +8,13 @@ import (
 )
 
 const (
-	appSettingsDir  = ".code-swtich"
+	appSettingsDir  = ".code-switch"
 	appSettingsFile = "app.json"
 )
 
 type AppSettings struct {
 	ShowHeatmap            bool   `json:"show_heatmap"`
 	ShowHomeTitle          bool   `json:"show_home_title"`
-	AutoStart              bool   `json:"auto_start"`
 	EnableProviderFallback bool   `json:"enable_provider_fallback"`
 	RoutingMode            string `json:"routing_mode"`            // "auto" 或 "manual"
 	DefaultClaudeProvider  string `json:"default_claude_provider"` // Claude 默认供应商名称
@@ -23,36 +22,25 @@ type AppSettings struct {
 }
 
 type AppSettingsService struct {
-	path             string
-	mu               sync.Mutex
-	autoStartService *AutoStartService
+	path string
+	mu   sync.Mutex
 }
 
-func NewAppSettingsService(autoStartService *AutoStartService) *AppSettingsService {
+func NewAppSettingsService() *AppSettingsService {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
 	path := filepath.Join(home, appSettingsDir, appSettingsFile)
 	return &AppSettingsService{
-		path:             path,
-		autoStartService: autoStartService,
+		path: path,
 	}
 }
 
 func (as *AppSettingsService) defaultSettings() AppSettings {
-	// 检查当前开机自启动状态
-	autoStartEnabled := false
-	if as.autoStartService != nil {
-		if enabled, err := as.autoStartService.IsEnabled(); err == nil {
-			autoStartEnabled = enabled
-		}
-	}
-
 	return AppSettings{
 		ShowHeatmap:            true,
 		ShowHomeTitle:          true,
-		AutoStart:              autoStartEnabled,
 		EnableProviderFallback: true,
 		RoutingMode:            "auto", // 默认使用自动路由模式
 		DefaultClaudeProvider:  "",     // 默认无指定供应商
@@ -71,19 +59,6 @@ func (as *AppSettingsService) GetAppSettings() (AppSettings, error) {
 func (as *AppSettingsService) SaveAppSettings(settings AppSettings) (AppSettings, error) {
 	as.mu.Lock()
 	defer as.mu.Unlock()
-
-	// 同步开机自启动状态
-	if as.autoStartService != nil {
-		if settings.AutoStart {
-			if err := as.autoStartService.Enable(); err != nil {
-				return settings, err
-			}
-		} else {
-			if err := as.autoStartService.Disable(); err != nil {
-				return settings, err
-			}
-		}
-	}
 
 	if err := as.saveLocked(settings); err != nil {
 		return settings, err

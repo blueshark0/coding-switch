@@ -162,18 +162,25 @@ func (s *SessionService) CleanExpiredSessions() error {
 	claudeExpiredTime := time.Now().Add(-ClaudeSessionTimeout)
 	codexExpiredTime := time.Now().Add(-CodexSessionTimeout)
 
-	query := `DELETE FROM session_provider_binding
-		WHERE (platform = 'claude' AND last_success_at < ?)
-		   OR (platform = 'codex' AND last_success_at < ?)`
-
-	result, err := db.Exec(query, claudeExpiredTime, codexExpiredTime)
-	if err != nil {
-		return fmt.Errorf("清理过期会话失败: %w", err)
+	var totalDeleted int64
+	clauses := []struct {
+		platform string
+		cutoff   time.Time
+	}{
+		{"claude", claudeExpiredTime},
+		{"codex", codexExpiredTime},
 	}
-
-	rows, _ := result.RowsAffected()
-	if rows > 0 {
-		log.Printf("[INFO] 清理了 %d 个过期会话\n", rows)
+	for _, clause := range clauses {
+		result, err := db.Exec(`DELETE FROM session_provider_binding WHERE platform = ? AND last_success_at < ?`, clause.platform, clause.cutoff)
+		if err != nil {
+			return fmt.Errorf("清理过期会话失败: %w", err)
+		}
+		if rows, err := result.RowsAffected(); err == nil {
+			totalDeleted += rows
+		}
+	}
+	if totalDeleted > 0 {
+		log.Printf("[INFO] 清理了 %d 个过期会话\n", totalDeleted)
 	}
 
 	return nil

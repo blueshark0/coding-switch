@@ -239,7 +239,6 @@
         "theme": "Theme mode",
         "heatmap": "Show dashboard heatmap",
         "homeTitle": "Show home title",
-        "autoStart": "Launch at login",
         "providerFallback": "Provider Fallback",
         "routingMode": "Routing Mode"
       },

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -49,26 +50,55 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 	}
 
 	home, _ := os.UserHomeDir()
+	dbDir := filepath.Join(home, ".code-switch")
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		log.Printf("创建数据库目录失败: %v\n", err)
+	}
+	appDBPath := filepath.Join(dbDir, "app.db")
+	requestLogDBPath := filepath.Join(dbDir, "request_log.db")
+	sessionDBPath := filepath.Join(dbDir, "session.db")
+	appDSN := fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000", appDBPath)
+	requestLogDSN := fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000", requestLogDBPath)
+	sessionDSN := fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000", sessionDBPath)
 
 	if err := xdb.Inits([]xdb.Config{
 		{
-			Name:        "default",
+			Name:        CoreDBName,
 			Driver:      "sqlite",
-			DSN:         filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"),
+			DSN:         appDSN,
 			MaxOpenConn: 1,
 			MaxIdleConn: 1,
+		},
+		{
+			Name:        RequestLogDBName,
+			Driver:      "sqlite",
+			DSN:         requestLogDSN,
+			MaxOpenConn: 4,
+			MaxIdleConn: 4,
+		},
+		{
+			Name:        SessionDBName,
+			Driver:      "sqlite",
+			DSN:         sessionDSN,
+			MaxOpenConn: 2,
+			MaxIdleConn: 2,
 		},
 	}); err != nil {
 		log.Printf("初始化数据库失败: %v\n", err)
 	} else {
-		if err := ensureRequestLogTable(); err != nil {
+		if err := ensureRequestLogTable(RequestLogDBName); err != nil {
 			log.Printf("初始化 request_log 表失败: %v\n", err)
 		}
-		if err := ensureSessionBindingTable(); err != nil {
+		if err := ensureSessionBindingTable(SessionDBName); err != nil {
 			log.Printf("初始化 session_provider_binding 表失败: %v\n", err)
 		}
-		configureSQLitePragmas()
-		if err := cleanupOldRequestLogs(requestLogRetentionDays); err != nil {
+		configureSQLitePragmas(CoreDBName)
+		configureSQLitePragmas(RequestLogDBName)
+		configureSQLitePragmas(SessionDBName)
+		if err := migrateLegacyTables(requestLogDBPath, sessionDBPath); err != nil {
+			log.Printf("迁移历史数据失败: %v\n", err)
+		}
+		if err := cleanupOldRequestLogs(RequestLogDBName, requestLogRetentionDays); err != nil {
 			log.Printf("启动时清理历史 request_log 失败: %v\n", err)
 		}
 	}
@@ -489,16 +519,16 @@ func ensureRequestLogColumn(db *sql.DB, column string, definition string) error 
 	return nil
 }
 
-func ensureRequestLogTable() error {
-	db, err := xdb.DB("default")
+func ensureRequestLogTable(dbName string) error {
+	db, err := xdb.DB(dbName)
 	if err != nil {
 		return err
 	}
 	return ensureRequestLogTableWithDB(db)
 }
 
-func ensureSessionBindingTable() error {
-	db, err := xdb.DB("default")
+func ensureSessionBindingTable(dbName string) error {
+	db, err := xdb.DB(dbName)
 	if err != nil {
 		return err
 	}
@@ -598,10 +628,10 @@ func (prs *ProviderRelayService) startLogWriter() {
 			if len(batch) == 0 {
 				return
 			}
-			if _, err := xdb.New("request_log").InsertBatch(batch); err != nil {
+			if _, err := requestLogModel().InsertBatch(batch); err != nil {
 				log.Printf("批量写入 request_log 失败: %v\n", err)
 				for _, record := range batch {
-					if _, insertErr := xdb.New("request_log").Insert(record); insertErr != nil {
+					if _, insertErr := requestLogModel().Insert(record); insertErr != nil {
 						log.Printf("写入 request_log 失败: %v\n", insertErr)
 					}
 				}
@@ -647,7 +677,7 @@ func (prs *ProviderRelayService) startRequestLogRetentionTask() {
 		for {
 			select {
 			case <-ticker.C:
-				if err := cleanupOldRequestLogs(requestLogRetentionDays); err != nil {
+				if err := cleanupOldRequestLogs(RequestLogDBName, requestLogRetentionDays); err != nil {
 					log.Printf("定时清理 request_log 失败: %v\n", err)
 				}
 			case <-prs.shutdown:
@@ -690,7 +720,7 @@ func (prs *ProviderRelayService) writeRequestLogSync(logEntry *ReqeustLog) {
 	if logEntry == nil {
 		return
 	}
-	if _, err := xdb.New("request_log").Insert(recordFromRequestLog(logEntry)); err != nil {
+	if _, err := requestLogModel().Insert(recordFromRequestLog(logEntry)); err != nil {
 		log.Printf("写入 request_log 失败: %v\n", err)
 	}
 }
@@ -711,11 +741,11 @@ func recordFromRequestLog(logEntry *ReqeustLog) xdb.Record {
 	}
 }
 
-func cleanupOldRequestLogs(retentionDays int) error {
+func cleanupOldRequestLogs(dbName string, retentionDays int) error {
 	if retentionDays <= 0 {
 		return nil
 	}
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(dbName)
 	if err != nil {
 		return err
 	}
@@ -739,8 +769,8 @@ func cleanupOldRequestLogs(retentionDays int) error {
 	return nil
 }
 
-func configureSQLitePragmas() {
-	db, err := xdb.DB("default")
+func configureSQLitePragmas(dbName string) {
+	db, err := xdb.DB(dbName)
 	if err != nil {
 		return
 	}
@@ -753,6 +783,105 @@ func configureSQLitePragmas() {
 		if _, err := db.Exec(stmt); err != nil {
 			log.Printf("设置 SQLite PRAGMA 失败 (%s): %v\n", stmt, err)
 		}
+	}
+}
+
+func migrateLegacyTables(requestLogDBPath, sessionDBPath string) error {
+	var errs []error
+	if err := migrateTable(CoreDBName, RequestLogDBName, requestLogDBPath, "request_log"); err != nil {
+		errs = append(errs, fmt.Errorf("request_log: %w", err))
+	}
+	if err := migrateTable(CoreDBName, SessionDBName, sessionDBPath, "session_provider_binding"); err != nil {
+		errs = append(errs, fmt.Errorf("session_provider_binding: %w", err))
+	}
+	return errors.Join(errs...)
+}
+
+func migrateTable(srcDBName, destDBName, destPath, table string) error {
+	if destPath == "" {
+		return fmt.Errorf("目标数据库路径为空: %s", table)
+	}
+	srcDB, err := xdb.DB(srcDBName)
+	if err != nil {
+		return err
+	}
+	destDB, err := xdb.DB(destDBName)
+	if err != nil {
+		return err
+	}
+
+	exists, err := sqliteTableExists(srcDB, table)
+	if err != nil || !exists {
+		return err
+	}
+
+	destRows, err := sqliteRowCount(destDB, table)
+	if err != nil {
+		return err
+	}
+	if destRows > 0 {
+		return nil
+	}
+
+	srcRows, err := sqliteRowCount(srcDB, table)
+	if err != nil {
+		return err
+	}
+	if srcRows == 0 {
+		return nil
+	}
+
+	alias := fmt.Sprintf("%s_migrate", table)
+	if err := attachDatabase(srcDB, alias, destPath); err != nil {
+		return err
+	}
+	defer detachDatabase(srcDB, alias)
+
+	stmt := fmt.Sprintf("INSERT INTO %s.%s SELECT * FROM main.%s", alias, table, table)
+	if _, err := srcDB.Exec(stmt); err != nil {
+		return err
+	}
+	log.Printf("迁移 %d 条 %s 记录到新数据库\n", srcRows, table)
+	return nil
+}
+
+func sqliteTableExists(db *sql.DB, table string) (bool, error) {
+	var count int
+	err := db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?", table).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func sqliteRowCount(db *sql.DB, table string) (int64, error) {
+	query := fmt.Sprintf("SELECT COUNT(*) FROM %s", table)
+	var count int64
+	if err := db.QueryRow(query).Scan(&count); err != nil {
+		if isNoSuchTableErr(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return count, nil
+}
+
+func attachDatabase(db *sql.DB, alias, path string) error {
+	if alias == "" || path == "" {
+		return fmt.Errorf("attach 参数无效")
+	}
+	escaped := strings.ReplaceAll(path, "'", "''")
+	stmt := fmt.Sprintf("ATTACH DATABASE '%s' AS %s", escaped, alias)
+	_, err := db.Exec(stmt)
+	return err
+}
+
+func detachDatabase(db *sql.DB, alias string) {
+	if alias == "" {
+		return
+	}
+	if _, err := db.Exec(fmt.Sprintf("DETACH DATABASE %s", alias)); err != nil {
+		log.Printf("分离数据库 %s 失败: %v\n", alias, err)
 	}
 }
 

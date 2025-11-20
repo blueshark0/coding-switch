@@ -26,10 +26,15 @@ type SessionBinding struct {
 }
 
 // SessionService 会话管理服务，负责维护会话与供应商的绑定关系
-type SessionService struct{}
+type SessionService struct {
+	dbName string
+}
 
-func NewSessionService() *SessionService {
-	return &SessionService{}
+func NewSessionService(dbName string) *SessionService {
+	if dbName == "" {
+		dbName = SessionDBName
+	}
+	return &SessionService{dbName: dbName}
 }
 
 // GetSessionProvider 获取会话绑定的供应商名称
@@ -39,7 +44,7 @@ func (s *SessionService) GetSessionProvider(platform, sessionID string) (string,
 		return "", nil
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return "", fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -77,7 +82,7 @@ func (s *SessionService) BindSessionToProvider(platform, sessionID, providerName
 		return nil // 参数无效时静默返回
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -103,7 +108,7 @@ func (s *SessionService) UpdateSessionSuccess(platform, sessionID string) error 
 		return nil
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -131,7 +136,7 @@ func (s *SessionService) IsSessionExpired(platform, sessionID string) (bool, err
 		return true, nil
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return true, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -153,7 +158,7 @@ func (s *SessionService) IsSessionExpired(platform, sessionID string) (bool, err
 
 // CleanExpiredSessions 清理所有过期的会话绑定记录
 func (s *SessionService) CleanExpiredSessions() error {
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -221,7 +226,7 @@ func (s *SessionService) GetProviderSessions(platform, providerName string) ([]S
 		return []SessionBinding{}, nil
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -264,7 +269,7 @@ func (s *SessionService) UnbindSession(platform, sessionID string) error {
 		return fmt.Errorf("平台和会话ID不能为空")
 	}
 
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(s.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}

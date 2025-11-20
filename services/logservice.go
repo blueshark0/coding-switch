@@ -34,7 +34,7 @@ func (ls *LogService) ListRequestLogs(platform string, provider string, limit in
 	if limit > 1000 {
 		limit = 1000
 	}
-	model := xdb.New("request_log")
+	model := requestLogModel()
 	options := []xdb.Option{
 		xdb.OrderByDesc("id"),
 		xdb.Limit(limit),
@@ -73,7 +73,7 @@ func (ls *LogService) ListRequestLogs(platform string, provider string, limit in
 }
 
 func (ls *LogService) ListProviders(platform string) ([]string, error) {
-	model := xdb.New("request_log")
+	model := requestLogModel()
 	options := []xdb.Option{
 		xdb.Field("DISTINCT provider as provider"),
 		xdb.WhereNotEq("provider", ""),
@@ -108,7 +108,7 @@ func (ls *LogService) HeatmapStats(days int) ([]HeatmapStat, error) {
 	if totalHours > 1 {
 		rangeStart = rangeStart.Add(-time.Duration(totalHours-1) * time.Hour)
 	}
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(RequestLogDBName)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (ls *LogService) StatsSince(platform string) (LogStats, error) {
 	seriesStart := startOfDay(now)
 	seriesEnd := seriesStart.Add(seriesHours * time.Hour)
 	queryStart := seriesStart.Add(-24 * time.Hour)
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(RequestLogDBName)
 	if err != nil {
 		return stats, err
 	}
@@ -296,7 +296,7 @@ func (ls *LogService) StatsSince(platform string) (LogStats, error) {
 func (ls *LogService) ProviderDailyStats(platform string) ([]ProviderDailyStat, error) {
 	start := startOfDay(time.Now())
 	end := start.Add(24 * time.Hour)
-	db, err := xdb.DB("default")
+	db, err := xdb.DB(RequestLogDBName)
 	if err != nil {
 		return nil, err
 	}

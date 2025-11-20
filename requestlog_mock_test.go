@@ -1,6 +1,7 @@
 package main
 
 import (
+	"codeswitch/services"
 	"fmt"
 	"math"
 	"math/rand"
@@ -15,23 +16,42 @@ import (
 
 const timeLayout = "2006-01-02 15:04:05"
 
+var requestLogDBReady bool
+
 func init() {
+	if os.Getenv("REQUEST_LOG_SEED") == "" {
+		return
+	}
 	home, _ := os.UserHomeDir()
+	dbDir := filepath.Join(home, ".code-switch")
+	if err := os.MkdirAll(dbDir, 0o755); err != nil {
+		fmt.Printf("创建数据库目录失败: %v\n", err)
+		return
+	}
+	requestLogDSN := filepath.Join(dbDir, "request_log.db") + "?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000"
 
 	if err := xdb.Inits([]xdb.Config{
 		{
-			Name:   "default",
+			Name:   services.RequestLogDBName,
 			Driver: "sqlite",
-			DSN:    filepath.Join(home, ".code-switch", "app.db?cache=shared&mode=rwc"),
+			DSN:    requestLogDSN,
 		},
 	}); err != nil {
 		fmt.Printf("初始化 request_log 表失败: %v\n", err)
+		return
 	}
+	requestLogDBReady = true
 }
 
 func TestSeedMockRequestLogs(t *testing.T) {
-	db, _ := xdb.DB("default")
-	xdb.New("request_log").Delete()
+	if os.Getenv("REQUEST_LOG_SEED") == "" {
+		t.Skip("set REQUEST_LOG_SEED=1 to enable manual request_log seeding")
+	}
+	if !requestLogDBReady {
+		t.Fatal("request_log 数据库连接未初始化")
+	}
+	db, _ := xdb.DB(services.RequestLogDBName)
+	xdb.New("request_log", xdb.WithConn(services.RequestLogDBName)).Delete()
 	if err := SeedMockRequestLogs(16); err != nil {
 		t.Fatalf("seed failed: %v", err)
 	}
@@ -51,7 +71,7 @@ func TestSeedMockRequestLogs(t *testing.T) {
 
 // SeedMockRequestLogs 生成模拟 request_log 数据，默认覆盖最近 3 个月。
 func SeedMockRequestLogs(months int) error {
-	model := xdb.New("request_log")
+	model := xdb.New("request_log", xdb.WithConn(services.RequestLogDBName))
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	today := startOfDay(time.Now())
 	totalDays := months * 30

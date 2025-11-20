@@ -75,7 +75,7 @@ func main() {
 	}
 	providerService := services.NewProviderService()
 	appSettings := services.NewAppSettingsService()
-	sessionService := services.NewSessionService()
+	sessionService := services.NewSessionService(services.SessionDBName)
 	providerRelay := services.NewProviderRelayService(providerService, appSettings, sessionService, ":18100")
 	claudeSettings := services.NewClaudeSettingsService(providerRelay.Addr())
 	codexSettings := services.NewCodexSettingsService(providerRelay.Addr())

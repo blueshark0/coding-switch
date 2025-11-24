@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/daodao97/xgo v0.0.0-20251030230403-00e231cbef27
 	github.com/gin-gonic/gin v1.11.0
+	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/tidwall/gjson v1.18.0
 	github.com/tidwall/sjson v1.2.5

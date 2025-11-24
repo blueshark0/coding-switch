@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -30,15 +29,26 @@ const (
 	requestLogFlushInterval   = 500 * time.Millisecond
 	requestLogCleanupInterval = 6 * time.Hour
 	requestLogRetentionDays   = 60
+
+	sessionUpdateBufferSize    = 100
+	sessionUpdateBatchSize     = 20
+	sessionUpdateFlushInterval = 200 * time.Millisecond
 )
+
+type sessionUpdateRequest struct {
+	platform  string
+	sessionID string
+}
 
 type ProviderRelayService struct {
 	providerService    *ProviderService
 	appSettingsService *AppSettingsService
 	sessionService     *SessionService
+	sessionCache       *SessionCache
 	server             *http.Server
 	addr               string
 	requestLogCh       chan *ReqeustLog
+	sessionUpdateCh    chan sessionUpdateRequest
 	shutdown           chan struct{}
 	backgroundWG       sync.WaitGroup
 	shutdownOnce       sync.Once
@@ -80,7 +90,7 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 			Name:        SessionDBName,
 			Driver:      "sqlite",
 			DSN:         sessionDSN,
-			MaxOpenConn: 2,
+			MaxOpenConn: 5,
 			MaxIdleConn: 2,
 		},
 	}); err != nil {
@@ -107,13 +117,16 @@ func NewProviderRelayService(providerService *ProviderService, appSettingsServic
 		providerService:    providerService,
 		appSettingsService: appSettingsService,
 		sessionService:     sessionService,
+		sessionCache:       NewSessionCache(sessionService),
 		addr:               addr,
 		requestLogCh:       make(chan *ReqeustLog, requestLogBufferSize),
+		sessionUpdateCh:    make(chan sessionUpdateRequest, sessionUpdateBufferSize),
 		shutdown:           make(chan struct{}),
 	}
 
 	prs.startLogWriter()
 	prs.startRequestLogRetentionTask()
+	prs.startSessionUpdateWorker()
 
 	return prs
 }
@@ -231,172 +244,38 @@ func (prs *ProviderRelayService) proxyHandler(kind string, endpoint string) gin.
 
 		// 如果未指定模型，记录警告但不拦截
 		if requestedModel == "" {
-			log.Printf("[WARN] 请求未指定模型名，无法执行模型智能降级\n")
+			log.Printf("[WARN] 请求未指定模型名\n")
 		}
-
-		providers, err := prs.providerService.LoadProviders(kind)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load providers"})
-			return
-		}
-
-		active := make([]Provider, 0, len(providers))
-		skippedCount := 0
-		for _, provider := range providers {
-			// 基础过滤：enabled、URL、APIKey
-			if !provider.Enabled || provider.APIURL == "" || provider.APIKey == "" {
-				continue
-			}
-
-			// 配置验证：失败则自动跳过
-			if errs := provider.ValidateConfiguration(); len(errs) > 0 {
-				log.Printf("[WARN] Provider %s 配置验证失败，已自动跳过: %v\n", provider.Name, errs)
-				skippedCount++
-				continue
-			}
-
-			// 核心过滤：只保留支持请求模型的 provider
-			if requestedModel != "" && !provider.IsModelSupported(requestedModel) {
-				log.Printf("[INFO] Provider %s 不支持模型 %s，已跳过\n", provider.Name, requestedModel)
-				skippedCount++
-				continue
-			}
-
-			active = append(active, provider)
-		}
-
-		if len(active) == 0 {
-			if requestedModel != "" {
-				c.JSON(http.StatusNotFound, gin.H{
-					"error": fmt.Sprintf("没有可用的 provider 支持模型 '%s'（已跳过 %d 个不兼容的 provider）", requestedModel, skippedCount),
-				})
-			} else {
-				c.JSON(http.StatusNotFound, gin.H{"error": "no providers available"})
-			}
-			return
-		}
-
-		names := make([]string, len(active))
-		for i, p := range active {
-			names[i] = p.Name
-		}
-		log.Printf("[INFO] 找到 %d 个可用的 provider（已过滤 %d 个）：%s", len(active), skippedCount, strings.Join(names, ", "))
 
 		// 读取应用设置
 		appSettings, err := prs.appSettingsService.GetAppSettings()
 		if err != nil {
-			log.Printf("[WARN] 无法读取应用设置，使用默认行为: %v\n", err)
+			log.Printf("[ERROR] 无法读取应用设置: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load app settings"})
+			return
 		}
 
 		query := flattenQuery(c.Request.URL.Query())
 		clientHeaders := cloneHeaders(c.Request.Header)
 
-		// 检查路由模式
-		if appSettings.RoutingMode == "manual" {
-			// 手动路由模式
-			log.Printf("[INFO] 使用手动路由模式\n")
-			ok, err := prs.routeToManualProvider(c, kind, endpoint, bodyBytes, requestedModel, isStream, query, clientHeaders, appSettings)
-			if !ok {
-				errorMsg := "手动路由失败"
-				if err != nil {
-					errorMsg = err.Error()
-				}
-				c.JSON(http.StatusBadGateway, gin.H{"error": errorMsg})
-			}
+		// 加载 providers（一次性加载，避免后续重复 I/O）
+		providers, err := prs.providerService.LoadProviders(kind)
+		if err != nil {
+			log.Printf("[ERROR] 加载 providers 失败: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load providers"})
 			return
 		}
 
-		// 自动路由模式（原有逻辑）
-		log.Printf("[INFO] 使用自动优先级路由模式\n")
-		enableFallback := appSettings.EnableProviderFallback
-
-		// 如果禁用 fallback，只保留第一个可用的 provider
-		if !enableFallback && len(active) > 0 {
-			active = active[:1]
-			log.Printf("[INFO] Provider fallback 已禁用，仅使用第一个可用的 Provider: %s\n", active[0].Name)
-		}
-
-		// 按 Level 分组
-		levelGroups := make(map[int][]Provider)
-		for _, provider := range active {
-			level := provider.Level
-			if level <= 0 {
-				level = 1 // 未配置或零值时默认为 Level 1
+		// 使用手动会话路由模式
+		log.Printf("[INFO] 使用手动会话路由模式\n")
+		ok, err := prs.routeToManualProvider(c, kind, endpoint, bodyBytes, requestedModel, isStream, query, clientHeaders, appSettings, providers)
+		if !ok {
+			errorMsg := "手动路由失败"
+			if err != nil {
+				errorMsg = err.Error()
 			}
-			levelGroups[level] = append(levelGroups[level], provider)
+			c.JSON(http.StatusBadGateway, gin.H{"error": errorMsg})
 		}
-
-		// 获取所有 level 并升序排序
-		levels := make([]int, 0, len(levelGroups))
-		for level := range levelGroups {
-			levels = append(levels, level)
-		}
-		sort.Ints(levels)
-
-		log.Printf("[INFO] 共 %d 个 Level 分组：%v\n", len(levels), levels)
-
-		var lastErr error
-		attemptCount := 0
-
-		// 外层循环：遍历 Level（从低到高，优先级从高到低）
-		for _, level := range levels {
-			providersInLevel := levelGroups[level]
-			log.Printf("[INFO] === 尝试 Level %d（%d 个 provider）===\n", level, len(providersInLevel))
-
-			// 内层循环：遍历该 Level 的所有 provider（按数组顺序）
-			for i, provider := range providersInLevel {
-				attemptCount++
-
-				// 获取实际应该使用的模型名
-				effectiveModel := provider.GetEffectiveModel(requestedModel)
-
-				// 如果需要映射，修改请求体
-				currentBodyBytes := bodyBytes
-				if effectiveModel != requestedModel && requestedModel != "" {
-					log.Printf("[INFO]   Provider %s 映射模型: %s -> %s\n", provider.Name, requestedModel, effectiveModel)
-
-					modifiedBody, err := ReplaceModelInRequestBody(bodyBytes, effectiveModel)
-					if err != nil {
-						log.Printf("[ERROR]   替换模型名失败: %v\n", err)
-						lastErr = err
-						continue
-					}
-					currentBodyBytes = modifiedBody
-				}
-
-				// 详细模式日志：记录 provider、model、level
-				log.Printf("[INFO]   [%d/%d] Provider: %s | Model: %s\n",
-					i+1, len(providersInLevel), provider.Name, effectiveModel)
-
-				startTime := time.Now()
-				ok, err := prs.forwardRequest(c, kind, provider, endpoint, query, clientHeaders, currentBodyBytes, isStream, effectiveModel)
-				duration := time.Since(startTime)
-
-				if ok {
-					log.Printf("[INFO]   ✓ Level %d 成功: %s | 耗时: %.2fs\n", level, provider.Name, duration.Seconds())
-					return
-				}
-
-				// 详细模式日志：记录错误和耗时
-				errorMsg := "未知错误"
-				if err != nil {
-					errorMsg = err.Error()
-				}
-				log.Printf("[WARN]   ✗ Level %d 失败: %s | 错误: %s | 耗时: %.2fs\n",
-					level, provider.Name, errorMsg, duration.Seconds())
-				lastErr = err
-			}
-
-			// 当前 Level 所有 provider 都失败
-			log.Printf("[WARN] Level %d 的所有 %d 个 provider 均失败，尝试下一 Level\n", level, len(providersInLevel))
-		}
-
-		// 所有 Level 的所有 provider 都失败
-		message := fmt.Sprintf("所有 %d 个 Level 的 %d 个 provider 均失败", len(levels), attemptCount)
-		if lastErr != nil {
-			message = fmt.Sprintf("%s: %s", message, lastErr.Error())
-		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": message})
 	}
 }
 
@@ -687,6 +566,51 @@ func (prs *ProviderRelayService) startRequestLogRetentionTask() {
 	}()
 }
 
+func (prs *ProviderRelayService) startSessionUpdateWorker() {
+	if prs == nil {
+		return
+	}
+	prs.backgroundWG.Add(1)
+	go func() {
+		defer prs.backgroundWG.Done()
+		ticker := time.NewTicker(sessionUpdateFlushInterval)
+		defer ticker.Stop()
+		batch := make([]sessionUpdateRequest, 0, sessionUpdateBatchSize)
+
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			// 批量更新会话时间
+			for _, req := range batch {
+				if err := prs.sessionCache.UpdateSessionSuccess(req.platform, req.sessionID); err != nil {
+					log.Printf("[WARN] 异步更新会话时间失败: %v\n", err)
+				}
+			}
+			batch = batch[:0]
+		}
+
+		for {
+			select {
+			case req, ok := <-prs.sessionUpdateCh:
+				if !ok {
+					flush()
+					return
+				}
+				batch = append(batch, req)
+				if len(batch) >= sessionUpdateBatchSize {
+					flush()
+				}
+			case <-ticker.C:
+				flush()
+			case <-prs.shutdown:
+				flush()
+				return
+			}
+		}
+	}()
+}
+
 func (prs *ProviderRelayService) stopBackgroundWorkers() {
 	if prs == nil {
 		return
@@ -694,6 +618,7 @@ func (prs *ProviderRelayService) stopBackgroundWorkers() {
 	prs.shutdownOnce.Do(func() {
 		close(prs.shutdown)
 		close(prs.requestLogCh)
+		close(prs.sessionUpdateCh)
 	})
 	prs.backgroundWG.Wait()
 }
@@ -1000,6 +925,7 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	query map[string]string,
 	clientHeaders map[string]string,
 	appSettings AppSettings,
+	providers []Provider,
 ) (bool, error) {
 	sessionID := prs.extractSessionID(c, kind, bodyBytes)
 	log.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
@@ -1008,9 +934,9 @@ func (prs *ProviderRelayService) routeToManualProvider(
 	boundProviderName := ""
 	sessionAlreadyBound := false
 
-	// 步骤1：检查会话是否已绑定
+	// 步骤1：检查会话是否已绑定（使用缓存减少数据库查询）
 	if sessionID != "" {
-		boundProvider, err := prs.sessionService.GetSessionProvider(kind, sessionID)
+		boundProvider, err := prs.sessionCache.GetSessionProvider(kind, sessionID)
 		if err != nil {
 			log.Printf("[WARN] 查询会话绑定失败: %v\n", err)
 		} else if boundProvider != "" {
@@ -1036,10 +962,16 @@ func (prs *ProviderRelayService) routeToManualProvider(
 		log.Printf("[INFO] [手动路由] 使用默认供应商: %s\n", targetProviderName)
 	}
 
-	// 步骤3：加载目标供应商配置
-	provider, err := prs.providerService.GetProviderByName(kind, targetProviderName)
-	if err != nil {
-		return false, fmt.Errorf("加载供应商失败: %w", err)
+	// 步骤3：从传入的 providers 中查找目标供应商（避免重复文件 I/O）
+	var provider *Provider
+	for i := range providers {
+		if providers[i].Name == targetProviderName {
+			provider = &providers[i]
+			break
+		}
+	}
+	if provider == nil {
+		return false, fmt.Errorf("供应商 %s 不存在", targetProviderName)
 	}
 
 	// 步骤4：验证供应商配置
@@ -1085,16 +1017,21 @@ func (prs *ProviderRelayService) routeToManualProvider(
 		// 步骤8：请求成功后的处理
 		if sessionID != "" {
 			if !sessionAlreadyBound {
-				if err := prs.sessionService.BindSessionToProvider(kind, sessionID, provider.Name); err != nil {
+				if err := prs.sessionCache.BindSessionToProvider(kind, sessionID, provider.Name); err != nil {
 					log.Printf("[WARN] 绑定会话失败: %v\n", err)
 				} else {
 					boundProviderName = provider.Name
 					sessionAlreadyBound = true
 				}
 			} else if boundProviderName != "" {
-				// 如果已绑定，更新最后成功时间
-				if err := prs.sessionService.UpdateSessionSuccess(kind, sessionID); err != nil {
-					log.Printf("[WARN] 更新会话时间失败: %v\n", err)
+				// 如果已绑定，异步更新最后成功时间
+				select {
+				case prs.sessionUpdateCh <- sessionUpdateRequest{platform: kind, sessionID: sessionID}:
+				default:
+					// 缓冲已满，回退为同步更新
+					if err := prs.sessionCache.UpdateSessionSuccess(kind, sessionID); err != nil {
+						log.Printf("[WARN] 更新会话时间失败: %v\n", err)
+					}
 				}
 			}
 		}

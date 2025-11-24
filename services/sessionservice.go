@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/daodao97/xgo/xdb"
@@ -27,7 +28,10 @@ type SessionBinding struct {
 
 // SessionService 会话管理服务，负责维护会话与供应商的绑定关系
 type SessionService struct {
-	dbName string
+	dbName        string
+	cleanupTicker *time.Ticker
+	cleanupStop   chan struct{}
+	cleanupWG     sync.WaitGroup
 }
 
 func NewSessionService(dbName string) *SessionService {
@@ -193,15 +197,41 @@ func (s *SessionService) CleanExpiredSessions() error {
 
 // StartCleanupTask 启动后台定时清理任务
 func (s *SessionService) StartCleanupTask() {
+	if s.cleanupTicker != nil {
+		return
+	}
 	ticker := time.NewTicker(5 * time.Minute) // 每5分钟清理一次
+	s.cleanupTicker = ticker
+	s.cleanupStop = make(chan struct{})
+	s.cleanupWG.Add(1)
 	go func() {
-		for range ticker.C {
-			if err := s.CleanExpiredSessions(); err != nil {
-				log.Printf("[ERROR] 定时清理过期会话失败: %v\n", err)
+		defer s.cleanupWG.Done()
+		for {
+			select {
+			case <-ticker.C:
+				if err := s.CleanExpiredSessions(); err != nil {
+					log.Printf("[ERROR] 定时清理过期会话失败: %v\n", err)
+				}
+			case <-s.cleanupStop:
+				return
 			}
 		}
 	}()
 	log.Println("[INFO] 会话清理定时任务已启动（每5分钟执行）")
+}
+
+// StopCleanupTask 停止后台清理任务
+func (s *SessionService) StopCleanupTask() {
+	if s.cleanupTicker == nil {
+		return
+	}
+	s.cleanupTicker.Stop()
+	if s.cleanupStop != nil {
+		close(s.cleanupStop)
+	}
+	s.cleanupWG.Wait()
+	s.cleanupTicker = nil
+	s.cleanupStop = nil
 }
 
 // isExpired 检查给定的时间是否已过期（内部辅助方法）

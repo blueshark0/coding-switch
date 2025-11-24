@@ -22,8 +22,6 @@ const router = useRouter()
 const { t } = useI18n()
 const heatmapEnabled = ref(true)
 const homeTitleVisible = ref(true)
-const providerFallbackEnabled = ref(true)
-const routingMode = ref<'auto' | 'manual'>('auto')
 const fullAppSettings = ref<AppSettings | null>(null)
 const settingsLoading = ref(true)
 const saveBusy = ref(false)
@@ -42,14 +40,10 @@ const loadAppSettings = async () => {
     fullAppSettings.value = data  // 保存完整设置，用于后续保存时保留其他字段
     heatmapEnabled.value = data?.show_heatmap ?? true
     homeTitleVisible.value = data?.show_home_title ?? true
-    providerFallbackEnabled.value = data?.enable_provider_fallback ?? true
-    routingMode.value = data?.routing_mode ?? 'auto'
   } catch (error) {
     console.error('failed to load app settings', error)
     heatmapEnabled.value = true
     homeTitleVisible.value = true
-    providerFallbackEnabled.value = true
-    routingMode.value = 'auto'
   } finally {
     settingsLoading.value = false
   }
@@ -63,27 +57,13 @@ const persistAppSettings = async () => {
     return
   }
 
-  // 验证：如果切换到 manual 模式，检查是否已设置默认供应商
-  if (routingMode.value === 'manual') {
-    const claudeDefault = currentSettings.default_claude_provider
-    const codexDefault = currentSettings.default_codex_provider
-
-    if (!claudeDefault && !codexDefault) {
-      showToast(t('components.general.routingMode.requireDefault'), 'error')
-      routingMode.value = 'auto' // 回退到自动模式
-      return
-    }
-  }
-
   saveBusy.value = true
   try {
     const payload: AppSettings = {
-      ...currentSettings,  // 保留现有的所有设置（包括路由相关字段）
+      ...currentSettings,  // 保留现有的所有设置
       // 只更新当前页面管理的字段
       show_heatmap: heatmapEnabled.value,
       show_home_title: homeTitleVisible.value,
-      enable_provider_fallback: providerFallbackEnabled.value,
-      routing_mode: routingMode.value,
     }
     await saveAppSettings(payload)
     window.dispatchEvent(new CustomEvent('app-settings-updated'))
@@ -307,34 +287,6 @@ const handleSecondaryImportAction = async () => {
               />
               <span></span>
             </label>
-          </ListItem>
-          <ListItem
-            :label="$t('components.general.label.providerFallback')"
-            :sub-label="$t('components.general.sublabel.providerFallback')"
-          >
-            <label class="mac-switch">
-              <input
-                type="checkbox"
-                :disabled="settingsLoading || saveBusy"
-                v-model="providerFallbackEnabled"
-                @change="persistAppSettings"
-              />
-              <span></span>
-            </label>
-          </ListItem>
-          <ListItem
-            :label="$t('components.general.label.routingMode')"
-            :sub-label="$t('components.general.sublabel.routingMode')"
-          >
-            <select
-              class="mac-select"
-              v-model="routingMode"
-              @change="persistAppSettings"
-              :disabled="settingsLoading || saveBusy"
-            >
-              <option value="auto">{{ $t('components.general.routingMode.auto') }}</option>
-              <option value="manual">{{ $t('components.general.routingMode.manual') }}</option>
-            </select>
           </ListItem>
           <ListItem
             v-if="showImportRow"

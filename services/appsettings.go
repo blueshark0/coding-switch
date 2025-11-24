@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -13,12 +14,10 @@ const (
 )
 
 type AppSettings struct {
-	ShowHeatmap            bool   `json:"show_heatmap"`
-	ShowHomeTitle          bool   `json:"show_home_title"`
-	EnableProviderFallback bool   `json:"enable_provider_fallback"`
-	RoutingMode            string `json:"routing_mode"`            // "auto" 或 "manual"
-	DefaultClaudeProvider  string `json:"default_claude_provider"` // Claude 默认供应商名称
-	DefaultCodexProvider   string `json:"default_codex_provider"`  // Codex 默认供应商名称
+	ShowHeatmap           bool   `json:"show_heatmap"`
+	ShowHomeTitle         bool   `json:"show_home_title"`
+	DefaultClaudeProvider string `json:"default_claude_provider"` // Claude 默认供应商名称
+	DefaultCodexProvider  string `json:"default_codex_provider"`  // Codex 默认供应商名称
 }
 
 type AppSettingsService struct {
@@ -39,12 +38,10 @@ func NewAppSettingsService() *AppSettingsService {
 
 func (as *AppSettingsService) defaultSettings() AppSettings {
 	return AppSettings{
-		ShowHeatmap:            true,
-		ShowHomeTitle:          true,
-		EnableProviderFallback: true,
-		RoutingMode:            "auto", // 默认使用自动路由模式
-		DefaultClaudeProvider:  "",     // 默认无指定供应商
-		DefaultCodexProvider:   "",     // 默认无指定供应商
+		ShowHeatmap:           true,
+		ShowHomeTitle:         true,
+		DefaultClaudeProvider: "", // 默认无指定供应商
+		DefaultCodexProvider:  "", // 默认无指定供应商
 	}
 }
 
@@ -101,11 +98,6 @@ func (as *AppSettingsService) saveLocked(settings AppSettings) error {
 func (as *AppSettingsService) ValidateDefaultProviders(providerService *ProviderService, settings AppSettings) []string {
 	errors := make([]string, 0)
 
-	// 仅在手动路由模式下进行验证
-	if settings.RoutingMode != "manual" {
-		return errors
-	}
-
 	// 验证 Claude 默认供应商
 	if settings.DefaultClaudeProvider != "" {
 		providers, err := providerService.LoadProviders("claude")
@@ -153,4 +145,63 @@ func (as *AppSettingsService) ValidateDefaultProviders(providerService *Provider
 	}
 
 	return errors
+}
+
+// EnsureDefaultProviders 自动迁移逻辑：如果默认供应商未设置，自动选择第一个已启用的供应商
+// 返回是否进行了自动设置
+func (as *AppSettingsService) EnsureDefaultProviders(providerService *ProviderService) (bool, error) {
+	settings, err := as.GetAppSettings()
+	if err != nil {
+		return false, err
+	}
+
+	modified := false
+
+	// 检查并设置 Claude 默认供应商
+	if settings.DefaultClaudeProvider == "" {
+		providers, err := providerService.LoadProviders("claude")
+		if err == nil && len(providers) > 0 {
+			// 查找第一个已启用的供应商
+			for _, p := range providers {
+				if p.Enabled {
+					settings.DefaultClaudeProvider = p.Name
+					modified = true
+					log.Printf("[INFO] 自动迁移：设置 Claude 默认供应商为 %s\n", p.Name)
+					break
+				}
+			}
+			if settings.DefaultClaudeProvider == "" {
+				log.Printf("[WARN] 未找到已启用的 Claude 供应商，无法自动设置默认供应商\n")
+			}
+		}
+	}
+
+	// 检查并设置 Codex 默认供应商
+	if settings.DefaultCodexProvider == "" {
+		providers, err := providerService.LoadProviders("codex")
+		if err == nil && len(providers) > 0 {
+			// 查找第一个已启用的供应商
+			for _, p := range providers {
+				if p.Enabled {
+					settings.DefaultCodexProvider = p.Name
+					modified = true
+					log.Printf("[INFO] 自动迁移：设置 Codex 默认供应商为 %s\n", p.Name)
+					break
+				}
+			}
+			if settings.DefaultCodexProvider == "" {
+				log.Printf("[WARN] 未找到已启用的 Codex 供应商，无法自动设置默认供应商\n")
+			}
+		}
+	}
+
+	// 如果有修改，保存设置
+	if modified {
+		_, err = as.SaveAppSettings(settings)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return modified, nil
 }

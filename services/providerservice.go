@@ -28,10 +28,6 @@ type Provider struct {
 	// 支持精确匹配和通配符（如 "claude-*" -> "anthropic/claude-*"）
 	ModelMapping map[string]string `json:"modelMapping,omitempty"`
 
-	// 优先级分组 - 数字越小优先级越高（1-10，默认 1）
-	// 使用 omitempty 确保零值不序列化，向后兼容
-	Level int `json:"level,omitempty"`
-
 	// 内部字段：配置验证错误（不持久化）
 	configErrors []string `json:"-"`
 }

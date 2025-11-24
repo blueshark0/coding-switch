@@ -157,21 +157,7 @@ func (css *CodexSettingsService) authPaths() (string, string, error) {
 }
 
 func (css *CodexSettingsService) baseURL() string {
-	addr := strings.TrimSpace(css.relayAddr)
-	if addr == "" {
-		addr = ":18100"
-	}
-	if strings.HasPrefix(addr, "http://") || strings.HasPrefix(addr, "https://") {
-		return addr
-	}
-	host := addr
-	if strings.HasPrefix(host, ":") {
-		host = "127.0.0.1" + host
-	}
-	if !strings.Contains(host, "://") {
-		host = "http://" + host
-	}
-	return host
+	return normalizeRelayBaseURL(css.relayAddr)
 }
 
 type codexConfig struct {
@@ -187,37 +173,6 @@ type codexProvider struct {
 	EnvKey             string `toml:"env_key"`
 	WireAPI            string `toml:"wire_api"`
 	RequiresOpenAIAuth bool   `toml:"requires_openai_auth"`
-}
-
-func ensureTomlTable(raw map[string]any, key string) map[string]map[string]any {
-	val, ok := raw[key]
-	if ok {
-		if mp, ok := val.(map[string]map[string]any); ok {
-			return mp
-		}
-		if generic, ok := val.(map[string]any); ok {
-			result := make(map[string]map[string]any)
-			for k, v := range generic {
-				if inner, ok := v.(map[string]any); ok {
-					result[k] = inner
-				}
-			}
-			raw[key] = result
-			return result
-		}
-	}
-	mp := make(map[string]map[string]any)
-	raw[key] = mp
-	return mp
-}
-
-func ensureProviderTable(mp map[string]map[string]any, key string) map[string]any {
-	if provider, ok := mp[key]; ok {
-		return provider
-	}
-	provider := make(map[string]any)
-	mp[key] = provider
-	return provider
 }
 
 func stripModelProvidersHeader(data []byte) []byte {

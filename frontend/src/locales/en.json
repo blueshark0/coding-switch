@@ -124,8 +124,7 @@
           "apiKey": "API key",
           "officialSite": "Official site",
           "icon": "Icon",
-          "enabled": "Enabled",
-          "level": "Priority Level"
+          "enabled": "Enabled"
         },
         "placeholders": {
           "name": "e.g. AICoding.sh",
@@ -133,9 +132,6 @@
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
           "icon": "e.g. aicoding, kimi"
-        },
-        "hints": {
-          "level": "Lower numbers = higher priority. Level 1 providers are tried first, then Level 2, etc."
         },
         "actions": {
           "cancel": "Cancel",
@@ -151,18 +147,6 @@
         "errors": {
           "invalidUrl": "Please enter a valid API URL"
         }
-      },
-      "levelDesc": {
-        "highest": "Highest Priority",
-        "high": "High Priority",
-        "mediumHigh": "Medium-High Priority",
-        "medium": "Medium Priority",
-        "normal": "Normal Priority",
-        "mediumLow": "Medium-Low Priority",
-        "low": "Low Priority",
-        "lower": "Lower Priority",
-        "veryLow": "Very Low Priority",
-        "lowest": "Lowest Priority"
       }
     },
     "logs": {
@@ -238,15 +222,11 @@
         "startup": "Started when logged in",
         "theme": "Theme mode",
         "heatmap": "Show dashboard heatmap",
-        "homeTitle": "Show home title",
-        "providerFallback": "Provider Fallback",
-        "routingMode": "Routing Mode"
+        "homeTitle": "Show home title"
       },
       "sublabel": {
         "sb_assistant_access": "Accessibility permission is required to operate clipboard contents",
-        "sb_disk_access": "Full disk access is required to implement file preview",
-        "providerFallback": "Automatically try other providers when requests fail",
-        "routingMode": "Choose between automatic priority routing or manual session routing"
+        "sb_disk_access": "Full disk access is required to implement file preview"
       },
       "buttons": {
         "authorized": "Auth",
@@ -268,11 +248,6 @@
         "loadError": "Failed to read selected config",
         "clear": "Clear selection",
         "reupload": "Upload another JSON"
-      },
-      "routingMode": {
-        "auto": "Automatic Priority Routing",
-        "manual": "Manual Session Routing",
-        "requireDefault": "Please set a default provider first. Click the star icon on a provider card in the main page, then switch to manual routing mode."
       }
     },
     "mcp": {

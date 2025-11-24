@@ -139,21 +139,7 @@ func (css *ClaudeSettingsService) paths() (settingsPath string, backupPath strin
 }
 
 func (css *ClaudeSettingsService) baseURL() string {
-	addr := strings.TrimSpace(css.relayAddr)
-	if addr == "" {
-		addr = ":18100"
-	}
-	if strings.HasPrefix(addr, "http://") || strings.HasPrefix(addr, "https://") {
-		return addr
-	}
-	host := addr
-	if strings.HasPrefix(host, ":") {
-		host = "127.0.0.1" + host
-	}
-	if !strings.Contains(host, "://") {
-		host = "http://" + host
-	}
-	return host
+	return normalizeRelayBaseURL(css.relayAddr)
 }
 
 type claudeSettingsFile struct {

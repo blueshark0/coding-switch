@@ -125,8 +125,7 @@
           "apiKey": "API 密钥",
           "officialSite": "官网地址",
           "icon": "图标",
-          "enabled": "启用状态",
-          "level": "优先级分组"
+          "enabled": "启用状态"
         },
         "placeholders": {
           "name": "例如：AICoding.sh",
@@ -134,9 +133,6 @@
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
           "icon": "例如：aicoding、kimi"
-        },
-        "hints": {
-          "level": "数字越小优先级越高，Level 1 会被优先尝试，失败后依次尝试 Level 2、Level 3 等"
         },
         "actions": {
           "cancel": "取消",
@@ -152,18 +148,6 @@
         "errors": {
           "invalidUrl": "请输入合法的 API 地址"
         }
-      },
-      "levelDesc": {
-        "highest": "最高优先级",
-        "high": "高优先级",
-        "mediumHigh": "中高优先级",
-        "medium": "中等优先级",
-        "normal": "普通优先级",
-        "mediumLow": "中低优先级",
-        "low": "低优先级",
-        "lower": "较低优先级",
-        "veryLow": "很低优先级",
-        "lowest": "最低优先级"
       }
     },
     "logs": {
@@ -238,16 +222,12 @@
         "theme": "主题模式",
         "heatmap": "显示主界面热力墙",
         "homeTitle": "显示首页标题",
-        "providerFallback": "Provider 自动降级",
         "automatic_up": "自动检查更新",
-        "next_up": "下次启动自动检查更新",
-        "routingMode": "路由模式"
+        "next_up": "下次启动自动检查更新"
       },
       "sublabel": {
         "sb_assistant_access": "需要无障碍访问权限来操作剪切板内容",
-        "sb_disk_access": "需要完全磁盘访问权限来实现文件预览",
-        "providerFallback": "请求失败时自动尝试其他 Provider",
-        "routingMode": "选择自动优先级路由或手动会话路由"
+        "sb_disk_access": "需要完全磁盘访问权限来实现文件预览"
       },
       "buttons": {
         "authorized": "已授权",
@@ -269,11 +249,6 @@
         "loadError": "读取配置文件失败",
         "clear": "清除选择",
         "reupload": "重新上传"
-      },
-      "routingMode": {
-        "auto": "自动优先级路由",
-        "manual": "手动会话路由",
-        "requireDefault": "请先设置默认供应商。在主页面点击供应商卡片上的星星图标设置默认供应商，然后再切换到手动路由模式。"
       }
     },
     "mcp": {

@@ -3,7 +3,6 @@ package main
 import (
 	"codeswitch/services"
 	"embed"
-	_ "embed"
 	"fmt"
 	"log"
 	"runtime"
@@ -69,9 +68,9 @@ func main() {
 
 	appservice := &AppService{}
 
-	suiService, errt := services.NewSuiStore()
-	if errt != nil {
-		// 处理错误，比如日志或退出
+	suiService, err := services.NewSuiStore()
+	if err != nil {
+		log.Fatalf("初始化快捷键存储失败: %v", err)
 	}
 	providerService := services.NewProviderService()
 	appSettings := services.NewAppSettingsService()
@@ -129,6 +128,7 @@ func main() {
 
 	app.OnShutdown(func() {
 		_ = providerRelay.Stop()
+		sessionService.StopCleanupTask()
 	})
 
 	// Create a new window with the necessary options.
@@ -239,7 +239,7 @@ func main() {
 	}()
 
 	// Run the application. This blocks until the application has been exited.
-	err := app.Run()
+	err = app.Run()
 
 	// If an error occurred while running the application, log it and exit.
 	if err != nil {

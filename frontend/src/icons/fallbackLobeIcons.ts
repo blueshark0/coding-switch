@@ -13,6 +13,11 @@ const fallbackIcons: Record<string, string> = {
     <path d="M4 12l8.5-8.5L21 12l-8.5 8.5L4 12z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" />
     <path d="M8.5 12L12 8.5 15.5 12 12 15.5 8.5 12z" fill="currentColor" />
   </svg>`,
+  gemini: `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="8" cy="12" r="4.5" stroke="currentColor" stroke-width="1.4" />
+    <circle cx="16" cy="12" r="4.5" stroke="currentColor" stroke-width="1.4" />
+    <path d="M6 12c0 2.5 2 4 4 4M18 12c0-2.5-2-4-4-4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+  </svg>`,
 }
 
 export default fallbackIcons

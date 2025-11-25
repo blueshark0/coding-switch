@@ -32,6 +32,7 @@
             <option value="">{{ t('components.logs.filters.allPlatforms') }}</option>
             <option value="claude">Claude</option>
             <option value="codex">Codex</option>
+            <option value="gemini">Gemini</option>
           </select>
         </label>
         <label class="filter-field">
@@ -367,6 +368,14 @@ const stopCountdown = () => {
   }
 }
 
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    stopCountdown()
+  } else {
+    startCountdown()
+  }
+}
+
 const loadLogs = async () => {
   loading.value = true
   try {
@@ -555,11 +564,13 @@ onMounted(async () => {
   await Promise.all([loadDashboard(), loadProviderOptions()])
   startCountdown()
   setupThemeObserver()
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
 onUnmounted(() => {
   stopCountdown()
   teardownThemeObserver()
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 

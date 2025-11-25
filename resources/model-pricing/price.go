@@ -149,11 +149,6 @@ func (s *Service) getPricing(model string) (*PricingEntry, bool) {
 	if entry, ok := s.pricingMap[model]; ok {
 		return entry, true
 	}
-	if model == "gpt-5-codex" {
-		if entry, ok := s.pricingMap["gpt-5"]; ok {
-			return entry, true
-		}
-	}
 	withoutRegion := stripRegionPrefix(model)
 	if entry, ok := s.pricingMap[withoutRegion]; ok {
 		return entry, true

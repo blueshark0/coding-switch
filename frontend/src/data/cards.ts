@@ -16,7 +16,7 @@ export type AutomationCard = {
   level?: number
 }
 
-export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> = {
+export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', AutomationCard[]> = {
   claude: [
     {
       id: 100,
@@ -74,6 +74,25 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       tint: 'rgba(236, 72, 153, 0.16)',
       accent: '#ec4899',
       enabled: false,
+    },
+  ],
+  gemini: [
+    {
+      id: 301,
+      name: 'Google AI Studio',
+      apiUrl: 'https://generativelanguage.googleapis.com',
+      apiKey: '',
+      officialSite: 'https://ai.google.dev',
+      icon: 'gemini',
+      tint: 'rgba(99, 102, 241, 0.16)',
+      accent: '#6366f1',
+      enabled: false,
+      supportedModels: {
+        'gemini-1.5-pro': true,
+        'gemini-1.5-flash': true,
+        'gemini-2.0-flash': true,
+        'gemini-2.0-pro': true,
+      },
     },
   ],
 }

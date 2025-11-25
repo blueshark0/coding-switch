@@ -62,9 +62,10 @@
         "addCard": "Add vendor card"
       },
       "relayToggle": {
-        "label": "Claude proxy",
+        "label": "Relay proxy",
         "hostClaude": "Host Claude Code",
         "hostCodex": "Host Codex",
+        "hostGemini": "Host Gemini",
         "tooltip": "Route traffic through the local relay to manage API keys centrally.",
         "statusOn": "Managed",
         "statusOff": "Not managed"
@@ -152,7 +153,7 @@
     "logs": {
       "eyebrow": "Request diagnostics",
       "title": "Request logs",
-      "subtitle": "Inspect recent relay activity for Claude Code and Codex providers.",
+      "subtitle": "Inspect recent relay activity for Claude Code, Codex, and Gemini providers.",
       "loading": "Loading...",
       "refresh": "Refresh",
       "applyFilters": "Apply filters",

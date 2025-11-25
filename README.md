@@ -1,6 +1,6 @@
 # Code Switch
 
-集中管理 Claude Code & Codex 供应商
+集中管理 Claude Code、Codex 与 Gemini 供应商
 
 - 无需重启 cc & codex, 平滑切换不同供应商
 - 支持多供应商自动降级, 保证使用体验
@@ -21,6 +21,7 @@
 
 - /v1/messages 转发到配置的 Claude 供应商
 - /responses 转发到 Codex 供应商；
+- /gemini/v1beta/* 以及 /gemini/v1/* 以 Gemini API 格式转发到配置的 Gemini 供应商
 
 请求由 proxyHandler 动态挑选符合当前优先级与启用状态的 provider，并在失败时自动回退。
 

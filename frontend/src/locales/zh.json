@@ -63,9 +63,10 @@
         "addCard": "新增供应商卡片"
       },
       "relayToggle": {
-        "label": "Claude proxy",
+        "label": "本地代理",
         "hostClaude": "托管 Claude Code",
         "hostCodex": "托管 Codex",
+        "hostGemini": "托管 Gemini",
         "tooltip": "通过本地转发托管 API 访问，统一管理密钥与配额。",
         "statusOn": "已托管",
         "statusOff": "未托管"
@@ -153,7 +154,7 @@
     "logs": {
       "eyebrow": "请求追踪",
       "title": "代理请求日志",
-      "subtitle": "查看 Claude Code 与 Codex 代理的最新访问记录。",
+      "subtitle": "查看 Claude Code、Codex 与 Gemini 代理的最新访问记录。",
       "loading": "加载中...",
       "refresh": "刷新",
       "applyFilters": "应用筛选",

@@ -31,10 +31,14 @@ func NewSessionCache(service *SessionService) *SessionCache {
 		log.Printf("[ERROR] 创建会话缓存失败: %v\n", err)
 		return &SessionCache{service: service}
 	}
-	return &SessionCache{
+	sc := &SessionCache{
 		cache:   cache,
 		service: service,
 	}
+	if service != nil {
+		service.registerCache(sc)
+	}
+	return sc
 }
 
 // cacheKey 生成缓存键
@@ -137,6 +141,8 @@ func (sc *SessionCache) isExpired(platform string, lastSuccessAt time.Time) bool
 	timeout := ClaudeSessionTimeout
 	if platform == "codex" {
 		timeout = CodexSessionTimeout
+	} else if platform == "gemini" {
+		timeout = GeminiSessionTimeout
 	}
 	return time.Since(lastSuccessAt) > timeout
 }

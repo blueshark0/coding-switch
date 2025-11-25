@@ -18,6 +18,7 @@ type AppSettings struct {
 	ShowHomeTitle         bool   `json:"show_home_title"`
 	DefaultClaudeProvider string `json:"default_claude_provider"` // Claude 默认供应商名称
 	DefaultCodexProvider  string `json:"default_codex_provider"`  // Codex 默认供应商名称
+	DefaultGeminiProvider string `json:"default_gemini_provider"` // Gemini 默认供应商名称
 }
 
 type AppSettingsService struct {
@@ -42,6 +43,7 @@ func (as *AppSettingsService) defaultSettings() AppSettings {
 		ShowHomeTitle:         true,
 		DefaultClaudeProvider: "", // 默认无指定供应商
 		DefaultCodexProvider:  "", // 默认无指定供应商
+		DefaultGeminiProvider: "", // 默认无指定供应商
 	}
 }
 
@@ -144,6 +146,29 @@ func (as *AppSettingsService) ValidateDefaultProviders(providerService *Provider
 		}
 	}
 
+	// 验证 Gemini 默认供应商
+	if settings.DefaultGeminiProvider != "" {
+		providers, err := providerService.LoadProviders("gemini")
+		if err != nil {
+			errors = append(errors, "无法加载 Gemini 供应商配置")
+		} else {
+			found := false
+			enabled := false
+			for _, p := range providers {
+				if p.Name == settings.DefaultGeminiProvider {
+					found = true
+					enabled = p.Enabled
+					break
+				}
+			}
+			if !found {
+				errors = append(errors, "Gemini 默认供应商不存在: "+settings.DefaultGeminiProvider)
+			} else if !enabled {
+				errors = append(errors, "Gemini 默认供应商已被禁用: "+settings.DefaultGeminiProvider)
+			}
+		}
+	}
+
 	return errors
 }
 
@@ -191,6 +216,24 @@ func (as *AppSettingsService) EnsureDefaultProviders(providerService *ProviderSe
 			}
 			if settings.DefaultCodexProvider == "" {
 				log.Printf("[WARN] 未找到已启用的 Codex 供应商，无法自动设置默认供应商\n")
+			}
+		}
+	}
+
+	// 检查并设置 Gemini 默认供应商
+	if settings.DefaultGeminiProvider == "" {
+		providers, err := providerService.LoadProviders("gemini")
+		if err == nil && len(providers) > 0 {
+			for _, p := range providers {
+				if p.Enabled {
+					settings.DefaultGeminiProvider = p.Name
+					modified = true
+					log.Printf("[INFO] 自动迁移：设置 Gemini 默认供应商为 %s\n", p.Name)
+					break
+				}
+			}
+			if settings.DefaultGeminiProvider == "" {
+				log.Printf("[WARN] 未找到已启用的 Gemini 供应商，无法自动设置默认供应商\n")
 			}
 		}
 	}

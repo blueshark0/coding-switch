@@ -66,6 +66,12 @@ func main() {
 		defer logFile.Close()
 	}
 
+	// 初始化数据库
+	dbInit := services.NewDatabaseInitializer()
+	if err := dbInit.Initialize(); err != nil {
+		log.Fatalf("数据库初始化失败: %v", err)
+	}
+
 	appservice := &AppService{}
 
 	suiService, err := services.NewSuiStore()
@@ -78,6 +84,7 @@ func main() {
 	providerRelay := services.NewProviderRelayService(providerService, appSettings, sessionService, ":18100")
 	claudeSettings := services.NewClaudeSettingsService(providerRelay.Addr())
 	codexSettings := services.NewCodexSettingsService(providerRelay.Addr())
+	geminiSettings := services.NewGeminiSettingsService(providerRelay.Addr())
 	logService := services.NewLogService()
 	mcpService := services.NewMCPService()
 	skillService := services.NewSkillService()
@@ -110,6 +117,7 @@ func main() {
 			application.NewService(sessionService),
 			application.NewService(claudeSettings),
 			application.NewService(codexSettings),
+			application.NewService(geminiSettings),
 			application.NewService(logService),
 			application.NewService(appSettings),
 			application.NewService(mcpService),

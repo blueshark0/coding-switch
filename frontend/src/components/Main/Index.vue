@@ -601,8 +601,6 @@ const resolvedTheme = computed(() => {
   return themeMode.value
 })
 const themeIcon = computed(() => (resolvedTheme.value === 'dark' ? 'moon' : 'sun'))
-const releasePageUrl = 'https://github.com/daodao97/code-switch/releases'
-const releaseApiUrl = 'https://api.github.com/repos/daodao97/code-switch/releases/latest'
 
 const HEATMAP_DAYS = DEFAULT_HEATMAP_DAYS
 const usageHeatmap = ref<UsageHeatmapWeek[]>(generateFallbackUsageHeatmap(HEATMAP_DAYS))
@@ -611,26 +609,30 @@ const tooltipRef = ref<HTMLElement | null>(null)
 const proxyStates = reactive<Record<ProviderTab, boolean>>({
   claude: false,
   codex: false,
+  gemini: false,
 })
 const proxyBusy = reactive<Record<ProviderTab, boolean>>({
   claude: false,
   codex: false,
+  gemini: false,
 })
 
 const providerStatsMap = reactive<Record<ProviderTab, Record<string, ProviderDailyStat>>>({
   claude: {},
   codex: {},
+  gemini: {},
 } as Record<ProviderTab, Record<string, ProviderDailyStat>>)
 const providerStatsLoading = reactive<Record<ProviderTab, boolean>>({
   claude: false,
   codex: false,
+  gemini: false,
 } as Record<ProviderTab, boolean>)
 const providerStatsLoaded = reactive<Record<ProviderTab, boolean>>({
   claude: false,
   codex: false,
+  gemini: false,
 } as Record<ProviderTab, boolean>)
 let providerStatsTimer: number | undefined
-let updateTimer: number | undefined
 const showHeatmap = ref(true)
 const showHomeTitle = ref(true)
 const appSettings = ref<AppSettings>({
@@ -638,10 +640,10 @@ const appSettings = ref<AppSettings>({
   show_home_title: true,
   default_claude_provider: '',
   default_codex_provider: '',
+  default_gemini_provider: '',
 })
 const mcpIcon = lobeIcons['mcp'] ?? ''
 const appVersion = ref('')
-const hasUpdateAvailable = ref(false)
 
 const intensityClass = (value: number) => `gh-level-${value}`
 
@@ -797,6 +799,7 @@ const loadAppSettings = async () => {
   try {
     const data: AppSettings = await fetchAppSettings()
     appSettings.value = data
+    appSettings.value.default_gemini_provider = data?.default_gemini_provider ?? ''
     showHeatmap.value = data?.show_heatmap ?? true
     showHomeTitle.value = data?.show_home_title ?? true
   } catch (error) {
@@ -810,9 +813,11 @@ const isDefaultProvider = (providerName: string): boolean => {
   const tab = activeTab.value
   if (tab === 'claude') {
     return appSettings.value.default_claude_provider === providerName
-  } else {
+  }
+  if (tab === 'codex') {
     return appSettings.value.default_codex_provider === providerName
   }
+  return appSettings.value.default_gemini_provider === providerName
 }
 
 const toggleDefaultProvider = async (card: AutomationCard) => {
@@ -828,15 +833,19 @@ const toggleDefaultProvider = async (card: AutomationCard) => {
   if (isDefaultProvider(card.name)) {
     if (tab === 'claude') {
       appSettings.value.default_claude_provider = ''
-    } else {
+    } else if (tab === 'codex') {
       appSettings.value.default_codex_provider = ''
+    } else {
+      appSettings.value.default_gemini_provider = ''
     }
   } else {
     // 设置为默认供应商
     if (tab === 'claude') {
       appSettings.value.default_claude_provider = card.name
-    } else {
+    } else if (tab === 'codex') {
       appSettings.value.default_codex_provider = card.name
+    } else {
+      appSettings.value.default_gemini_provider = card.name
     }
   }
 
@@ -908,30 +917,12 @@ const formatRelativeTime = (date: Date): string => {
   }
 }
 
-const checkForUpdates = async () => {
+const loadAppVersion = async () => {
   try {
     const version = await fetchCurrentVersion()
     appVersion.value = version || ''
   } catch (error) {
     console.error('failed to load app version', error)
-  }
-
-  try {
-    const resp = await fetch(releaseApiUrl, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-      },
-    })
-    if (!resp.ok) {
-      return
-    }
-    const data = await resp.json()
-    const latestTag = data?.tag_name ?? ''
-    if (latestTag && compareVersions(appVersion.value || '0.0.0', latestTag) < 0) {
-      hasUpdateAvailable.value = true
-    }
-  } catch (error) {
-    console.error('failed to fetch release info', error)
   }
 }
 
@@ -939,36 +930,7 @@ const handleAppSettingsUpdated = () => {
   void loadAppSettings()
 }
 
-const startUpdateTimer = () => {
-  stopUpdateTimer()
-  updateTimer = window.setInterval(() => {
-    void checkForUpdates()
-  }, 60 * 60 * 1000)
-}
-
-const stopUpdateTimer = () => {
-  if (updateTimer) {
-    clearInterval(updateTimer)
-    updateTimer = undefined
-  }
-}
-
 const normalizeProviderKey = (value: string) => value?.trim().toLowerCase() ?? ''
-
-const normalizeVersion = (value: string) => value.replace(/^v/i, '').trim()
-
-const compareVersions = (current: string, remote: string) => {
-  const curParts = normalizeVersion(current).split('.').map((part) => parseInt(part, 10) || 0)
-  const remoteParts = normalizeVersion(remote).split('.').map((part) => parseInt(part, 10) || 0)
-  const maxLen = Math.max(curParts.length, remoteParts.length)
-  for (let i = 0; i < maxLen; i++) {
-    const cur = curParts[i] ?? 0
-    const rem = remoteParts[i] ?? 0
-    if (cur === rem) continue
-    return cur < rem ? -1 : 1
-  }
-  return 0
-}
 
 const loadUsageHeatmap = async () => {
 	try {
@@ -983,6 +945,7 @@ const loadUsageHeatmap = async () => {
 const tabs = [
   { id: 'claude', label: 'Claude Code' },
   { id: 'codex', label: 'Codex' },
+  { id: 'gemini', label: 'Gemini' },
 ] as const
 type ProviderTab = (typeof tabs)[number]['id']
 const providerTabIds = tabs.map((tab) => tab.id) as ProviderTab[]
@@ -990,6 +953,7 @@ const providerTabIds = tabs.map((tab) => tab.id) as ProviderTab[]
 const cards = reactive<Record<ProviderTab, AutomationCard[]>>({
   claude: createAutomationCards(automationCardGroups.claude),
   codex: createAutomationCards(automationCardGroups.codex),
+  gemini: createAutomationCards(automationCardGroups.gemini),
 })
 const draggingId = ref<number | null>(null)
 
@@ -1166,7 +1130,7 @@ const startProviderStatsTimer = () => {
     providerTabIds.forEach((tab) => {
       void loadProviderStats(tab)
     })
-  }, 60_000)
+  }, 300_000)
 }
 
 const stopProviderStatsTimer = () => {
@@ -1182,26 +1146,28 @@ onMounted(async () => {
   await Promise.all(providerTabIds.map(refreshProxyState))
   await Promise.all(providerTabIds.map((tab) => loadProviderStats(tab)))
   await loadAppSettings()
-  await checkForUpdates()
+  await loadAppVersion()
   startProviderStatsTimer()
-  startUpdateTimer()
   window.addEventListener('app-settings-updated', handleAppSettingsUpdated)
 })
 
 onUnmounted(() => {
   stopProviderStatsTimer()
   window.removeEventListener('app-settings-updated', handleAppSettingsUpdated)
-  stopUpdateTimer()
 })
 
 const selectedIndex = ref(0)
 const activeTab = computed<ProviderTab>(() => tabs[selectedIndex.value]?.id ?? tabs[0].id)
 const activeCards = computed(() => cards[activeTab.value] ?? [])
-const currentProxyLabel = computed(() =>
-  activeTab.value === 'claude'
-    ? t('components.main.relayToggle.hostClaude')
-    : t('components.main.relayToggle.hostCodex')
-)
+const currentProxyLabel = computed(() => {
+  if (activeTab.value === 'claude') {
+    return t('components.main.relayToggle.hostClaude')
+  }
+  if (activeTab.value === 'codex') {
+    return t('components.main.relayToggle.hostCodex')
+  }
+  return t('components.main.relayToggle.hostGemini')
+})
 const activeProxyState = computed(() => proxyStates[activeTab.value])
 const activeProxyBusy = computed(() => proxyBusy[activeTab.value])
 
@@ -1225,12 +1191,6 @@ const toggleTheme = () => {
   const next = resolvedTheme.value === 'dark' ? 'light' : 'dark'
   themeMode.value = next
   setTheme(next)
-}
-
-const openGitHub = () => {
-  Browser.OpenURL(releasePageUrl).catch(() => {
-    console.error('failed to open github')
-  })
 }
 
 type VendorForm = {

@@ -15,6 +15,8 @@ const (
 	ClaudeSessionTimeout = 5 * time.Minute
 	// CodexSessionTimeout Codex 会话超时时间（15分钟）
 	CodexSessionTimeout = 15 * time.Minute
+	// GeminiSessionTimeout Gemini 会话超时时间（10分钟）
+	GeminiSessionTimeout = 60 * time.Minute
 )
 
 // SessionBinding 会话绑定信息
@@ -32,6 +34,9 @@ type SessionService struct {
 	cleanupTicker *time.Ticker
 	cleanupStop   chan struct{}
 	cleanupWG     sync.WaitGroup
+
+	cachesMu sync.Mutex
+	caches   []*SessionCache
 }
 
 func NewSessionService(dbName string) *SessionService {
@@ -170,6 +175,7 @@ func (s *SessionService) CleanExpiredSessions() error {
 	// 计算过期时间点
 	claudeExpiredTime := time.Now().Add(-ClaudeSessionTimeout)
 	codexExpiredTime := time.Now().Add(-CodexSessionTimeout)
+	geminiExpiredTime := time.Now().Add(-GeminiSessionTimeout)
 
 	var totalDeleted int64
 	clauses := []struct {
@@ -178,6 +184,7 @@ func (s *SessionService) CleanExpiredSessions() error {
 	}{
 		{"claude", claudeExpiredTime},
 		{"codex", codexExpiredTime},
+		{"gemini", geminiExpiredTime},
 	}
 	for _, clause := range clauses {
 		result, err := db.Exec(`DELETE FROM session_provider_binding WHERE platform = ? AND last_success_at < ?`, clause.platform, clause.cutoff)
@@ -239,6 +246,8 @@ func (s *SessionService) isExpired(platform string, lastSuccessAt time.Time) boo
 	timeout := ClaudeSessionTimeout
 	if platform == "codex" {
 		timeout = CodexSessionTimeout
+	} else if platform == "gemini" {
+		timeout = GeminiSessionTimeout
 	}
 	return time.Since(lastSuccessAt) > timeout
 }
@@ -308,6 +317,29 @@ func (s *SessionService) UnbindSession(platform, sessionID string) error {
 		return fmt.Errorf("解除会话绑定失败: %w", err)
 	}
 
+	s.invalidateCaches(platform, sessionID)
+
 	log.Printf("[INFO] 会话解绑: %s/%s\n", platform, sessionID)
 	return nil
+}
+
+// registerCache 允许 SessionCache 在构造时登记，便于解绑时同步清理缓存
+func (s *SessionService) registerCache(cache *SessionCache) {
+	if cache == nil {
+		return
+	}
+	s.cachesMu.Lock()
+	defer s.cachesMu.Unlock()
+	s.caches = append(s.caches, cache)
+}
+
+// invalidateCaches 通知所有注册的 SessionCache 立即失效指定会话
+func (s *SessionService) invalidateCaches(platform, sessionID string) {
+	s.cachesMu.Lock()
+	defer s.cachesMu.Unlock()
+	for _, cache := range s.caches {
+		if cache != nil {
+			cache.InvalidateSession(platform, sessionID)
+		}
+	}
 }

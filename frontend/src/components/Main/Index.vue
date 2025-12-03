@@ -214,7 +214,8 @@
           :key="card.id"
           :class="['automation-card', { dragging: draggingId === card.id }]"
           draggable="true"
-          @dragstart="onDragStart(card.id)"
+          @dragstart="onDragStart(card.id, $event)"
+          @dragover.prevent
           @dragend="onDragEnd"
           @drop="onDrop(card.id)"
         >
@@ -1348,8 +1349,13 @@ const confirmRemove = () => {
   closeConfirm()
 }
 
-const onDragStart = (id: number) => {
+const onDragStart = (id: number, event?: DragEvent) => {
   draggingId.value = id
+  // Firefox requires dataTransfer to be set for drop events to fire
+  event?.dataTransfer?.setData('text/plain', String(id))
+  if (event?.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
 }
 
 const onDrop = (targetId: number) => {
@@ -1361,8 +1367,7 @@ const onDrop = (targetId: number) => {
   const toIndex = list.findIndex((card) => card.id === targetId)
   if (fromIndex === -1 || toIndex === -1) return
   const [moved] = list.splice(fromIndex, 1)
-  const newIndex = fromIndex < toIndex ? toIndex - 1 : toIndex
-  list.splice(newIndex, 0, moved)
+  list.splice(toIndex, 0, moved)
   draggingId.value = null
   void persistProviders(currentTab)
 }

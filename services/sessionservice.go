@@ -172,19 +172,20 @@ func (s *SessionService) CleanExpiredSessions() error {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
 
-	// 计算过期时间点
-	claudeExpiredTime := time.Now().Add(-ClaudeSessionTimeout)
-	codexExpiredTime := time.Now().Add(-CodexSessionTimeout)
-	geminiExpiredTime := time.Now().Add(-GeminiSessionTimeout)
-
 	var totalDeleted int64
-	clauses := []struct {
+	now := time.Now()
+	clauses := make([]struct {
 		platform string
 		cutoff   time.Time
-	}{
-		{"claude", claudeExpiredTime},
-		{"codex", codexExpiredTime},
-		{"gemini", geminiExpiredTime},
+	}, 0, len(AllPlatforms()))
+	for _, platform := range AllPlatforms() {
+		clauses = append(clauses, struct {
+			platform string
+			cutoff   time.Time
+		}{
+			platform: platform.String(),
+			cutoff:   now.Add(-platform.SessionTimeout()),
+		})
 	}
 	for _, clause := range clauses {
 		result, err := db.Exec(`DELETE FROM session_provider_binding WHERE platform = ? AND last_success_at < ?`, clause.platform, clause.cutoff)
@@ -243,12 +244,7 @@ func (s *SessionService) StopCleanupTask() {
 
 // isExpired 检查给定的时间是否已过期（内部辅助方法）
 func (s *SessionService) isExpired(platform string, lastSuccessAt time.Time) bool {
-	timeout := ClaudeSessionTimeout
-	if platform == "codex" {
-		timeout = CodexSessionTimeout
-	} else if platform == "gemini" {
-		timeout = GeminiSessionTimeout
-	}
+	timeout := Platform(platform).SessionTimeout()
 	return time.Since(lastSuccessAt) > timeout
 }
 

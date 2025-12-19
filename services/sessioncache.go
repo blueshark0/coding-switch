@@ -138,12 +138,7 @@ func (sc *SessionCache) InvalidateSession(platform, sessionID string) {
 
 // isExpired 检查是否过期
 func (sc *SessionCache) isExpired(platform string, lastSuccessAt time.Time) bool {
-	timeout := ClaudeSessionTimeout
-	if platform == "codex" {
-		timeout = CodexSessionTimeout
-	} else if platform == "gemini" {
-		timeout = GeminiSessionTimeout
-	}
+	timeout := Platform(platform).SessionTimeout()
 	return time.Since(lastSuccessAt) > timeout
 }
 

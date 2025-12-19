@@ -24,5 +24,9 @@ func (p *SessionUpdateProcessor) Process(batch []sessionUpdateRequest) error {
 
 // ProcessSingle 处理单条会话更新
 func (p *SessionUpdateProcessor) ProcessSingle(item sessionUpdateRequest) error {
-	return p.cache.UpdateSessionSuccess(item.platform, item.sessionID)
+	if err := p.cache.UpdateSessionSuccess(item.platform, item.sessionID); err != nil {
+		log.Printf("[WARN] 异步更新会话时间失败: %v\n", err)
+		return err
+	}
+	return nil
 }

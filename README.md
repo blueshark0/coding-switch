@@ -88,3 +88,6 @@ scripts/publish_release.sh
 ## 常见问题
 - 若 `.app` 无法打开，先执行 `wails3 task common:update:build-assets` 后再构建。
 - macOS 交叉编译需要终端拥有完全磁盘访问权限，否则 `~/Library/Caches/go-build` 会报 *operation not permitted*。
+
+## 模型价格参考源
+//URL Source: http://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json

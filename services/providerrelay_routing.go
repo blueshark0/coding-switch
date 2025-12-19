@@ -110,9 +110,6 @@ func (prs *ProviderRelayService) validateProvider(provider *Provider) error {
 	if provider.APIURL == "" || provider.APIKey == "" {
 		return fmt.Errorf("供应商 %s 配置不完整", provider.Name)
 	}
-	if errs := provider.ValidateConfiguration(); len(errs) > 0 {
-		return fmt.Errorf("供应商 %s 配置验证失败: %v", provider.Name, errs)
-	}
 	return nil
 }
 

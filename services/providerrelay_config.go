@@ -29,13 +29,6 @@ func (prs *ProviderRelayService) validateConfig() []string {
 				}
 			}
 
-			// 检查是否配置了模型白名单或映射
-			if (p.SupportedModels == nil || len(p.SupportedModels) == 0) &&
-				(p.ModelMapping == nil || len(p.ModelMapping) == 0) {
-				warnings = append(warnings, fmt.Sprintf(
-					"[%s/%s] 未配置 supportedModels 或 modelMapping，将假设支持所有模型（可能导致降级失败）",
-					kind, p.Name))
-			}
 		}
 
 		if enabledCount == 0 {

@@ -127,7 +127,7 @@ func (prs *ProviderRelayService) forwardRequest(
 		SetHeaders(headers).
 		SetQueryParams(query).
 		SetRetry(1, 500*time.Millisecond).
-		SetTimeout(360 * time.Second)
+		SetTimeout(900 * time.Second)
 
 	reqBody := bytes.NewReader(bodyBytes)
 	req = req.SetBody(reqBody)

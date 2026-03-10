@@ -82,7 +82,8 @@
         "settings": "Open settings",
         "mcp": "Open MCP panel",
         "skill": "Open skill catalog",
-        "import": "Import cc-switch config"
+        "import": "Import cc-switch config",
+        "sessions": "Open session manager"
       },
       "versionLabel": "Version {version}",
       "importConfig": {
@@ -396,6 +397,33 @@
         "invalid": "Invalid combination, include a modifier"
       },
       "placeholder": "Press keys to record"
+    },
+    "sessions": {
+      "hero": {
+        "eyebrow": "Session bindings overview",
+        "title": "Session management",
+        "lead": "View active session-to-provider bindings grouped by provider and platform."
+      },
+      "actions": {
+        "back": "Back to home",
+        "refresh": "Refresh"
+      },
+      "platforms": {
+        "ariaLabel": "Session platform selector"
+      },
+      "loading": "Loading sessions...",
+      "noSessions": "No active session bindings on this platform",
+      "groupCount": "{count} sessions",
+      "unknownProvider": "Unknown provider",
+      "bindTime": "Bind Time",
+      "lastSuccess": "Last Success",
+      "unbind": "Unbind",
+      "confirmUnbindSession": "Are you sure you want to unbind this session?",
+      "unbindSessionFailed": "Failed to unbind session, please try again",
+      "dateUnknown": "Unknown time",
+      "justNow": "Just now",
+      "minutesAgo": "{count} minutes ago",
+      "hoursAgo": "{count} hours ago"
     }
   }
 }

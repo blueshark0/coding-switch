@@ -298,6 +298,49 @@ func (s *SessionService) GetProviderSessions(platform, providerName string) ([]S
 	return sessions, nil
 }
 
+// GetPlatformSessions 获取指定平台的所有活跃会话绑定
+func (s *SessionService) GetPlatformSessions(platform string) ([]SessionBinding, error) {
+	if platform == "" {
+		return []SessionBinding{}, nil
+	}
+
+	db, err := xdb.DB(s.dbName)
+	if err != nil {
+		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+
+	query := `SELECT platform, session_id, provider_name, last_success_at, created_at
+		FROM session_provider_binding
+		WHERE platform = ?
+		ORDER BY provider_name ASC, last_success_at DESC`
+
+	rows, err := db.Query(query, platform)
+	if err != nil {
+		return nil, fmt.Errorf("查询会话绑定失败: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []SessionBinding
+	for rows.Next() {
+		var session SessionBinding
+		if err := rows.Scan(&session.Platform, &session.SessionID, &session.ProviderName, &session.LastSuccessAt, &session.CreatedAt); err != nil {
+			log.Printf("[WARN] 扫描会话记录失败: %v\n", err)
+			continue
+		}
+
+		// 过滤掉已过期的会话
+		if !s.isExpired(session.Platform, session.LastSuccessAt) {
+			sessions = append(sessions, session)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("遍历会话记录失败: %w", err)
+	}
+
+	return sessions, nil
+}
+
 // UnbindSession 解除指定会话的绑定
 func (s *SessionService) UnbindSession(platform, sessionID string) error {
 	if platform == "" || sessionID == "" {

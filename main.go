@@ -218,7 +218,7 @@ func main() {
 	})
 	systray.SetMenu(trayMenu)
 
-	systray.OnClick(func() {
+	handleTrayActivate := func() {
 		if !mainWindow.IsVisible() {
 			showMainWindow(true)
 			return
@@ -226,7 +226,14 @@ func main() {
 		if !mainWindow.IsFocused() {
 			focusMainWindow()
 		}
-	})
+	}
+	systray.OnClick(handleTrayActivate)
+	// Workaround for wails/v3 alpha Linux tray Activate mapping.
+	// In v3.0.0-alpha.38, Linux "Activate" is wired to doubleClickHandler.
+	// Bind both so left-click activation still shows/focuses the main window.
+	if runtime.GOOS == "linux" {
+		systray.OnDoubleClick(handleTrayActivate)
+	}
 
 	appservice.SetApp(app)
 

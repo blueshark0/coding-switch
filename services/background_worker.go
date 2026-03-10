@@ -28,6 +28,8 @@ type BackgroundWorker[T any] struct {
 	wg        sync.WaitGroup
 	processor BatchProcessor[T]
 	shutOnce  sync.Once
+	stateMu   sync.RWMutex
+	stopped   bool
 }
 
 // NewBackgroundWorker 创建后台工作器
@@ -49,26 +51,30 @@ func (w *BackgroundWorker[T]) Start() {
 // Stop 停止后台工作器
 func (w *BackgroundWorker[T]) Stop() {
 	w.shutOnce.Do(func() {
+		w.stateMu.Lock()
+		w.stopped = true
+		w.stateMu.Unlock()
 		close(w.shutdown)
-		close(w.inputCh)
 	})
 	w.wg.Wait()
 }
 
 // Enqueue 将项目加入处理队列
-// 返回 true 表示成功入队，false 表示缓冲已满（已同步处理）
+// 返回 true 表示成功入队，false 表示已停止或缓冲已满（已同步处理）
 func (w *BackgroundWorker[T]) Enqueue(item T) bool {
-	select {
-	case <-w.shutdown:
+	w.stateMu.RLock()
+	if w.stopped {
+		w.stateMu.RUnlock()
 		// 已关闭，同步处理
 		_ = w.processor.ProcessSingle(item)
 		return false
-	default:
 	}
 	select {
 	case w.inputCh <- item:
+		w.stateMu.RUnlock()
 		return true
 	default:
+		w.stateMu.RUnlock()
 		log.Printf("%s 缓冲已满，回退为同步处理\n", w.config.Name)
 		_ = w.processor.ProcessSingle(item)
 		return false
@@ -98,11 +104,7 @@ func (w *BackgroundWorker[T]) run() {
 
 	for {
 		select {
-		case item, ok := <-w.inputCh:
-			if !ok {
-				flush()
-				return
-			}
+		case item := <-w.inputCh:
 			batch = append(batch, item)
 			if len(batch) >= w.config.BatchSize {
 				flush()
@@ -110,8 +112,19 @@ func (w *BackgroundWorker[T]) run() {
 		case <-ticker.C:
 			flush()
 		case <-w.shutdown:
-			flush()
-			return
+			// 停止时尽量排空缓冲，避免丢失已入队日志。
+			for {
+				select {
+				case item := <-w.inputCh:
+					batch = append(batch, item)
+					if len(batch) >= w.config.BatchSize {
+						flush()
+					}
+				default:
+					flush()
+					return
+				}
+			}
 		}
 	}
 }

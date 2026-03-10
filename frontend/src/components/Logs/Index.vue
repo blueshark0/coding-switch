@@ -395,7 +395,10 @@ const loadLogs = async () => {
 
 const loadStats = async () => {
   try {
-    const data = await fetchLogStats(filters.platform)
+    const data = await fetchLogStats({
+      platform: filters.platform,
+      provider: filters.provider,
+    })
     stats.value = data ?? null
   } catch (error) {
     console.error('failed to load log stats', error)

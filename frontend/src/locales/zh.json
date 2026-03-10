@@ -94,6 +94,8 @@
       },
       "setDefault": "设为默认供应商",
       "removeDefault": "取消默认供应商",
+      "pinToTop": "置顶到最前",
+      "pinnedToTop": "已置顶",
       "providerDisabledWarning": "该供应商已被禁用，无法设为默认供应商。请先启用该供应商。",
       "saveFailed": "保存设置失败，请重试。",
       "viewSessions": "查看会话绑定",

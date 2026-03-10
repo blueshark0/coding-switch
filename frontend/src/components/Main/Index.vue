@@ -282,6 +282,30 @@
               <span></span>
             </label>
             <button
+              class="ghost-icon pin-icon"
+              :class="{ 'is-top': isTopProvider(card.id) }"
+              @click="pinProvider(card.id)"
+              :title="isTopProvider(card.id) ? $t('components.main.pinnedToTop') : $t('components.main.pinToTop')"
+              :aria-label="isTopProvider(card.id) ? $t('components.main.pinnedToTop') : $t('components.main.pinToTop')"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  v-if="isTopProvider(card.id)"
+                  d="M9 3.75h6v5.1l2.6 2.6v1.8H13.5v7l-1.5-1.5v-5.5H6.4v-1.8L9 8.85z"
+                  fill="currentColor"
+                />
+                <path
+                  v-else
+                  d="M9 3.75h6v5.1l2.6 2.6v1.8H13.5v7l-1.5-1.5v-5.5H6.4v-1.8L9 8.85z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
               class="ghost-icon star-icon"
               :class="{ 'is-default': isDefaultProvider(card.name) }"
               @click="toggleDefaultProvider(card)"
@@ -1160,6 +1184,7 @@ onUnmounted(() => {
 const selectedIndex = ref(0)
 const activeTab = computed<ProviderTab>(() => tabs[selectedIndex.value]?.id ?? tabs[0].id)
 const activeCards = computed(() => cards[activeTab.value] ?? [])
+const isTopProvider = (cardId: number) => activeCards.value[0]?.id === cardId
 const currentProxyLabel = computed(() => {
   if (activeTab.value === 'claude') {
     return t('components.main.relayToggle.hostClaude')
@@ -1274,6 +1299,21 @@ const closeConfirm = () => {
   confirmState.card = null
 }
 
+const moveCardToFront = (tabId: ProviderTab, cardId: number) => {
+  const list = cards[tabId]
+  if (!list || list[0]?.id === cardId) return false
+  const fromIndex = list.findIndex((card) => card.id === cardId)
+  if (fromIndex < 0) return false
+  const [moved] = list.splice(fromIndex, 1)
+  list.unshift(moved)
+  return true
+}
+
+const pinProvider = (cardId: number) => {
+  if (!moveCardToFront(activeTab.value, cardId)) return
+  void persistProviders(activeTab.value)
+}
+
 const submitModal = () => {
   const list = cards[modalState.tabId]
   if (!list) return
@@ -1316,7 +1356,7 @@ const submitModal = () => {
       supportedModels: modalState.form.supportedModels || {},
       modelMapping: modalState.form.modelMapping || {},
     }
-    list.push(newCard)
+    list.unshift(newCard)
     void persistProviders(modalState.tabId)
   }
 
@@ -1415,6 +1455,38 @@ const onTabChange = (idx: number) => {
 .star-icon {
   position: relative;
   transition: all 0.2s ease;
+}
+
+.pin-icon {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.pin-icon svg {
+  width: 18px;
+  height: 18px;
+  transition: all 0.2s ease;
+}
+
+.pin-icon:not(.is-top) {
+  opacity: 0.55;
+}
+
+.pin-icon:not(.is-top):hover {
+  opacity: 0.85;
+  transform: scale(1.08);
+}
+
+.pin-icon.is-top {
+  color: #0f766e;
+}
+
+.pin-icon.is-top:hover {
+  transform: scale(1.08);
+}
+
+:global(.dark) .pin-icon.is-top {
+  color: #2dd4bf;
 }
 
 .star-icon svg {

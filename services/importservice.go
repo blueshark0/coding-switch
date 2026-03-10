@@ -275,13 +275,27 @@ func diffProviderCandidates(kind string, entries map[string]ccProviderEntry, exi
 			existingNames[name] = struct{}{}
 		}
 	}
-	seen := make(map[string]struct{})
-	candidates := make([]providerCandidate, 0, len(entries))
+
+	rawCandidates := make([]providerCandidate, 0, len(entries))
 	for key, entry := range entries {
 		candidate, ok := parseProviderEntry(kind, key, entry)
 		if !ok {
 			continue
 		}
+		rawCandidates = append(rawCandidates, candidate)
+	}
+	sort.SliceStable(rawCandidates, func(i, j int) bool {
+		leftName := strings.ToLower(rawCandidates[i].Name)
+		rightName := strings.ToLower(rawCandidates[j].Name)
+		if leftName != rightName {
+			return leftName < rightName
+		}
+		return normalizeURL(rawCandidates[i].APIURL) < normalizeURL(rawCandidates[j].APIURL)
+	})
+
+	seen := make(map[string]struct{})
+	candidates := make([]providerCandidate, 0, len(rawCandidates))
+	for _, candidate := range rawCandidates {
 		if url := normalizeURL(candidate.APIURL); url != "" {
 			if _, exists := existingURL[url]; exists {
 				continue
@@ -304,9 +318,6 @@ func diffProviderCandidates(kind string, entries map[string]ccProviderEntry, exi
 		}
 		candidates = append(candidates, candidate)
 	}
-	sort.SliceStable(candidates, func(i, j int) bool {
-		return strings.ToLower(candidates[i].Name) < strings.ToLower(candidates[j].Name)
-	})
 	return candidates
 }
 
@@ -438,7 +449,6 @@ func (is *ImportService) saveProviders(kind string, candidates []providerCandida
 	}
 	nextID := nextProviderID(existing)
 	merged := make([]Provider, 0, len(existing)+len(candidates))
-	merged = append(merged, existing...)
 	accent, tint := defaultVisual(kind)
 	for _, candidate := range candidates {
 		provider := Provider{
@@ -455,6 +465,7 @@ func (is *ImportService) saveProviders(kind string, candidates []providerCandida
 		merged = append(merged, provider)
 		nextID++
 	}
+	merged = append(merged, existing...)
 	if err := is.providerService.SaveProviders(kind, merged); err != nil {
 		return 0, err
 	}

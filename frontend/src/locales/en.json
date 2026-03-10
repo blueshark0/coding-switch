@@ -93,6 +93,8 @@
       },
       "setDefault": "Set as default provider",
       "removeDefault": "Remove default provider",
+      "pinToTop": "Pin to top",
+      "pinnedToTop": "Pinned to top",
       "providerDisabledWarning": "This provider is disabled and cannot be set as default. Please enable it first.",
       "saveFailed": "Failed to save settings, please try again.",
       "viewSessions": "View session bindings",

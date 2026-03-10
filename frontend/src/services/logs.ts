@@ -67,8 +67,15 @@ export type LogStats = {
   series: LogStatsSeries[]
 }
 
-export const fetchLogStats = async (platform = ''): Promise<LogStats> => {
-  return Call.ByName('codeswitch/services.LogService.StatsSince', platform)
+type LogStatsQuery = {
+  platform?: string
+  provider?: string
+}
+
+export const fetchLogStats = async (query: LogStatsQuery = {}): Promise<LogStats> => {
+  const platform = query.platform ?? ''
+  const provider = query.provider ?? ''
+  return Call.ByName('codeswitch/services.LogService.StatsSince', platform, provider)
 }
 
 export type ProviderDailyStat = {

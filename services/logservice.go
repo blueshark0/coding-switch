@@ -190,7 +190,7 @@ func (ls *LogService) HeatmapStats(days int) ([]HeatmapStat, error) {
 	return stats, nil
 }
 
-func (ls *LogService) StatsSince(platform string) (LogStats, error) {
+func (ls *LogService) StatsSince(platform string, provider string) (LogStats, error) {
 	const seriesHours = 24
 
 	stats := LogStats{
@@ -205,10 +205,14 @@ func (ls *LogService) StatsSince(platform string) (LogStats, error) {
 		return stats, err
 	}
 	args := []any{queryStart.Format(timeLayout)}
-	platformFilter := ""
+	filterClause := ""
 	if platform != "" {
-		platformFilter = " AND platform = ?"
+		filterClause += " AND platform = ?"
 		args = append(args, platform)
+	}
+	if provider != "" {
+		filterClause += " AND provider = ?"
+		args = append(args, provider)
 	}
 	query := fmt.Sprintf(`SELECT strftime('%%Y-%%m-%%d %%H:00:00', created_at, 'localtime') AS bucket,
 		model,
@@ -221,7 +225,7 @@ func (ls *LogService) StatsSince(platform string) (LogStats, error) {
 		FROM request_log
 		WHERE created_at >= ?%s
 		GROUP BY bucket, model
-		ORDER BY bucket ASC`, platformFilter)
+		ORDER BY bucket ASC`, filterClause)
 	rows, err := db.Query(query, args...)
 	if err != nil {
 		if isNoSuchTableErr(err) {

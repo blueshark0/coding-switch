@@ -11,7 +11,6 @@ require (
 	github.com/tidwall/sjson v1.2.5
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.38
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.36.0
 )
 

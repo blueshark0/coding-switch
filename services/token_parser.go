@@ -37,9 +37,15 @@ type CodexTokenParser struct{}
 
 // Parse 解析 Codex 响应中的 Token 用量
 func (p *CodexTokenParser) Parse(data string, usage *RequestLog) {
-	usage.InputTokens += int(gjson.Get(data, "response.usage.input_tokens").Int())
+	totalInput := int(gjson.Get(data, "response.usage.input_tokens").Int())
+	cachedInput := int(gjson.Get(data, "response.usage.input_tokens_details.cached_tokens").Int())
+	nonCachedInput := totalInput - cachedInput
+	if nonCachedInput < 0 {
+		nonCachedInput = 0
+	}
+	usage.InputTokens += nonCachedInput
 	usage.OutputTokens += int(gjson.Get(data, "response.usage.output_tokens").Int())
-	usage.CacheReadTokens += int(gjson.Get(data, "response.usage.input_tokens_details.cached_tokens").Int())
+	usage.CacheReadTokens += cachedInput
 	usage.ReasoningTokens += int(gjson.Get(data, "response.usage.output_tokens_details.reasoning_tokens").Int())
 }
 

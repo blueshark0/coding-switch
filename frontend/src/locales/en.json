@@ -80,18 +80,9 @@
         "githubUpdate": "Open GitHub (update available)",
         "theme": "Toggle theme",
         "settings": "Open settings",
-        "mcp": "Open MCP panel",
-        "skill": "Open skill catalog",
-        "import": "Import cc-switch config",
         "sessions": "Open session manager"
       },
       "versionLabel": "Version {version}",
-      "importConfig": {
-        "tooltip": "Import {providers} providers · {servers} MCP servers",
-        "success": "Imported {providers} providers and {servers} MCP servers",
-        "empty": "Everything from cc-switch is already in sync",
-        "error": "Failed to import cc-switch config"
-      },
       "setDefault": "Set as default provider",
       "removeDefault": "Remove default provider",
       "pinToTop": "Pin to top",
@@ -236,142 +227,6 @@
         "authorized": "Auth",
         "go_authorized": "Auth now",
         "back": "Back to home"
-      },
-      "import": {
-        "label": "Import cc-switch data",
-        "path": "Config file: {path}",
-        "detail": "{providers} providers · {servers} MCP servers ready to import",
-        "synced": "All providers and MCP servers are already synced",
-        "cta": "Import now",
-        "syncedButton": "Up to date",
-        "importing": "Importing...",
-        "upload": "Upload JSON",
-        "uploadTitle": "Select cc-switch JSON file",
-        "confirm": "Confirm import",
-        "noFile": "No config file selected",
-        "loadError": "Failed to read selected config",
-        "clear": "Clear selection",
-        "reupload": "Upload another JSON"
-      }
-    },
-    "mcp": {
-      "hero": {
-        "eyebrow": "MCP Manager",
-        "title": "Manage MCP Servers",
-        "lead": "Keep every stdio or HTTP MCP server in one place and track which platform currently loads it."
-      },
-      "controls": {
-        "back": "Back to home",
-        "settings": "Open settings",
-        "refresh": "Refresh",
-        "create": "New server"
-      },
-      "section": {
-        "title": "Registered servers",
-        "subtitle": "Synced from ~/.code-switch/mcp.json and saved immediately"
-      },
-      "list": {
-        "loading": "Loading servers...",
-        "empty": "No MCP servers yet. Use the button below to create one.",
-        "loadError": "Failed to load MCP servers",
-        "saveError": "Failed to save MCP servers",
-        "edit": "Edit server",
-        "delete": "Delete server",
-        "placeholderWarning": "Replace placeholders first: {vars}"
-      },
-      "toast": {
-        "placeholder": "Replace placeholders first: {vars}"
-      },
-      "status": {
-        "active": "Enabled",
-        "inactive": "Disabled"
-      },
-      "types": {
-        "stdio": "Local stdio process",
-        "stdioShort": "Local process",
-        "http": "Remote HTTP",
-        "httpShort": "HTTP service"
-      },
-      "platforms": {
-        "claude": "Claude Code",
-        "codex": "Codex"
-      },
-      "form": {
-        "createTitle": "Create MCP server",
-        "editTitle": "Edit MCP server",
-        "name": "Server name",
-        "type": "Type",
-        "command": "Command",
-        "args": "Arguments",
-        "argsHint": "One argument per line. They will be passed in order.",
-        "url": "Service URL",
-        "website": "Website",
-        "tips": "Helper note",
-        "tipsHint": "Example: Visit ref.tools to get your API key",
-        "env": "Environment variables",
-        "envKey": "Key",
-        "envValue": "Value",
-        "envAdd": "Add variable",
-        "envRemove": "Delete variable",
-        "platforms": {
-          "title": "Target platforms"
-        },
-        "actions": {
-          "cancel": "Cancel",
-          "save": "Save",
-          "delete": "Delete"
-        },
-        "errors": {
-          "name": "Please enter a server name",
-          "command": "Command is required for stdio servers",
-          "url": "HTTP servers require a URL",
-          "duplicate": "This name already exists"
-        },
-        "deleteTitle": "Delete MCP server",
-        "deleteMessage": "Are you sure you want to delete {name}? This action cannot be undone."
-      }
-    },
-    "skill": {
-      "hero": {
-        "eyebrow": "Skill Library",
-        "title": "Claude Skill",
-        "lead": "Fetch Claude skills from the managed repositories. Click the top-right button to add more sources."
-      },
-      "actions": {
-        "back": "Back to home",
-        "loading": "Processing...",
-        "refresh": "Refresh list",
-        "view": "View on GitHub",
-        "install": "Install to Claude Code",
-        "uninstall": "Uninstall",
-        "installError": "Failed to install {name}. Please retry",
-        "uninstallError": "Failed to uninstall {name}. Please retry"
-      },
-      "list": {
-        "title": "Available skills",
-        "subtitle": "Metadata is parsed from each SKILL.md front matter.",
-        "loading": "Loading skills...",
-        "empty": "No skills detected in the repository.",
-        "error": "Failed to load skills. Please check your network and retry.",
-        "noDescription": "SKILL.md does not include a description",
-        "missingRepo": "Missing repository information for this skill"
-      },
-      "repos": {
-        "open": "Manage repositories",
-        "title": "Skill sources",
-        "subtitle": "Add GitHub repositories to control where skills are fetched from.",
-        "urlPlaceholder": "https://github.com/owner/repo",
-        "branchPlaceholder": "Branch",
-        "addLabel": "Add repository",
-        "viewLabel": "Open on GitHub",
-        "removeLabel": "Remove repository",
-        "loadError": "Failed to load repositories",
-        "addError": "Failed to add repository",
-        "removeError": "Failed to remove repository",
-        "formError": "Owner and repository are required",
-        "loading": "Loading repositories...",
-        "empty": "No repositories configured.",
-        "branchLabel": "Branch: {branch}"
       }
     },
     "themesetting": {

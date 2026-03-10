@@ -5,9 +5,6 @@
 - 无需重启 cc & codex, 平滑切换不同供应商
 - 支持多供应商自动降级, 保证使用体验
 - 支持请求级别的用量统计, 花费多少清晰可见
-- 支持 cc & codex Mcp Server 双平台管理
-- 支持 Claude Skill 自动下载与安装, 内置 2 个流行的 skill 仓库
-- 支持添加自定义 Skill 仓库
 
 基于 [Wails 3](https://v3.wails.io)
 

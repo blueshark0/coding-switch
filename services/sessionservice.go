@@ -7,16 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"codeswitch/internal/shared/kernel"
 	"github.com/daodao97/xgo/xdb"
-)
-
-const (
-	// ClaudeSessionTimeout Claude Code 会话超时时间（5分钟）
-	ClaudeSessionTimeout = 5 * time.Minute
-	// CodexSessionTimeout Codex 会话超时时间（15分钟）
-	CodexSessionTimeout = 15 * time.Minute
-	// GeminiSessionTimeout Gemini 会话超时时间（10分钟）
-	GeminiSessionTimeout = 60 * time.Minute
 )
 
 // SessionBinding 会话绑定信息
@@ -36,7 +28,11 @@ type SessionService struct {
 	cleanupWG     sync.WaitGroup
 
 	cachesMu sync.Mutex
-	caches   []*SessionCache
+	caches   []sessionCacheInvalidator
+}
+
+type sessionCacheInvalidator interface {
+	InvalidateSession(platform, sessionID string)
 }
 
 func NewSessionService(dbName string) *SessionService {
@@ -177,8 +173,8 @@ func (s *SessionService) CleanExpiredSessions() error {
 	clauses := make([]struct {
 		platform string
 		cutoff   time.Time
-	}, 0, len(AllPlatforms()))
-	for _, platform := range AllPlatforms() {
+	}, 0, len(kernel.AllPlatforms()))
+	for _, platform := range kernel.AllPlatforms() {
 		clauses = append(clauses, struct {
 			platform string
 			cutoff   time.Time
@@ -244,7 +240,7 @@ func (s *SessionService) StopCleanupTask() {
 
 // isExpired 检查给定的时间是否已过期（内部辅助方法）
 func (s *SessionService) isExpired(platform string, lastSuccessAt time.Time) bool {
-	timeout := Platform(platform).SessionTimeout()
+	timeout := kernel.Platform(platform).SessionTimeout()
 	return time.Since(lastSuccessAt) > timeout
 }
 
@@ -362,8 +358,8 @@ func (s *SessionService) UnbindSession(platform, sessionID string) error {
 	return nil
 }
 
-// registerCache 允许 SessionCache 在构造时登记，便于解绑时同步清理缓存
-func (s *SessionService) registerCache(cache *SessionCache) {
+// RegisterCache 允许缓存实现登记，便于解绑时同步清理缓存
+func (s *SessionService) RegisterCache(cache sessionCacheInvalidator) {
 	if cache == nil {
 		return
 	}

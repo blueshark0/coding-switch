@@ -113,8 +113,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import BaseButton from '../common/BaseButton.vue'
-import { GetPlatformSessions, UnbindSession } from '../../../bindings/codeswitch/services/sessionservice'
-import type { SessionBinding } from '../../../bindings/codeswitch/services/models'
+import { fetchPlatformSessions, unbindSession as requestUnbindSession, type SessionBinding } from '../../services/sessions'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -162,7 +161,7 @@ const parseDate = (value: unknown): Date | null => {
 const loadSessions = async () => {
   loading.value = true
   try {
-    sessions.value = await GetPlatformSessions(selectedPlatform.value)
+    sessions.value = await fetchPlatformSessions(selectedPlatform.value)
   } catch (error) {
     console.error('Failed to load platform sessions', error)
     sessions.value = []
@@ -229,7 +228,7 @@ const unbindSession = async (session: SessionBinding) => {
     return
   }
   try {
-    await UnbindSession(session.platform, session.session_id)
+    await requestUnbindSession(session.platform, session.session_id)
     await loadSessions()
   } catch (error) {
     console.error('Failed to unbind session', error)

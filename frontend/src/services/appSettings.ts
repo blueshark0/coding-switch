@@ -1,4 +1,10 @@
-import { Call } from '@wailsio/runtime'
+import {
+  fetchAppPreferences,
+  saveAppPreferences,
+  fetchRouteProfile,
+  saveRouteProfile,
+  type RouteProfile,
+} from './routing'
 
 export type AppSettings = {
   show_heatmap: boolean
@@ -17,10 +23,47 @@ const DEFAULT_SETTINGS: AppSettings = {
 }
 
 export const fetchAppSettings = async (): Promise<AppSettings> => {
-  const data = await Call.ByName('codeswitch/services.AppSettingsService.GetAppSettings')
-  return data ?? DEFAULT_SETTINGS
+  const [preferences, claudeProfile, codexProfile, geminiProfile] = await Promise.all([
+    fetchAppPreferences(),
+    fetchRouteProfile('claude'),
+    fetchRouteProfile('codex'),
+    fetchRouteProfile('gemini'),
+  ])
+  return {
+    show_heatmap: preferences?.show_heatmap ?? DEFAULT_SETTINGS.show_heatmap,
+    show_home_title: preferences?.show_home_title ?? DEFAULT_SETTINGS.show_home_title,
+    default_claude_provider: defaultProviderName(claudeProfile),
+    default_codex_provider: defaultProviderName(codexProfile),
+    default_gemini_provider: defaultProviderName(geminiProfile),
+  }
 }
 
 export const saveAppSettings = async (settings: AppSettings): Promise<AppSettings> => {
-  return Call.ByName('codeswitch/services.AppSettingsService.SaveAppSettings', settings)
+  await saveAppPreferences({
+    show_heatmap: settings.show_heatmap,
+    show_home_title: settings.show_home_title,
+  })
+  await Promise.all([
+    applyDefaultProvider('claude', settings.default_claude_provider),
+    applyDefaultProvider('codex', settings.default_codex_provider),
+    applyDefaultProvider('gemini', settings.default_gemini_provider),
+  ])
+  return fetchAppSettings()
+}
+
+const defaultProviderName = (profile?: RouteProfile | null): string => {
+  if (!profile || profile.defaultProviderId == null) return ''
+  const provider = profile.providers?.find((item) => item.id === profile.defaultProviderId)
+  return provider?.name ?? ''
+}
+
+const applyDefaultProvider = async (platform: string, providerName: string): Promise<void> => {
+  const profile = await fetchRouteProfile(platform)
+  const provider = providerName
+    ? profile.providers?.find((item) => item.name === providerName)
+    : null
+  await saveRouteProfile({
+    ...profile,
+    defaultProviderId: provider?.id ?? null,
+  })
 }

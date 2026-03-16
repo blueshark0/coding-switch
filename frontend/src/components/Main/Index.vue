@@ -515,7 +515,7 @@ import BaseModal from '../common/BaseModal.vue'
 import BaseInput from '../common/BaseInput.vue'
 import ModelWhitelistEditor from '../common/ModelWhitelistEditor.vue'
 import ModelMappingEditor from '../common/ModelMappingEditor.vue'
-import { LoadProviders, SaveProviders } from '../../../bindings/codeswitch/services/providerservice'
+import { loadProviders, saveProviders } from '../../services/providers'
 import { fetchProxyStatus, enableProxy, disableProxy } from '../../services/claudeSettings'
 import { fetchHeatmapStats, fetchProviderDailyStats, type ProviderDailyStat } from '../../services/logs'
 import { fetchCurrentVersion } from '../../services/version'
@@ -833,7 +833,7 @@ const serializeProviders = (providers: AutomationCard[]) => providers.map((provi
 
 const persistProviders = async (tabId: ProviderTab) => {
   try {
-    await SaveProviders(tabId, serializeProviders(cards[tabId]))
+    await saveProviders(tabId, serializeProviders(cards[tabId]))
   } catch (error) {
     console.error('Failed to save providers', error)
   }
@@ -846,7 +846,7 @@ const replaceProviders = (tabId: ProviderTab, data: AutomationCard[]) => {
 const loadProvidersFromDisk = async () => {
   for (const tab of providerTabIds) {
     try {
-      const saved = await LoadProviders(tab)
+      const saved = await loadProviders(tab)
       if (Array.isArray(saved)) {
         replaceProviders(tab, saved as AutomationCard[])
       } else {

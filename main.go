@@ -1,6 +1,16 @@
 package main
 
 import (
+	relayhttp "codeswitch/internal/interfaces/http/relay"
+	facades "codeswitch/internal/interfaces/wails"
+	observabilityapp "codeswitch/internal/observability/application"
+	observabilityinfra "codeswitch/internal/observability/infrastructure"
+	platformproxyapp "codeswitch/internal/platformproxy/application"
+	platformproxyinfra "codeswitch/internal/platformproxy/infrastructure"
+	routingapp "codeswitch/internal/routing/application"
+	routinginfra "codeswitch/internal/routing/infrastructure"
+	sessionapp "codeswitch/internal/sessions/application"
+	"codeswitch/internal/shared/kernel"
 	"codeswitch/services"
 	"embed"
 	"fmt"
@@ -78,16 +88,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("初始化快捷键存储失败: %v", err)
 	}
-	providerService := services.NewProviderService()
-	appSettings := services.NewAppSettingsService()
 	sessionService := services.NewSessionService(services.SessionDBName)
-	providerRelay := services.NewProviderRelayService(providerService, appSettings, sessionService, ":18100")
-	claudeSettings := services.NewClaudeSettingsService(providerRelay.Addr())
-	codexSettings := services.NewCodexSettingsService(providerRelay.Addr())
-	geminiSettings := services.NewGeminiSettingsService(providerRelay.Addr())
-	logService := services.NewLogService()
+	routingService := routingapp.NewService(routinginfra.NewSQLiteStore())
+	providerRelay := relayhttp.NewServer(routingService, sessionService, ":18100")
+	claudeSettings := platformproxyinfra.NewClaudeManager(providerRelay.Addr())
+	codexSettings := platformproxyinfra.NewCodexManager(providerRelay.Addr())
+	geminiSettings := platformproxyinfra.NewGeminiManager(providerRelay.Addr())
 	dockService := dock.New()
 	versionService := NewVersionService()
+	sessionFacade := facades.NewSessionFacade(sessionapp.NewService(sessionService))
+	observabilityFacade := facades.NewObservabilityFacade(observabilityapp.NewService(observabilityinfra.NewSQLiteQueries()))
+	routingFacade := facades.NewRoutingFacade(routingService)
+	platformProxyFacade := facades.NewPlatformProxyFacade(platformproxyapp.NewService(map[kernel.Platform]platformproxyapp.Manager{
+		kernel.PlatformClaude: claudeSettings,
+		kernel.PlatformCodex:  codexSettings,
+		kernel.PlatformGemini: geminiSettings,
+	}))
 
 	go func() {
 		if err := providerRelay.Start(); err != nil {
@@ -110,13 +126,10 @@ func main() {
 		Services: []application.Service{
 			application.NewService(appservice),
 			application.NewService(suiService),
-			application.NewService(providerService),
-			application.NewService(sessionService),
-			application.NewService(claudeSettings),
-			application.NewService(codexSettings),
-			application.NewService(geminiSettings),
-			application.NewService(logService),
-			application.NewService(appSettings),
+			application.NewService(routingFacade),
+			application.NewService(sessionFacade),
+			application.NewService(observabilityFacade),
+			application.NewService(platformProxyFacade),
 			application.NewService(dockService),
 			application.NewService(versionService),
 		},
@@ -236,16 +249,6 @@ func main() {
 	}
 
 	appservice.SetApp(app)
-
-	// Create a goroutine that emits an event containing the current time every second.
-	// The frontend can listen to this event and update the UI accordingly.
-	go func() {
-		// for {
-		// 	now := time.Now().Format(time.RFC1123)
-		// 	app.EmitEvent("time", now)
-		// 	time.Sleep(time.Second)
-		// }
-	}()
 
 	// Run the application. This blocks until the application has been exited.
 	err = app.Run()

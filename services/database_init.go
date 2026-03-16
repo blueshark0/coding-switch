@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -9,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	observabilityinfra "codeswitch/internal/observability/infrastructure"
+	routinginfra "codeswitch/internal/routing/infrastructure"
+	"codeswitch/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
 )
@@ -62,7 +67,7 @@ func (di *DatabaseInitializer) Initialize() error {
 	}
 
 	// 启动时清理过期日志
-	if err := cleanupOldRequestLogs(RequestLogDBName, requestLogRetentionDays); err != nil {
+	if err := observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays); err != nil {
 		log.Printf("启动时清理历史 request_log 失败: %v\n", err)
 	}
 
@@ -82,21 +87,21 @@ func (di *DatabaseInitializer) initConnections() error {
 
 	return xdb.Inits([]xdb.Config{
 		{
-			Name:        CoreDBName,
+			Name:        storage.CoreDBName,
 			Driver:      "sqlite",
 			DSN:         appDSN,
 			MaxOpenConn: 1,
 			MaxIdleConn: 1,
 		},
 		{
-			Name:        RequestLogDBName,
+			Name:        storage.RequestLogDBName,
 			Driver:      "sqlite",
 			DSN:         requestLogDSN,
 			MaxOpenConn: 4,
 			MaxIdleConn: 4,
 		},
 		{
-			Name:        SessionDBName,
+			Name:        storage.SessionDBName,
 			Driver:      "sqlite",
 			DSN:         sessionDSN,
 			MaxOpenConn: 5,
@@ -107,6 +112,10 @@ func (di *DatabaseInitializer) initConnections() error {
 
 // ensureTables 确保所有表结构存在
 func (di *DatabaseInitializer) ensureTables() error {
+	store := routinginfra.NewSQLiteStore()
+	if err := store.EnsureSchema(); err != nil {
+		return fmt.Errorf("初始化 app 配置表失败: %w", err)
+	}
 	if err := ensureRequestLogTable(RequestLogDBName); err != nil {
 		return fmt.Errorf("初始化 request_log 表失败: %w", err)
 	}
@@ -127,23 +136,14 @@ func (di *DatabaseInitializer) configurePragmas() {
 func (di *DatabaseInitializer) runMigrations() error {
 	requestLogDBPath := filepath.Join(di.dbDir, "request_log.db")
 	sessionDBPath := filepath.Join(di.dbDir, "session.db")
-	return migrateLegacyTables(requestLogDBPath, sessionDBPath)
-}
-
-// ensureRequestLogColumn 确保 request_log 表存在指定列
-func ensureRequestLogColumn(db *sql.DB, column string, definition string) error {
-	query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('request_log') WHERE name = '%s'", column)
-	var count int
-	if err := db.QueryRow(query).Scan(&count); err != nil {
-		return err
+	errs := []error{
+		migrateLegacyTables(requestLogDBPath, sessionDBPath),
 	}
-	if count == 0 {
-		alter := fmt.Sprintf("ALTER TABLE request_log ADD COLUMN %s %s", column, definition)
-		if _, err := db.Exec(alter); err != nil {
-			return err
-		}
+	store := routinginfra.NewSQLiteStore()
+	if err := routinginfra.NewLegacyImporter(store).EnsureImported(context.Background()); err != nil {
+		errs = append(errs, fmt.Errorf("legacy config import: %w", err))
 	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // ensureRequestLogTable 确保 request_log 表存在
@@ -152,7 +152,7 @@ func ensureRequestLogTable(dbName string) error {
 	if err != nil {
 		return err
 	}
-	return ensureRequestLogTableWithDB(db)
+	return observabilityinfra.EnsureRequestLogTableWithDB(db)
 }
 
 // ensureSessionBindingTable 确保 session_provider_binding 表存在
@@ -192,53 +192,6 @@ func ensureSessionBindingTableWithDB(db *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_session_provider_lookup ON session_provider_binding(platform, provider_name, last_success_at DESC)",
 	}
 	for _, stmt := range extraIndexes {
-		if _, err := db.Exec(stmt); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// ensureRequestLogTableWithDB 使用数据库连接确保 request_log 表存在
-func ensureRequestLogTableWithDB(db *sql.DB) error {
-	const createTableSQL = `CREATE TABLE IF NOT EXISTS request_log (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		platform TEXT,
-		model TEXT,
-		provider TEXT,
-		http_code INTEGER,
-		input_tokens INTEGER,
-		output_tokens INTEGER,
-		cache_create_tokens INTEGER,
-		cache_read_tokens INTEGER,
-		reasoning_tokens INTEGER,
-		is_stream INTEGER DEFAULT 0,
-		duration_sec REAL DEFAULT 0,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	)`
-
-	if _, err := db.Exec(createTableSQL); err != nil {
-		return err
-	}
-
-	if err := ensureRequestLogColumn(db, "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"); err != nil {
-		return err
-	}
-	if err := ensureRequestLogColumn(db, "is_stream", "INTEGER DEFAULT 0"); err != nil {
-		return err
-	}
-	if err := ensureRequestLogColumn(db, "duration_sec", "REAL DEFAULT 0"); err != nil {
-		return err
-	}
-
-	indexStatements := []string{
-		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_created_at ON request_log(platform, created_at DESC)",
-		"CREATE INDEX IF NOT EXISTS idx_request_log_provider_created_at ON request_log(provider, created_at DESC)",
-		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_provider_created_at ON request_log(platform, provider, created_at DESC)",
-		"CREATE INDEX IF NOT EXISTS idx_request_log_created_at ON request_log(created_at)",
-	}
-	for _, stmt := range indexStatements {
 		if _, err := db.Exec(stmt); err != nil {
 			return err
 		}

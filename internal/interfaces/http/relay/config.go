@@ -1,0 +1,44 @@
+package relay
+
+import (
+	"context"
+	"fmt"
+
+	routingdomain "codeswitch/internal/routing/domain"
+	"codeswitch/internal/shared/kernel"
+)
+
+func (s *Server) validateConfig() []string {
+	warnings := make([]string, 0)
+	for _, platform := range kernel.AllPlatforms() {
+		profile, err := s.routingService.GetProfile(context.Background(), platform.String())
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("[%s] 加载配置失败: %v", platform, err))
+			continue
+		}
+		enabledCount := 0
+		for _, p := range profile.Providers {
+			if !p.Enabled {
+				continue
+			}
+			enabledCount++
+			if errs := p.ValidateConfiguration(); len(errs) > 0 {
+				for _, errMsg := range errs {
+					warnings = append(warnings, fmt.Sprintf("[%s/%s] %s", platform, p.Name, errMsg))
+				}
+			}
+		}
+		if enabledCount == 0 {
+			warnings = append(warnings, fmt.Sprintf("[%s] 没有启用的 provider", platform))
+		}
+	}
+	return warnings
+}
+
+func (s *Server) loadProfile(kind string) (routingdomain.RouteProfile, error) {
+	profile, err := s.routingService.GetProfile(context.Background(), kind)
+	if err != nil {
+		return routingdomain.RouteProfile{}, fmt.Errorf("failed to load providers: %w", err)
+	}
+	return profile, nil
+}

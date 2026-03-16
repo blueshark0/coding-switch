@@ -1,4 +1,5 @@
 import { Call } from '@wailsio/runtime'
+const serviceName = 'codeswitch/internal/interfaces/wails.ObservabilityFacade'
 
 export type RequestLog = {
   id: number
@@ -34,11 +35,11 @@ export const fetchRequestLogs = async (query: RequestLogQuery = {}): Promise<Req
   const platform = query.platform ?? ''
   const provider = query.provider ?? ''
   const limit = query.limit ?? 100
-  return Call.ByName('codeswitch/services.LogService.ListRequestLogs', platform, provider, limit)
+  return Call.ByName(`${serviceName}.ListRequestLogs`, platform, provider, limit)
 }
 
 export const fetchLogProviders = async (platform = ''): Promise<string[]> => {
-  return Call.ByName('codeswitch/services.LogService.ListProviders', platform)
+  return Call.ByName(`${serviceName}.ListProviders`, platform)
 }
 
 export type LogStatsSeries = {
@@ -75,7 +76,7 @@ type LogStatsQuery = {
 export const fetchLogStats = async (query: LogStatsQuery = {}): Promise<LogStats> => {
   const platform = query.platform ?? ''
   const provider = query.provider ?? ''
-  return Call.ByName('codeswitch/services.LogService.StatsSince', platform, provider)
+  return Call.ByName(`${serviceName}.StatsSince`, platform, provider)
 }
 
 export type ProviderDailyStat = {
@@ -95,7 +96,7 @@ export type ProviderDailyStat = {
 export const fetchProviderDailyStats = async (
   platform = '',
 ): Promise<ProviderDailyStat[]> => {
-  return Call.ByName('codeswitch/services.LogService.ProviderDailyStats', platform)
+  return Call.ByName(`${serviceName}.ProviderDailyStats`, platform)
 }
 
 export type HeatmapStat = {
@@ -109,5 +110,5 @@ export type HeatmapStat = {
 
 export const fetchHeatmapStats = async (days: number): Promise<HeatmapStat[]> => {
   const range = Number.isFinite(days) && days > 0 ? Math.floor(days) : 30
-  return Call.ByName('codeswitch/services.LogService.HeatmapStats', range)
+  return Call.ByName(`${serviceName}.HeatmapStats`, range)
 }

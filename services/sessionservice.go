@@ -273,7 +273,7 @@ func (s *SessionService) GetProviderSessions(platform, providerName string) ([]S
 	}
 	defer rows.Close()
 
-	var sessions []SessionBinding
+	sessions := make([]SessionBinding, 0)
 	for rows.Next() {
 		var session SessionBinding
 		if err := rows.Scan(&session.Platform, &session.SessionID, &session.ProviderName, &session.LastSuccessAt, &session.CreatedAt); err != nil {
@@ -316,7 +316,7 @@ func (s *SessionService) GetPlatformSessions(platform string) ([]SessionBinding,
 	}
 	defer rows.Close()
 
-	var sessions []SessionBinding
+	sessions := make([]SessionBinding, 0)
 	for rows.Next() {
 		var session SessionBinding
 		if err := rows.Scan(&session.Platform, &session.SessionID, &session.ProviderName, &session.LastSuccessAt, &session.CreatedAt); err != nil {

@@ -11,7 +11,8 @@ export type SessionBinding = {
 const serviceName = 'codeswitch/internal/interfaces/wails.SessionFacade'
 
 export const fetchPlatformSessions = async (platform: string): Promise<SessionBinding[]> => {
-  return Call.ByName(`${serviceName}.ListByPlatform`, platform)
+  const result = await Call.ByName(`${serviceName}.ListByPlatform`, platform)
+  return Array.isArray(result) ? result : []
 }
 
 export const unbindSession = async (platform: string, sessionId: string): Promise<void> => {

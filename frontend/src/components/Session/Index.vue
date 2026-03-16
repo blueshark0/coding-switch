@@ -161,7 +161,8 @@ const parseDate = (value: unknown): Date | null => {
 const loadSessions = async () => {
   loading.value = true
   try {
-    sessions.value = await fetchPlatformSessions(selectedPlatform.value)
+    const loadedSessions = await fetchPlatformSessions(selectedPlatform.value)
+    sessions.value = Array.isArray(loadedSessions) ? loadedSessions : []
   } catch (error) {
     console.error('Failed to load platform sessions', error)
     sessions.value = []
@@ -210,7 +211,7 @@ const formatRelativeTime = (value: unknown) => {
 
 const providerGroups = computed(() => {
   const groups = new Map<string, SessionBinding[]>()
-  for (const session of sessions.value) {
+  for (const session of sessions.value ?? []) {
     const providerName = session.provider_name?.trim() || t('components.sessions.unknownProvider')
     if (!groups.has(providerName)) {
       groups.set(providerName, [])

@@ -75,7 +75,11 @@
             <td :class="['code', httpCodeClass(item.http_code)]">{{ item.http_code }}</td>
             <td><span :class="['stream-tag', item.is_stream ? 'on' : 'off']">{{ formatStream(item.is_stream) }}</span></td>
             <td><span :class="['duration-tag', durationColor(item.duration_sec)]">{{ formatDuration(item.duration_sec) }}</span></td>
-            <TokenBreakdown :log="item" :format-number="formatNumber" />
+            <TokenBreakdown
+              :log="item"
+              :format-number="formatNumber"
+              :format-currency="formatCurrency"
+            />
           </tr>
           <tr v-if="!pagedLogs.length && !loading">
             <td colspan="8" class="empty">{{ t('components.logs.empty') }}</td>
@@ -130,6 +134,7 @@ const {
   durationColor,
   filters,
   formatDuration,
+  formatCurrency,
   formatNumber,
   formatStream,
   formatTime,

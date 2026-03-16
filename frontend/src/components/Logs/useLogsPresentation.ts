@@ -239,6 +239,7 @@ export const useLogsPresentation = ({
     chartOptions,
     durationColor,
     formatDuration,
+    formatCurrency,
     formatNumber,
     formatStream,
     formatTime,

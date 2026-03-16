@@ -170,6 +170,12 @@
   gap: 6px;
 }
 
+.token-cost-row {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
 .token-label {
   font-size: 0.7rem;
   font-weight: 600;
@@ -180,6 +186,11 @@
 
 .token-value {
   font-family: 'SFMono-Regular', Menlo, Consolas, monospace;
+}
+
+.token-cost-row .token-value {
+  font-weight: 600;
+  color: #f97316;
 }
 
 .token-split {

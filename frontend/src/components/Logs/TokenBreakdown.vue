@@ -20,6 +20,10 @@
       <span class="token-label">{{ t('components.logs.tokenLabels.cacheRead') }}</span>
       <span class="token-value">{{ formatNumber(log.cache_read_tokens) }}</span>
     </div>
+    <div class="token-cost-row">
+      <span class="token-label">{{ t('components.logs.tokenLabels.cost') }}</span>
+      <span class="token-value">{{ log.has_pricing ? formatCurrency(log.total_cost) : '—' }}</span>
+    </div>
   </td>
 </template>
 
@@ -29,6 +33,7 @@ import type { RequestLog } from '../../services/logs'
 
 defineProps<{
   log: RequestLog
+  formatCurrency: (value?: number) => string
   formatNumber: (value?: number) => string
 }>()
 

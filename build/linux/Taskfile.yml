@@ -7,7 +7,6 @@ tasks:
   build:
     summary: Builds the application for Linux
     deps:
-      - task: common:go:mod:tidy
       - task: common:build:frontend
         vars:
           BUILD_FLAGS:
@@ -31,20 +30,27 @@ tasks:
       - task: build
         vars:
           PRODUCTION: "true"
+      - task: generate:dotdesktop
     cmds:
-      - task: create:appimage
-      - task: create:deb
-      - task: create:rpm
-      - task: create:aur
+      - task: create:appimage:from-build
+      - task: generate:deb
+      - task: generate:rpm
+      - task: generate:aur
 
   create:appimage:
     summary: Creates an AppImage
-    dir: build/linux/appimage
     deps:
       - task: build
         vars:
           PRODUCTION: "true"
       - task: generate:dotdesktop
+    cmds:
+      - task: create:appimage:from-build
+
+  create:appimage:from-build:
+    internal: true
+    summary: Creates an AppImage from an existing production build
+    dir: build/linux/appimage
     cmds:
       - cp {{.APP_BINARY}} {{.APP_NAME}}
       - cp ../../appicon.png appicon.png
@@ -62,8 +68,8 @@ tasks:
       - task: build
         vars:
           PRODUCTION: "true"
-    cmds:
       - task: generate:dotdesktop
+    cmds:
       - task: generate:deb
 
   create:rpm:
@@ -72,8 +78,8 @@ tasks:
       - task: build
         vars:
           PRODUCTION: "true"
-    cmds:
       - task: generate:dotdesktop
+    cmds:
       - task: generate:rpm
 
   create:aur:
@@ -82,8 +88,8 @@ tasks:
       - task: build
         vars:
           PRODUCTION: "true"
-    cmds:
       - task: generate:dotdesktop
+    cmds:
       - task: generate:aur
 
   generate:deb:

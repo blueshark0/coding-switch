@@ -26,7 +26,16 @@ tasks:
     summary: Build the frontend project
     dir: frontend
     sources:
-      - "**/*"
+      - "bindings/**/*"
+      - "public/**/*"
+      - "src/**/*"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "postcss.config.js"
+      - "tsconfig.json"
+      - "tsconfig.node.json"
+      - "vite.config.ts"
     generates:
       - dist/**/*
     deps:

@@ -7,7 +7,6 @@ tasks:
   build:
     summary: Creates a production build of the application
     deps:
-      - task: common:go:mod:tidy
       - task: common:build:frontend
         vars:
           BUILD_FLAGS:

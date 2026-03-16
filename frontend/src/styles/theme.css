@@ -1,0 +1,71 @@
+:root {
+  color-scheme: light;
+  --mac-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  --mac-surface: #ffffff;
+  --mac-surface-strong: #f5f5f7;
+  --mac-border: rgba(15, 23, 42, 0.12);
+  --mac-divider: rgba(15, 23, 42, 0.12);
+  --mac-sidebar: #f2f3f5;
+  --mac-sidebar-border: rgba(15, 23, 42, 0.08);
+  --mac-text: #1d1d1f;
+  --mac-text-secondary: #6e6e73;
+  --mac-accent: #0a84ff;
+  --app-background: linear-gradient(180deg, #f6f7fb 0%, #eef1f7 50%, #e7ebf5 100%);
+  --contrib-surface: #f6f8fa;
+  --contrib-text: #0f1116;
+  --contrib-muted: rgba(15, 23, 42, 0.6);
+  --contrib-base: #e3e7ec;
+  --contrib-level-1: #9be9a8;
+  --contrib-level-2: #40c463;
+  --contrib-level-3: #30a14e;
+  --contrib-level-4: #216e39;
+  --contrib-tooltip-bg: #ffffff;
+  --contrib-tooltip-border: rgba(15, 23, 42, 0.12);
+  --contrib-tooltip-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
+  --contrib-tooltip-heading: #0f172a;
+  --contrib-tooltip-text: rgba(15, 23, 42, 0.7);
+  --contrib-tooltip-value: #0f172a;
+}
+
+html.dark {
+  color-scheme: dark;
+  --mac-surface: #1c1e24;
+  --mac-surface-strong: #21232c;
+  --mac-border: rgba(255, 255, 255, 0.06);
+  --mac-divider: rgba(255, 255, 255, 0.08);
+  --mac-sidebar: #181a20;
+  --mac-sidebar-border: rgba(255, 255, 255, 0.04);
+  --mac-text: #f5f5f7;
+  --mac-text-secondary: #b7bac7;
+  --mac-accent: #0a84ff;
+  --app-background: linear-gradient(180deg, #0f1116 0%, #11131a 45%, #0d0f15 100%);
+  --contrib-surface: #0d1117;
+  --contrib-text: #ffffff;
+  --contrib-muted: rgba(255, 255, 255, 0.7);
+  --contrib-base: #1a1f29;
+  --contrib-level-1: #0e4429;
+  --contrib-level-2: #006d32;
+  --contrib-level-3: #26a641;
+  --contrib-level-4: #39d353;
+  --contrib-tooltip-bg: rgba(6, 11, 19, 0.96);
+  --contrib-tooltip-border: rgba(255, 255, 255, 0.08);
+  --contrib-tooltip-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
+  --contrib-tooltip-heading: #f8fafc;
+  --contrib-tooltip-text: rgba(248, 250, 252, 0.75);
+  --contrib-tooltip-value: #fefce8;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family: var(--mac-font);
+  color: var(--mac-text);
+  background: var(--app-background);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+#app {
+  width: 100%;
+}

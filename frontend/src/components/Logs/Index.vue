@@ -75,28 +75,7 @@
             <td :class="['code', httpCodeClass(item.http_code)]">{{ item.http_code }}</td>
             <td><span :class="['stream-tag', item.is_stream ? 'on' : 'off']">{{ formatStream(item.is_stream) }}</span></td>
             <td><span :class="['duration-tag', durationColor(item.duration_sec)]">{{ formatDuration(item.duration_sec) }}</span></td>
-            <td class="token-cell">
-              <div>
-                <span class="token-label">{{ t('components.logs.tokenLabels.input') }}</span>
-                <span class="token-value">{{ formatNumber(item.input_tokens) }}</span>
-              </div>
-              <div>
-                <span class="token-label">{{ t('components.logs.tokenLabels.output') }}</span>
-                <span class="token-value">{{ formatNumber(item.output_tokens) }}</span>
-              </div>
-              <div>
-                <span class="token-label">{{ t('components.logs.tokenLabels.reasoning') }}</span>
-                <span class="token-value">{{ formatNumber(item.reasoning_tokens) }}</span>
-              </div>
-              <div>
-                <span class="token-label">{{ t('components.logs.tokenLabels.cacheWrite') }}</span>
-                <span class="token-value">{{ formatNumber(item.cache_create_tokens) }}</span>
-              </div>
-              <div>
-                <span class="token-label">{{ t('components.logs.tokenLabels.cacheRead') }}</span>
-                <span class="token-value">{{ formatNumber(item.cache_read_tokens) }}</span>
-              </div>
-            </td>
+            <TokenBreakdown :log="item" :format-number="formatNumber" />
           </tr>
           <tr v-if="!pagedLogs.length && !loading">
             <td colspan="8" class="empty">{{ t('components.logs.empty') }}</td>
@@ -121,18 +100,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import BaseButton from '../common/BaseButton.vue'
-import {
-  fetchRequestLogs,
-  fetchLogProviders,
-  fetchLogStats,
-  type RequestLog,
-  type LogStats,
-  type LogStatsSeries,
-} from '../../services/logs'
+import TokenBreakdown from './TokenBreakdown.vue'
 import {
   Chart,
   CategoryScale,
@@ -142,439 +113,45 @@ import {
   Tooltip,
   Legend,
 } from 'chart.js'
-import type { ChartOptions } from 'chart.js'
 import { Line } from 'vue-chartjs'
+import { useDarkMode } from '../../composables/useDarkMode'
+import { useLogsDashboard } from './useLogsDashboard'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
 const { t } = useI18n()
 const router = useRouter()
-
-const logs = ref<RequestLog[]>([])
-const stats = ref<LogStats | null>(null)
-const loading = ref(false)
-const filters = reactive({ platform: '', provider: '' })
-const page = ref(1)
-const PAGE_SIZE = 15
-const providerOptions = ref<string[]>([])
-const statsSeries = computed<LogStatsSeries[]>(() => stats.value?.series ?? [])
-
-const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined'
-const readDarkMode = () => (isBrowser ? document.documentElement.classList.contains('dark') : false)
-const isDarkMode = ref(readDarkMode())
-let themeObserver: MutationObserver | null = null
-
-const getCssVarValue = (name: string, fallback: string) => {
-  if (!isBrowser) return fallback
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name)
-  return value?.trim() || fallback
-}
-
-const syncThemeState = () => {
-  isDarkMode.value = readDarkMode()
-}
-
-const setupThemeObserver = () => {
-  if (!isBrowser || themeObserver) return
-  syncThemeState()
-  themeObserver = new MutationObserver((mutations) => {
-    if (mutations.some((mutation) => mutation.attributeName === 'class')) {
-      syncThemeState()
-    }
-  })
-  themeObserver.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class'],
-  })
-}
-
-const teardownThemeObserver = () => {
-  if (!themeObserver) return
-  themeObserver.disconnect()
-  themeObserver = null
-}
-
-const parseLogDate = (value?: string) => {
-  if (!value) return null
-  const normalize = value.replace(' ', 'T')
-  const attempts = [value, `${normalize}`, `${normalize}Z`]
-  for (const candidate of attempts) {
-    const parsed = new Date(candidate)
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed
-    }
-  }
-  const match = value.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4}) UTC$/)
-  if (match) {
-    const [, day, time, zone] = match
-    const zoneFormatted = `${zone.slice(0, 3)}:${zone.slice(3)}`
-    const parsed = new Date(`${day}T${time}${zoneFormatted}`)
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed
-    }
-  }
-  return null
-}
-
-const chartData = computed(() => {
-  const series = statsSeries.value
-  return {
-    labels: series.map((item) => formatSeriesLabel(item.day)),
-    datasets: [
-      {
-        label: t('components.logs.tokenLabels.cost'),
-        data: series.map((item) => Number(((item.total_cost ?? 0)).toFixed(4))),
-        borderColor: '#f97316',
-        backgroundColor: 'rgba(249, 115, 22, 0.2)',
-        tension: 0.3,
-        fill: false,
-        yAxisID: 'yCost',
-      },
-      {
-        label: t('components.logs.tokenLabels.input'),
-        data: series.map((item) => item.input_tokens ?? 0),
-        borderColor: '#34d399',
-        backgroundColor: 'rgba(52, 211, 153, 0.25)',
-        tension: 0.35,
-        fill: true,
-      },
-      {
-        label: t('components.logs.tokenLabels.output'),
-        data: series.map((item) => item.output_tokens ?? 0),
-        borderColor: '#60a5fa',
-        backgroundColor: 'rgba(96, 165, 250, 0.2)',
-        tension: 0.35,
-        fill: true,
-      },
-      {
-        label: t('components.logs.tokenLabels.reasoning'),
-        data: series.map((item) => item.reasoning_tokens ?? 0),
-        borderColor: '#f472b6',
-        backgroundColor: 'rgba(244, 114, 182, 0.2)',
-        tension: 0.35,
-        fill: true,
-      },
-      {
-        label: t('components.logs.tokenLabels.cacheWrite'),
-        data: series.map((item) => item.cache_create_tokens ?? 0),
-        borderColor: '#fbbf24',
-        backgroundColor: 'rgba(251, 191, 36, 0.2)',
-        tension: 0.35,
-        fill: false,
-      },
-      {
-        label: t('components.logs.tokenLabels.cacheRead'),
-        data: series.map((item) => item.cache_read_tokens ?? 0),
-        borderColor: '#38bdf8',
-        backgroundColor: 'rgba(56, 189, 248, 0.15)',
-        tension: 0.35,
-        fill: false,
-      },
-    ],
-  }
+const { getCssVarValue, isDarkMode } = useDarkMode()
+const {
+  applyFilters,
+  chartData,
+  chartOptions,
+  countdown,
+  durationColor,
+  filters,
+  formatDuration,
+  formatNumber,
+  formatStream,
+  formatTime,
+  httpCodeClass,
+  loading,
+  manualRefresh,
+  nextPage,
+  page,
+  pagedLogs,
+  prevPage,
+  providerOptions,
+  statsCards,
+  totalPages,
+} = useLogsDashboard({
+  getCssVarValue,
+  isDarkMode,
+  t,
 })
-
-const chartOptions = computed<ChartOptions<'line'>>(() => {
-  const legendColor = getCssVarValue('--mac-text', isDarkMode.value ? '#f8fafc' : '#0f172a')
-  const axisColor = getCssVarValue(
-    '--mac-text-secondary',
-    isDarkMode.value ? '#cbd5f5' : '#94a3b8',
-  )
-  const axisStrongColor = getCssVarValue('--mac-text', isDarkMode.value ? '#e2e8f0' : '#475569')
-  const gridColor = isDarkMode.value ? 'rgba(148, 163, 184, 0.35)' : 'rgba(148, 163, 184, 0.2)'
-
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
-    plugins: {
-      legend: {
-        labels: {
-          color: legendColor,
-          font: {
-            size: 12,
-            weight: 500,
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        grid: { display: false },
-        ticks: { color: axisColor },
-      },
-      y: {
-        beginAtZero: true,
-        ticks: { color: axisColor },
-        grid: { color: gridColor },
-      },
-      yCost: {
-        position: 'right',
-        beginAtZero: true,
-        grid: { drawOnChartArea: false },
-        ticks: {
-          color: axisStrongColor,
-          callback: (value: string | number) => {
-            const numeric = typeof value === 'number' ? value : Number(value)
-            if (Number.isNaN(numeric)) return '$0'
-            if (numeric >= 1) return `$${numeric.toFixed(2)}`
-            return `$${numeric.toFixed(4)}`
-          },
-        },
-      },
-    },
-  }
-})
-const formatSeriesLabel = (value?: string) => {
-  if (!value) return ''
-  const parsed = parseLogDate(value)
-  if (parsed) {
-    return `${padHour(parsed.getHours())}:00`
-  }
-  const match = value.match(/(\d{2}):(\d{2})/)
-  if (match) {
-    return `${match[1]}:${match[2]}`
-  }
-  return value
-}
-
-const REFRESH_INTERVAL = 30
-const countdown = ref(REFRESH_INTERVAL)
-let timer: number | undefined
-
-const resetTimer = () => {
-  countdown.value = REFRESH_INTERVAL
-}
-
-const startCountdown = () => {
-  stopCountdown()
-  timer = window.setInterval(() => {
-    if (countdown.value <= 1) {
-      countdown.value = REFRESH_INTERVAL
-      void loadDashboard()
-    } else {
-      countdown.value -= 1
-    }
-  }, 1000)
-}
-
-const stopCountdown = () => {
-  if (timer) {
-    clearInterval(timer)
-    timer = undefined
-  }
-}
-
-const handleVisibilityChange = () => {
-  if (document.hidden) {
-    stopCountdown()
-  } else {
-    startCountdown()
-  }
-}
-
-const loadLogs = async () => {
-  loading.value = true
-  try {
-    const data = await fetchRequestLogs({
-      platform: filters.platform,
-      provider: filters.provider,
-      limit: 200,
-    })
-    logs.value = data ?? []
-    page.value = Math.min(page.value, totalPages.value)
-  } catch (error) {
-    console.error('failed to load request logs', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-const loadStats = async () => {
-  try {
-    const data = await fetchLogStats({
-      platform: filters.platform,
-      provider: filters.provider,
-    })
-    stats.value = data ?? null
-  } catch (error) {
-    console.error('failed to load log stats', error)
-  }
-}
-
-const loadDashboard = async () => {
-  await Promise.all([loadLogs(), loadStats()])
-}
-
-const pagedLogs = computed(() => {
-  const start = (page.value - 1) * PAGE_SIZE
-  return logs.value.slice(start, start + PAGE_SIZE)
-})
-
-const totalPages = computed(() => Math.max(1, Math.ceil(logs.value.length / PAGE_SIZE)))
-
-const applyFilters = async () => {
-  page.value = 1
-  await loadDashboard()
-  resetTimer()
-}
-
-const refreshLogs = () => {
-  void loadDashboard()
-}
-
-const manualRefresh = () => {
-  resetTimer()
-  void loadDashboard()
-}
-
-const nextPage = () => {
-  if (page.value < totalPages.value) {
-    page.value += 1
-  }
-}
-
-const prevPage = () => {
-  if (page.value > 1) {
-    page.value -= 1
-  }
-}
 
 const backToHome = () => {
   router.push('/')
 }
-
-const padHour = (num: number) => num.toString().padStart(2, '0')
-
-const formatTime = (value?: string) => {
-  const date = parseLogDate(value)
-  if (!date) return value || '—'
-  return `${date.getFullYear()}-${padHour(date.getMonth() + 1)}-${padHour(date.getDate())} ${padHour(date.getHours())}:${padHour(date.getMinutes())}:${padHour(date.getSeconds())}`
-}
-
-const formatStream = (value?: boolean | number) => {
-  const isOn = value === true || value === 1
-  return isOn ? t('components.logs.streamOn') : t('components.logs.streamOff')
-}
-
-const formatDuration = (value?: number) => {
-  if (!value || Number.isNaN(value)) return '—'
-  return `${value.toFixed(2)}s`
-}
-
-const httpCodeClass = (code: number) => {
-  if (code >= 500) return 'http-server-error'
-  if (code >= 400) return 'http-client-error'
-  if (code >= 300) return 'http-redirect'
-  if (code >= 200) return 'http-success'
-  return 'http-info'
-}
-
-const durationColor = (value?: number) => {
-  if (!value || Number.isNaN(value)) return 'neutral'
-  if (value < 2) return 'fast'
-  if (value < 5) return 'medium'
-  return 'slow'
-}
-
-const formatNumber = (value?: number) => {
-  if (value === undefined || value === null) return '—'
-  return value.toLocaleString()
-}
-
-const formatCurrency = (value?: number) => {
-  if (value === undefined || value === null || Number.isNaN(value)) {
-    return '$0.0000'
-  }
-  if (value >= 1) {
-    return `$${value.toFixed(2)}`
-  }
-  if (value >= 0.01) {
-    return `$${value.toFixed(3)}`
-  }
-  return `$${value.toFixed(4)}`
-}
-
-const startOfTodayLocal = () => {
-  const now = new Date()
-  now.setHours(0, 0, 0, 0)
-  return now
-}
-
-const statsCards = computed(() => {
-  const data = stats.value
-  const summaryDate = summaryDateLabel.value
-  const totalTokens =
-    (data?.input_tokens ?? 0) + (data?.output_tokens ?? 0) + (data?.reasoning_tokens ?? 0)
-  return [
-    {
-      key: 'requests',
-      label: t('components.logs.summary.total'),
-      hint: t('components.logs.summary.requests'),
-      value: data ? formatNumber(data.total_requests) : '—',
-    },
-    {
-      key: 'tokens',
-      label: t('components.logs.summary.tokens'),
-      hint: t('components.logs.summary.tokenHint'),
-      value: data ? formatNumber(totalTokens) : '—',
-    },
-    {
-      key: 'cacheReads',
-      label: t('components.logs.summary.cache'),
-      hint: t('components.logs.summary.cacheHint'),
-      value: data ? formatNumber(data.cache_read_tokens) : '—',
-    },
-    {
-      key: 'cost',
-      label: t('components.logs.tokenLabels.cost'),
-      hint: summaryDate ? t('components.logs.summary.todayScope', { date: summaryDate }) : '',
-      value: formatCurrency(data?.cost_total ?? 0),
-    },
-  ]
-})
-
-const summaryDateLabel = computed(() => {
-  const firstBucket = statsSeries.value.find((item) => item.day)
-  const parsed = parseLogDate(firstBucket?.day ?? '')
-  const date = parsed ?? startOfTodayLocal()
-  return `${date.getFullYear()}-${padHour(date.getMonth() + 1)}-${padHour(date.getDate())}`
-})
-
-const loadProviderOptions = async () => {
-  try {
-    const list = await fetchLogProviders(filters.platform)
-    providerOptions.value = list ?? []
-    if (filters.provider && !providerOptions.value.includes(filters.provider)) {
-      filters.provider = ''
-    }
-  } catch (error) {
-    console.error('failed to load provider options', error)
-  }
-}
-
-watch(
-  () => filters.platform,
-  async () => {
-    await loadProviderOptions()
-  },
-)
-
-onMounted(async () => {
-  await Promise.all([loadDashboard(), loadProviderOptions()])
-  startCountdown()
-  setupThemeObserver()
-  document.addEventListener('visibilitychange', handleVisibilityChange)
-})
-
-onUnmounted(() => {
-  stopCountdown()
-  teardownThemeObserver()
-  document.removeEventListener('visibilitychange', handleVisibilityChange)
-})
 </script>
 
 <style scoped>

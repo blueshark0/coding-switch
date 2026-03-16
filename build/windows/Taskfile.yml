@@ -9,8 +9,8 @@ tasks:
     deps:
       - task: common:build:frontend
         vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
+          BINDING_FLAGS:
+            ref: .BINDING_FLAGS
           PRODUCTION:
             ref: .PRODUCTION
       - task: common:generate:icons
@@ -22,6 +22,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
+      BINDING_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -buildvcs=false{{else}}-buildvcs=false{{end}}'
       BUILD_FLAGS: '{{if eq .PRODUCTION "true"}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{else}}-buildvcs=false -gcflags=all="-l"{{end}}'
     env:
       GOOS: windows

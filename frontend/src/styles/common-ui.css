@@ -1,0 +1,332 @@
+.base-input,
+.base-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--mac-border);
+  background: color-mix(in srgb, var(--mac-surface) 50%, transparent);
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: var(--mac-text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.base-input:focus,
+.base-textarea:focus {
+  outline: none;
+  border-color: var(--mac-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-accent) 25%, transparent);
+  background: var(--mac-surface);
+}
+
+.base-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.mac-sidebar-subtitle {
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.mac-sidebar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mac-sidebar-item {
+  border: none;
+  background: transparent;
+  color: var(--mac-text-secondary);
+  text-align: left;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 10px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mac-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+html.dark .mac-sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mac-sidebar-item.active {
+  color: var(--mac-text);
+  background: rgba(10, 132, 255, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.2);
+}
+
+.mac-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  background: var(--mac-surface-strong);
+}
+
+.mac-panel {
+  background: var(--mac-surface);
+  border-radius: 20px;
+  border: 1px solid var(--mac-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.mac-panel .mac-list-row + .mac-list-row {
+  border-top: 1px solid var(--mac-divider);
+}
+
+.mac-section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.mac-section-description {
+  margin: 0 0 18px;
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.mac-select {
+  min-width: 150px;
+  appearance: none;
+  border-radius: 12px;
+  border: 1px solid var(--mac-border);
+  background: var(--mac-surface-strong) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8" viewBox="0 0 12 8" fill="none"><path d="M1 1.5L6 6.5L11 1.5" stroke="%236e6e73" stroke-width="1.2" stroke-linecap="round"/></svg>') no-repeat right 12px center;
+  padding: 10px 36px 10px 14px;
+  font-size: 0.9rem;
+  color: var(--mac-text);
+  transition: border-color 0.2s ease;
+}
+
+.mac-select:focus {
+  outline: none;
+  border-color: var(--mac-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mac-accent) 25%, transparent);
+}
+
+.mac-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  appearance: none;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.mac-switch input {
+  display: none;
+}
+
+.mac-switch span {
+  display: inline-block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(110, 110, 115, 0.3);
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.mac-switch span::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s ease;
+}
+
+.mac-switch input:checked + span {
+  background: var(--mac-accent);
+}
+
+.mac-switch input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.mac-switch.sm {
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+}
+
+.mac-switch.sm span::after {
+  width: 14px;
+  height: 14px;
+  top: 3px;
+  left: 3px;
+}
+
+.mac-switch.sm input:checked + span::after {
+  transform: translateX(16px);
+}
+
+.mac-toast-container {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+}
+
+.mac-toast {
+  min-width: 240px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--mac-border);
+  background: var(--mac-surface-strong);
+  color: var(--mac-text);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  font-size: 0.9rem;
+}
+
+.mac-toast-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.mac-toast-hide {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+}
+
+.mac-toast-success {
+  border-color: rgba(10, 132, 255, 0.4);
+}
+
+.mac-toast-error {
+  border-color: rgba(255, 69, 58, 0.5);
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  margin: 0;
+  min-width: 88px;
+}
+
+.btn-outline {
+  border: 1px solid var(--mac-border);
+  background: transparent;
+  color: var(--mac-text-secondary);
+}
+
+.btn-outline:hover,
+.btn-outline:focus-visible {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.btn-primary {
+  background: var(--mac-accent);
+  color: #fff;
+  box-shadow: 0 6px 15px rgba(10, 132, 255, 0.35);
+}
+
+.btn-danger {
+  background: #ff3b30;
+  color: #fff;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--mac-text-secondary);
+  min-width: auto;
+  padding-inline: 14px;
+}
+
+.btn-ghost:hover,
+.btn-ghost:focus-visible {
+  color: var(--mac-text);
+  background: rgba(15, 23, 42, 0.06);
+}
+
+html.dark .btn-ghost {
+  color: var(--mac-text-secondary);
+}
+
+html.dark .btn-ghost:hover,
+html.dark .btn-ghost:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.ghost-icon {
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  color: var(--mac-text);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ghost-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+html.dark .ghost-icon {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ghost-icon:hover {
+  background: rgba(15, 23, 42, 0.15);
+}
+
+html.dark .ghost-icon:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (max-width: 960px) {
+  .mac-window {
+    flex-direction: column;
+  }
+
+  .mac-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--mac-sidebar-border);
+  }
+}

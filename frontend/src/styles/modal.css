@@ -1,0 +1,248 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  width: 100%;
+  height: 100%;
+}
+
+.modal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.modal-wrapper {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  width: 100%;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: min(720px, 95vw);
+  max-height: 90vh;
+  background: var(--mac-surface);
+  border-radius: 24px;
+  border: 1px solid var(--mac-border);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 24px 24px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-body {
+  padding: 0 24px 24px;
+}
+
+.modal-scrollable {
+  overflow-y: auto;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--mac-text);
+}
+
+.vendor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 0;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.form-field span {
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.field-error {
+  color: #ff3b30;
+  font-size: 0.8rem;
+}
+
+.has-error {
+  border-color: rgba(255, 59, 48, 0.8);
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+  border: 1px solid var(--mac-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font: inherit;
+  background: var(--mac-surface-strong);
+  color: var(--mac-text);
+}
+
+.form-field textarea {
+  resize: vertical;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.switch-field {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.switch-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.switch-text {
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.form-field select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--mac-text) 50%),
+    linear-gradient(135deg, var(--mac-text) 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+.icon-select {
+  position: relative;
+  width: 100%;
+}
+
+.icon-select-button {
+  width: 100%;
+  border: 1px solid var(--mac-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--mac-surface-strong);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  cursor: pointer;
+  height: 48px;
+}
+
+.icon-select-button svg {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--mac-text-secondary);
+}
+
+.icon-select-options {
+  position: absolute;
+  z-index: 10;
+  width: 100%;
+  margin-top: 8px;
+  background: var(--mac-surface);
+  border: 1px solid var(--mac-border);
+  border-radius: 12px;
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.18);
+}
+
+.icon-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.icon-option .icon-name {
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.icon-select .icon-preview,
+.icon-option .icon-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.icon-select .icon-preview svg,
+.icon-option .icon-preview svg,
+.icon-select .async-icon svg,
+.icon-option .async-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-option.active,
+.icon-option:hover {
+  background: var(--mac-surface-strong);
+}
+
+.icon-option.selected {
+  background: color-mix(in srgb, var(--mac-accent) 12%, transparent);
+}
+
+.icon-select-label {
+  font-weight: 500;
+}
+
+.confirm-modal {
+  max-width: 420px;
+}
+
+.confirm-body {
+  padding: 0 0 16px;
+  color: var(--mac-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  padding: 0;
+  width: 100%;
+}

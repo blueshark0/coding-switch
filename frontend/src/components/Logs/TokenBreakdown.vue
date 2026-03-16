@@ -22,7 +22,9 @@
     </div>
     <div class="token-cost-row">
       <span class="token-label">{{ t('components.logs.tokenLabels.cost') }}</span>
-      <span class="token-value">{{ log.has_pricing ? formatCurrency(log.total_cost) : '—' }}</span>
+      <span :class="['token-value', costValueClass(log)]">
+        {{ log.has_pricing ? formatCurrency(log.total_cost) : '—' }}
+      </span>
     </div>
   </td>
 </template>
@@ -38,4 +40,11 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+
+const costValueClass = (log: RequestLog) => {
+  if (!log.has_pricing) return ''
+  if (log.total_cost < 0.1) return 'token-cost-low'
+  if (log.total_cost > 0.5) return 'token-cost-high'
+  return 'token-cost-medium'
+}
 </script>

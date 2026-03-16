@@ -1,45 +1,30 @@
-import { Call } from '@wailsio/runtime'
+import {
+  GetAppPreferences,
+  GetProfile,
+  SaveAppPreferences,
+  SaveProfile,
+} from '../../bindings/codeswitch/internal/interfaces/wails/routingfacade'
+import type {
+  AppPreferences,
+  Provider,
+  RouteProfile,
+} from '../../bindings/codeswitch/internal/routing/domain/models'
 
-const serviceName = 'codeswitch/internal/interfaces/wails.RoutingFacade'
-
-export type ProviderRecord = {
-  id: number
-  name: string
-  apiUrl: string
-  apiKey: string
-  officialSite: string
-  icon: string
-  tint: string
-  accent: string
-  enabled: boolean
-  position?: number
-  supportedModels?: Record<string, boolean>
-  modelMapping?: Record<string, string>
-}
-
-export type RouteProfile = {
-  platform: string
-  defaultProviderId?: number | null
-  providers: ProviderRecord[]
-}
-
-export type AppPreferences = {
-  show_heatmap: boolean
-  show_home_title: boolean
-}
+export type ProviderRecord = Provider
+export type { AppPreferences, RouteProfile }
 
 export const fetchRouteProfile = async (platform: string): Promise<RouteProfile> => {
-  return Call.ByName(`${serviceName}.GetProfile`, platform)
+  return GetProfile(platform)
 }
 
 export const saveRouteProfile = async (profile: RouteProfile): Promise<RouteProfile> => {
-  return Call.ByName(`${serviceName}.SaveProfile`, profile)
+  return SaveProfile(profile)
 }
 
 export const fetchAppPreferences = async (): Promise<AppPreferences> => {
-  return Call.ByName(`${serviceName}.GetAppPreferences`)
+  return GetAppPreferences()
 }
 
 export const saveAppPreferences = async (preferences: AppPreferences): Promise<AppPreferences> => {
-  return Call.ByName(`${serviceName}.SaveAppPreferences`, preferences)
+  return SaveAppPreferences(preferences)
 }

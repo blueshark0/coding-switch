@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
+	sessionapp "codeswitch/internal/sessions/application"
 	"codeswitch/internal/shared/kernel"
-	"codeswitch/services"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 )
@@ -20,10 +20,10 @@ type sessionCacheEntry struct {
 
 type Cache struct {
 	cache   *lru.Cache[string, *sessionCacheEntry]
-	service *services.SessionService
+	service *sessionapp.Service
 }
 
-func NewCache(service *services.SessionService) *Cache {
+func NewCache(service *sessionapp.Service) *Cache {
 	cache, err := lru.New[string, *sessionCacheEntry](sessionCacheSize)
 	if err != nil {
 		log.Printf("[ERROR] 创建会话缓存失败: %v\n", err)

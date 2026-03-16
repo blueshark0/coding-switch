@@ -1,27 +1,18 @@
-import { Call } from '@wailsio/runtime'
-
-export type ClaudeProxyStatus = {
-  enabled: boolean
-  base_url: string
-}
+import { Disable, Enable, GetStatus } from '../../bindings/codeswitch/internal/interfaces/wails/platformproxyfacade'
+import type { Status as ClaudeProxyStatus } from '../../bindings/codeswitch/internal/platformproxy/domain/models'
 
 type Platform = 'claude' | 'codex' | 'gemini'
 
-const serviceName = 'codeswitch/internal/interfaces/wails.PlatformProxyFacade'
-
-const callByPlatform = async <T = unknown>(platform: Platform, method: string, payload?: any[]): Promise<T> => {
-  const args = [platform, ...(payload ?? [])]
-  return Call.ByName(`${serviceName}.${method}`, ...args)
-}
+export type { ClaudeProxyStatus }
 
 export const fetchProxyStatus = async (platform: Platform): Promise<ClaudeProxyStatus> => {
-  return callByPlatform<ClaudeProxyStatus>(platform, 'GetStatus')
+  return GetStatus(platform)
 }
 
 export const enableProxy = async (platform: Platform): Promise<void> => {
-  await callByPlatform(platform, 'Enable')
+  await Enable(platform)
 }
 
 export const disableProxy = async (platform: Platform): Promise<void> => {
-  await callByPlatform(platform, 'Disable')
+  await Disable(platform)
 }

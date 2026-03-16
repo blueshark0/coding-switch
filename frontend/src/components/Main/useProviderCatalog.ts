@@ -53,7 +53,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const activeCards = computed(() => cards[activeTab.value] ?? [])
 
   const serializeProviders = (providers: AutomationCard[]) =>
-    providers.map((provider) => ({ ...provider }))
+    providers.map((provider, index) => ({ ...provider, position: index + 1 }))
 
   const persistProviders = async (tabId: ProviderTab) => {
     try {

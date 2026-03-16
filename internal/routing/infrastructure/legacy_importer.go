@@ -12,6 +12,7 @@ import (
 
 	"codeswitch/internal/routing/domain"
 	"codeswitch/internal/shared/kernel"
+	"codeswitch/internal/shared/storage"
 )
 
 type LegacyImporter struct {
@@ -149,11 +150,7 @@ func (s legacyAppSettings) DefaultProviderName(platform kernel.Platform) string 
 }
 
 func legacyAppDir() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".code-switch"), nil
+	return storage.AppDataDir()
 }
 
 func legacyProviderFile(appDir string, platform kernel.Platform) string {

@@ -14,8 +14,7 @@ export const saveProviders = async (platform: string, providers: ProviderRecord[
     position: index + 1,
   }))
   await saveRouteProfile({
-    platform,
-    defaultProviderId: current?.defaultProviderId ?? null,
+    ...current,
     providers: normalizedProviders,
   })
 }

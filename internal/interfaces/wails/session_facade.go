@@ -2,7 +2,7 @@ package wails
 
 import (
 	sessionapp "codeswitch/internal/sessions/application"
-	"codeswitch/services"
+	sessiondomain "codeswitch/internal/sessions/domain"
 )
 
 type SessionFacade struct {
@@ -13,7 +13,7 @@ func NewSessionFacade(service *sessionapp.Service) *SessionFacade {
 	return &SessionFacade{service: service}
 }
 
-func (f *SessionFacade) ListByPlatform(platform string) ([]services.SessionBinding, error) {
+func (f *SessionFacade) ListByPlatform(platform string) ([]sessiondomain.SessionBinding, error) {
 	return f.service.ListByPlatform(platform)
 }
 

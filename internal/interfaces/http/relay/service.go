@@ -10,8 +10,9 @@ import (
 	observabilitydomain "codeswitch/internal/observability/domain"
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	routingapp "codeswitch/internal/routing/application"
+	sessionapp "codeswitch/internal/sessions/application"
 	sessioninfra "codeswitch/internal/sessions/infrastructure"
-	"codeswitch/services"
+	"codeswitch/internal/shared/worker"
 	"github.com/gin-gonic/gin"
 )
 
@@ -34,18 +35,18 @@ type sessionUpdateRequest struct {
 
 type Server struct {
 	routingService      *routingapp.Service
-	sessionService      *services.SessionService
+	sessionService      *sessionapp.Service
 	sessionCache        *sessioninfra.Cache
 	server              *http.Server
 	addr                string
-	requestLogWorker    *services.BackgroundWorker[*observabilitydomain.RequestLog]
-	sessionUpdateWorker *services.BackgroundWorker[sessionUpdateRequest]
+	requestLogWorker    *worker.BackgroundWorker[*observabilitydomain.RequestLog]
+	sessionUpdateWorker *worker.BackgroundWorker[sessionUpdateRequest]
 	shutdownCh          chan struct{}
 	backgroundWG        sync.WaitGroup
 	shutdownOnce        sync.Once
 }
 
-func NewServer(routingService *routingapp.Service, sessionService *services.SessionService, addr string) *Server {
+func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Service, addr string) *Server {
 	if addr == "" {
 		addr = ":18100"
 	}
@@ -56,14 +57,14 @@ func NewServer(routingService *routingapp.Service, sessionService *services.Sess
 		addr:           addr,
 		shutdownCh:     make(chan struct{}),
 	}
-	server.requestLogWorker = services.NewBackgroundWorker[*observabilitydomain.RequestLog](services.WorkerConfig{
+	server.requestLogWorker = worker.New[*observabilitydomain.RequestLog](worker.Config{
 		Name:          "request_log",
 		BufferSize:    requestLogBufferSize,
 		BatchSize:     requestLogBatchSize,
 		FlushInterval: requestLogFlushInterval,
 	}, &observabilityinfra.RequestLogWriter{})
 	server.requestLogWorker.Start()
-	server.sessionUpdateWorker = services.NewBackgroundWorker[sessionUpdateRequest](services.WorkerConfig{
+	server.sessionUpdateWorker = worker.New[sessionUpdateRequest](worker.Config{
 		Name:          "session_update",
 		BufferSize:    sessionUpdateBufferSize,
 		BatchSize:     sessionUpdateBatchSize,

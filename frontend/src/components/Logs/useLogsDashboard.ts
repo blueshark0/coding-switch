@@ -32,6 +32,8 @@ export const useLogsDashboard = ({
   const providerOptions = ref<string[]>([])
   const countdown = ref(REFRESH_INTERVAL)
   let timer: number | undefined
+  let dashboardLoadPromise: Promise<void> | null = null
+  let queuedDashboardReload = false
 
   const pagedLogs = computed(() => {
     const start = (page.value - 1) * PAGE_SIZE
@@ -44,6 +46,7 @@ export const useLogsDashboard = ({
     chartOptions,
     durationColor,
     formatDuration,
+    formatCurrency,
     formatNumber,
     formatStream,
     formatTime,
@@ -60,37 +63,42 @@ export const useLogsDashboard = ({
     countdown.value = REFRESH_INTERVAL
   }
 
-  const loadLogs = async () => {
-    loading.value = true
-    try {
-      const data = await fetchRequestLogs({
-        platform: filters.platform,
-        provider: filters.provider,
-        limit: 200,
-      })
-      logs.value = data ?? []
-      page.value = Math.min(page.value, totalPages.value)
-    } catch (error) {
-      console.error('failed to load request logs', error)
-    } finally {
-      loading.value = false
+  const loadDashboard = (options: { skipIfLoading?: boolean } = {}) => {
+    if (dashboardLoadPromise) {
+      return options.skipIfLoading ? null : dashboardLoadPromise
     }
-  }
 
-  const loadStats = async () => {
-    try {
-      const data = await fetchLogStats({
-        platform: filters.platform,
-        provider: filters.provider,
-      })
-      stats.value = data ?? null
-    } catch (error) {
-      console.error('failed to load log stats', error)
-    }
-  }
+    dashboardLoadPromise = (async () => {
+      loading.value = true
+      try {
+        do {
+          queuedDashboardReload = false
+          const [logData, statData] = await Promise.all([
+            fetchRequestLogs({
+              platform: filters.platform,
+              provider: filters.provider,
+              limit: 100,
+            }),
+            fetchLogStats({
+              platform: filters.platform,
+              provider: filters.provider,
+            }),
+          ])
+          const nextLogs = logData ?? []
+          logs.value = nextLogs
+          stats.value = statData ?? null
+          const nextTotalPages = Math.max(1, Math.ceil(nextLogs.length / PAGE_SIZE))
+          page.value = Math.min(page.value, nextTotalPages)
+        } while (queuedDashboardReload)
+      } catch (error) {
+        console.error('failed to load dashboard data', error)
+      } finally {
+        loading.value = false
+        dashboardLoadPromise = null
+      }
+    })()
 
-  const loadDashboard = async () => {
-    await Promise.all([loadLogs(), loadStats()])
+    return dashboardLoadPromise
   }
 
   const loadProviderOptions = async () => {
@@ -117,7 +125,7 @@ export const useLogsDashboard = ({
     timer = window.setInterval(() => {
       if (countdown.value <= 1) {
         countdown.value = REFRESH_INTERVAL
-        void loadDashboard()
+        void loadDashboard({ skipIfLoading: true })
       } else {
         countdown.value -= 1
       }
@@ -134,12 +142,18 @@ export const useLogsDashboard = ({
 
   const applyFilters = async () => {
     page.value = 1
+    if (dashboardLoadPromise) {
+      queuedDashboardReload = true
+    }
     await loadDashboard()
     resetTimer()
   }
 
   const manualRefresh = () => {
     resetTimer()
+    if (dashboardLoadPromise) {
+      queuedDashboardReload = true
+    }
     void loadDashboard()
   }
 
@@ -181,6 +195,7 @@ export const useLogsDashboard = ({
     durationColor,
     filters,
     formatDuration,
+    formatCurrency,
     formatNumber,
     formatStream,
     formatTime,

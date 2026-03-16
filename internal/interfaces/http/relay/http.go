@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -46,9 +45,9 @@ func (s *Server) proxyHandler(platform kernel.Platform, defaultEndpoint string) 
 		}
 		query := flattenQuery(c.Request.URL.Query())
 		headers := cloneHeaders(c.Request.Header)
-		endpoint, requestedModel, isStream, routeOptions := handler.ExtractRequestInfo(c.Request.URL.Path, bodyBytes, query, headers)
-		if requestedModel == "" {
-			log.Printf("[WARN] 请求未指定模型名\n")
+		requestMeta := handler.ExtractRequestMeta(c.Request.URL.Path, bodyBytes, query, headers)
+		if requestMeta.RequestedModel == "" {
+			relayDebugf("request missing model: platform=%s path=%s", platform, c.Request.URL.Path)
 		}
 		profile, err := s.loadProfile(platform.String())
 		if err != nil {
@@ -56,16 +55,13 @@ func (s *Server) proxyHandler(platform kernel.Platform, defaultEndpoint string) 
 			return
 		}
 		ctx := &RelayContext{
-			GinCtx:         c,
-			Platform:       platform,
-			Endpoint:       endpoint,
-			BodyBytes:      bodyBytes,
-			RequestedModel: requestedModel,
-			IsStream:       isStream,
-			Query:          query,
-			Headers:        headers,
-			Profile:        profile,
-			RouteOptions:   routeOptions,
+			GinCtx:      c,
+			Platform:    platform,
+			BodyBytes:   bodyBytes,
+			Query:       query,
+			Headers:     headers,
+			Profile:     profile,
+			RequestMeta: requestMeta,
 		}
 		if ok, err := s.routeToManualProvider(ctx); !ok {
 			errorMsg := "路由失败"

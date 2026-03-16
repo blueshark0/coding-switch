@@ -102,8 +102,22 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 	); err != nil {
 		return domain.RouteProfile{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM providers WHERE platform = ?`, profile.Platform.String()); err != nil {
+
+	existingIDs, err := loadProviderIDs(ctx, tx, profile.Platform.String())
+	if err != nil {
 		return domain.RouteProfile{}, err
+	}
+	incomingIDs := make(map[int]struct{}, len(profile.Providers))
+	for _, provider := range profile.Providers {
+		incomingIDs[provider.ID] = struct{}{}
+	}
+	for _, providerID := range existingIDs {
+		if _, ok := incomingIDs[providerID]; ok {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM providers WHERE platform = ? AND id = ?`, profile.Platform.String(), providerID); err != nil {
+			return domain.RouteProfile{}, err
+		}
 	}
 	for _, provider := range profile.Providers {
 		supportedModelsJSON, err := encodeJSONMap(provider.SupportedModels)
@@ -117,7 +131,19 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
 			platform, id, name, api_url, api_key, official_site, icon, tint, accent, enabled, position,
 			supported_models_json, model_mapping_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(platform, id) DO UPDATE SET
+			name = excluded.name,
+			api_url = excluded.api_url,
+			api_key = excluded.api_key,
+			official_site = excluded.official_site,
+			icon = excluded.icon,
+			tint = excluded.tint,
+			accent = excluded.accent,
+			enabled = excluded.enabled,
+			position = excluded.position,
+			supported_models_json = excluded.supported_models_json,
+			model_mapping_json = excluded.model_mapping_json`,
 			profile.Platform.String(),
 			provider.ID,
 			provider.Name,
@@ -140,4 +166,25 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 	}
 	tx = nil
 	return s.GetProfile(ctx, profile.Platform)
+}
+
+func loadProviderIDs(ctx context.Context, tx *sql.Tx, platform string) ([]int, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM providers WHERE platform = ?`, platform)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := make([]int, 0)
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return ids, nil
 }

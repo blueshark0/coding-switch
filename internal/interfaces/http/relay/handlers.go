@@ -16,16 +16,15 @@ func NewClaudeHandler(endpoint string) *ClaudeHandler {
 	return &ClaudeHandler{defaultEndpoint: endpoint}
 }
 
-func (h *ClaudeHandler) ExtractRequestInfo(path string, bodyBytes []byte, query, headers map[string]string) (
-	endpoint string,
-	requestedModel string,
-	isStream bool,
-	routeOptions *relayRouteOptions,
-) {
-	endpoint = h.defaultEndpoint
-	requestedModel = gjson.GetBytes(bodyBytes, "model").String()
-	isStream = gjson.GetBytes(bodyBytes, "stream").Bool()
-	return
+func (h *ClaudeHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, headers map[string]string) RequestMeta {
+	modelResult := gjson.GetBytes(bodyBytes, "model")
+	return RequestMeta{
+		Endpoint:          h.defaultEndpoint,
+		RequestedModel:    modelResult.String(),
+		SessionID:         gjson.GetBytes(bodyBytes, "metadata.user_id").String(),
+		IsStream:          gjson.GetBytes(bodyBytes, "stream").Bool(),
+		BodyHasModelField: modelResult.Exists(),
+	}
 }
 
 type CodexHandler struct {
@@ -36,16 +35,15 @@ func NewCodexHandler(endpoint string) *CodexHandler {
 	return &CodexHandler{defaultEndpoint: endpoint}
 }
 
-func (h *CodexHandler) ExtractRequestInfo(path string, bodyBytes []byte, query, headers map[string]string) (
-	endpoint string,
-	requestedModel string,
-	isStream bool,
-	routeOptions *relayRouteOptions,
-) {
-	endpoint = h.defaultEndpoint
-	requestedModel = gjson.GetBytes(bodyBytes, "model").String()
-	isStream = gjson.GetBytes(bodyBytes, "stream").Bool()
-	return
+func (h *CodexHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, headers map[string]string) RequestMeta {
+	modelResult := gjson.GetBytes(bodyBytes, "model")
+	return RequestMeta{
+		Endpoint:          h.defaultEndpoint,
+		RequestedModel:    modelResult.String(),
+		SessionID:         headerValue(headers, "session_id"),
+		IsStream:          gjson.GetBytes(bodyBytes, "stream").Bool(),
+		BodyHasModelField: modelResult.Exists(),
+	}
 }
 
 type GeminiHandler struct{}
@@ -54,18 +52,22 @@ func NewGeminiHandler() *GeminiHandler {
 	return &GeminiHandler{}
 }
 
-func (h *GeminiHandler) ExtractRequestInfo(path string, bodyBytes []byte, query, headers map[string]string) (
-	endpoint string,
-	requestedModel string,
-	isStream bool,
-	routeOptions *relayRouteOptions,
-) {
-	endpoint = strings.TrimPrefix(path, "/gemini")
+func (h *GeminiHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, headers map[string]string) RequestMeta {
+	endpoint := strings.TrimPrefix(path, "/gemini")
 	var bodyModel string
-	requestedModel, bodyModel = extractGeminiModel(endpoint, bodyBytes)
-	isStream = detectGeminiStream(endpoint, query, headers, bodyBytes)
-	routeOptions = h.createRouteOptions(bodyModel != "")
-	return
+	requestedModel, bodyModel := extractGeminiModel(endpoint, bodyBytes)
+	sessionID := headerValue(headers, "x-gemini-api-privileged-user-id")
+	if sessionID == "" {
+		sessionID = headerValue(headers, "x-session-id")
+	}
+	return RequestMeta{
+		Endpoint:          endpoint,
+		RequestedModel:    requestedModel,
+		SessionID:         sessionID,
+		IsStream:          detectGeminiStream(endpoint, query, headers, bodyBytes),
+		BodyHasModelField: strings.TrimSpace(bodyModel) != "",
+		RouteOptions:      h.createRouteOptions(bodyModel != ""),
+	}
 }
 
 func (h *GeminiHandler) createRouteOptions(forceBodyRewrite bool) *relayRouteOptions {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
@@ -13,6 +14,8 @@ import (
 )
 
 const RequestLogRetentionDays = 60
+
+const requestLogCheckpointThreshold = 1000
 
 func requestLogModel() xdb.Model {
 	return xdb.New("request_log", xdb.WithConn(storage.RequestLogDBName))
@@ -38,7 +41,15 @@ func recordFromRequestLog(logEntry *observabilitydomain.RequestLog) xdb.Record {
 		"reasoning_tokens":    logEntry.ReasoningTokens,
 		"is_stream":           boolToInt(logEntry.IsStream),
 		"duration_sec":        logEntry.DurationSec,
+		"created_at":          requestLogCreatedAt(logEntry.CreatedAt),
 	}
+}
+
+func requestLogCreatedAt(createdAt string) string {
+	if strings.TrimSpace(createdAt) != "" {
+		return createdAt
+	}
+	return time.Now().UTC().Format(timeLayout)
 }
 
 func CleanupOldRequestLogs(retentionDays int) error {
@@ -59,9 +70,11 @@ func CleanupOldRequestLogs(retentionDays int) error {
 	}
 	if rows, err := res.RowsAffected(); err == nil && rows > 0 {
 		log.Printf("清理 %d 条过期 request_log 记录\n", rows)
-	}
-	if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		log.Printf("执行 wal_checkpoint 失败: %v\n", err)
+		if rows >= requestLogCheckpointThreshold {
+			if _, err := db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+				log.Printf("执行 wal_checkpoint 失败: %v\n", err)
+			}
+		}
 	}
 	if _, err := db.Exec("PRAGMA optimize"); err != nil {
 		log.Printf("执行 PRAGMA optimize 失败: %v\n", err)
@@ -101,7 +114,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		name       string
 		definition string
 	}{
-		{name: "created_at", definition: "DATETIME DEFAULT CURRENT_TIMESTAMP"},
+		{name: "created_at", definition: "DATETIME"},
 		{name: "is_stream", definition: "INTEGER DEFAULT 0"},
 		{name: "duration_sec", definition: "REAL DEFAULT 0"},
 	}
@@ -117,6 +130,9 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 				return err
 			}
 		}
+	}
+	if _, err := db.Exec("UPDATE request_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL OR created_at = ''"); err != nil {
+		return err
 	}
 
 	indexStatements := []string{

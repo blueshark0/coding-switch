@@ -2,6 +2,7 @@ package relay
 
 import (
 	"net/http"
+	"strings"
 
 	routingdomain "codeswitch/internal/routing/domain"
 	"codeswitch/internal/shared/kernel"
@@ -16,17 +17,23 @@ type relayRouteOptions struct {
 	forceBodyRewrite   bool
 }
 
+type RequestMeta struct {
+	Endpoint          string
+	RequestedModel    string
+	SessionID         string
+	IsStream          bool
+	BodyHasModelField bool
+	RouteOptions      *relayRouteOptions
+}
+
 type RelayContext struct {
-	GinCtx         *gin.Context
-	Platform       kernel.Platform
-	Endpoint       string
-	BodyBytes      []byte
-	RequestedModel string
-	IsStream       bool
-	Query          map[string]string
-	Headers        map[string]string
-	Profile        routingdomain.RouteProfile
-	RouteOptions   *relayRouteOptions
+	GinCtx      *gin.Context
+	Platform    kernel.Platform
+	BodyBytes   []byte
+	Query       map[string]string
+	Headers     map[string]string
+	Profile     routingdomain.RouteProfile
+	RequestMeta RequestMeta
 }
 
 type ForwardContext struct {
@@ -42,12 +49,7 @@ type ForwardContext struct {
 }
 
 type PlatformHandler interface {
-	ExtractRequestInfo(path string, bodyBytes []byte, query, headers map[string]string) (
-		endpoint string,
-		requestedModel string,
-		isStream bool,
-		routeOptions *relayRouteOptions,
-	)
+	ExtractRequestMeta(path string, bodyBytes []byte, query, headers map[string]string) RequestMeta
 }
 
 func cloneHeaders(header http.Header) map[string]string {
@@ -76,4 +78,20 @@ func flattenQuery(values map[string][]string) map[string]string {
 		}
 	}
 	return query
+}
+
+func headerValue(headers map[string]string, name string) string {
+	if headers == nil {
+		return ""
+	}
+	if value, ok := headers[name]; ok {
+		return value
+	}
+	target := strings.ToLower(name)
+	for key, value := range headers {
+		if strings.ToLower(key) == target {
+			return value
+		}
+	}
+	return ""
 }

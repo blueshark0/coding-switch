@@ -45,10 +45,8 @@ func (i *Initializer) Initialize() error {
 	if err := i.runMigrations(); err != nil {
 		log.Printf("数据迁移警告: %v\n", err)
 	}
-	if err := i.runStartupMaintenance(); err != nil {
-		log.Printf("启动维护警告: %v\n", err)
-	}
 	i.initialized = true
+	i.runStartupMaintenanceAsync()
 	return nil
 }
 
@@ -85,6 +83,10 @@ func (i *Initializer) runMigrations() error {
 	return errors.Join(errs...)
 }
 
-func (i *Initializer) runStartupMaintenance() error {
-	return observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays)
+func (i *Initializer) runStartupMaintenanceAsync() {
+	go func() {
+		if err := observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays); err != nil {
+			log.Printf("启动维护警告: %v\n", err)
+		}
+	}()
 }

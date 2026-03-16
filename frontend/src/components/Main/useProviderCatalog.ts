@@ -1,4 +1,4 @@
-import { computed, reactive, ref, type ComputedRef } from 'vue'
+import { computed, onUnmounted, reactive, ref, type ComputedRef } from 'vue'
 import { automationCardGroups, createAutomationCards, type AutomationCard } from '../../data/cards'
 import { providerTabs, providerTabIds, type ProviderTab } from '../../constants/platforms'
 import { getIconOptions } from '../../icons/lobeIconMap'
@@ -22,6 +22,11 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const draggingId = ref<number | null>(null)
   const editingCard = ref<AutomationCard | null>(null)
   const defaultIconKey = getIconOptions()[0] ?? 'aicoding'
+  const persistTimers: Record<ProviderTab, number | undefined> = {
+    claude: undefined,
+    codex: undefined,
+    gemini: undefined,
+  }
 
   const createDefaultForm = (): VendorForm => ({
     name: '',
@@ -56,11 +61,25 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     providers.map((provider, index) => ({ ...provider, position: index + 1 }))
 
   const persistProviders = async (tabId: ProviderTab) => {
+    if (persistTimers[tabId]) {
+      clearTimeout(persistTimers[tabId])
+      persistTimers[tabId] = undefined
+    }
     try {
       await saveProviders(tabId, serializeProviders(cards[tabId]))
     } catch (error) {
       console.error('Failed to save providers', error)
     }
+  }
+
+  const persistProvidersDebounced = (tabId: ProviderTab) => {
+    if (persistTimers[tabId]) {
+      clearTimeout(persistTimers[tabId])
+    }
+    persistTimers[tabId] = window.setTimeout(() => {
+      persistTimers[tabId] = undefined
+      void persistProviders(tabId)
+    }, 300)
   }
 
   const replaceProviders = (tabId: ProviderTab, data: AutomationCard[]) => {
@@ -221,12 +240,12 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
 
   const pinProvider = (cardId: number) => {
     if (!moveCardToFront(activeTab.value, cardId)) return
-    void persistProviders(activeTab.value)
+    persistProvidersDebounced(activeTab.value)
   }
 
   const updateProviderEnabled = (card: AutomationCard, enabled: boolean) => {
     card.enabled = enabled
-    void persistProviders(activeTab.value)
+    persistProvidersDebounced(activeTab.value)
   }
 
   const onDragStart = (id: number, event: DragEvent) => {
@@ -250,12 +269,20 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     const [moved] = list.splice(fromIndex, 1)
     list.splice(toIndex, 0, moved)
     draggingId.value = null
-    void persistProviders(currentTab)
+    persistProvidersDebounced(currentTab)
   }
 
   const onDragEnd = () => {
     draggingId.value = null
   }
+
+  onUnmounted(() => {
+    Object.values(persistTimers).forEach((timerId) => {
+      if (timerId) {
+        clearTimeout(timerId)
+      }
+    })
+  })
 
   return {
     activeCards,

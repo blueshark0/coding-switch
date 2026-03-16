@@ -17,15 +17,15 @@ import (
 )
 
 const (
-	requestLogBufferSize      = 1024
-	requestLogBatchSize       = 50
-	requestLogFlushInterval   = 500 * time.Millisecond
+	requestLogBufferSize      = 4096
+	requestLogBatchSize       = 100
+	requestLogFlushInterval   = 250 * time.Millisecond
 	requestLogCleanupInterval = 6 * time.Hour
 	requestLogRetentionDays   = 60
 
-	sessionUpdateBufferSize    = 100
-	sessionUpdateBatchSize     = 20
-	sessionUpdateFlushInterval = 200 * time.Millisecond
+	sessionUpdateBufferSize    = 512
+	sessionUpdateBatchSize     = 50
+	sessionUpdateFlushInterval = 500 * time.Millisecond
 )
 
 type sessionUpdateRequest struct {

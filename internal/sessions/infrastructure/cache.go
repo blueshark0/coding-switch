@@ -11,11 +11,16 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-const sessionCacheSize = 1000
+const (
+	sessionCacheSize       = 1000
+	sessionPersistInterval = 60 * time.Second
+)
 
 type sessionCacheEntry struct {
-	providerName  string
-	lastSuccessAt time.Time
+	providerName     string
+	lastSuccessAt    time.Time
+	lastPersistedAt  time.Time
+	pendingPersistAt time.Time
 }
 
 type Cache struct {
@@ -62,8 +67,9 @@ func (sc *Cache) GetSessionProvider(platform, sessionID string) (string, error) 
 	}
 	if providerName != "" && sc.cache != nil {
 		sc.cache.Add(key, &sessionCacheEntry{
-			providerName:  providerName,
-			lastSuccessAt: time.Now(),
+			providerName:    providerName,
+			lastSuccessAt:   time.Now(),
+			lastPersistedAt: time.Time{},
 		})
 	}
 	return providerName, nil
@@ -78,9 +84,11 @@ func (sc *Cache) BindSessionToProvider(platform, sessionID, providerName string)
 	}
 	if sc.cache != nil {
 		key := sc.cacheKey(platform, sessionID)
+		now := time.Now()
 		sc.cache.Add(key, &sessionCacheEntry{
-			providerName:  providerName,
-			lastSuccessAt: time.Now(),
+			providerName:    providerName,
+			lastSuccessAt:   now,
+			lastPersistedAt: now,
 		})
 	}
 	return nil
@@ -91,15 +99,49 @@ func (sc *Cache) UpdateSessionSuccess(platform, sessionID string) error {
 		return nil
 	}
 	if err := sc.service.UpdateSessionSuccess(platform, sessionID); err != nil {
+		sc.ClearPendingSessionSuccess(platform, sessionID)
 		return err
 	}
 	if sc.cache != nil {
+		now := time.Now()
 		key := sc.cacheKey(platform, sessionID)
 		if entry, ok := sc.cache.Get(key); ok {
-			entry.lastSuccessAt = time.Now()
+			entry.lastSuccessAt = now
+			entry.lastPersistedAt = now
+			entry.pendingPersistAt = time.Time{}
 		}
 	}
 	return nil
+}
+
+func (sc *Cache) RecordSessionSuccess(platform, sessionID, providerName string) bool {
+	if sessionID == "" {
+		return false
+	}
+	if sc.cache == nil {
+		return true
+	}
+	now := time.Now()
+	key := sc.cacheKey(platform, sessionID)
+	entry, ok := sc.cache.Get(key)
+	if !ok || entry == nil {
+		entry = &sessionCacheEntry{providerName: providerName}
+		sc.cache.Add(key, entry)
+	}
+	if providerName != "" {
+		entry.providerName = providerName
+	}
+	entry.lastSuccessAt = now
+
+	referenceTime := entry.lastPersistedAt
+	if entry.pendingPersistAt.After(referenceTime) {
+		referenceTime = entry.pendingPersistAt
+	}
+	if !referenceTime.IsZero() && now.Sub(referenceTime) < sessionPersistInterval {
+		return false
+	}
+	entry.pendingPersistAt = now
+	return true
 }
 
 func (sc *Cache) InvalidateSession(platform, sessionID string) {
@@ -112,6 +154,18 @@ func (sc *Cache) InvalidateSession(platform, sessionID string) {
 func (sc *Cache) isExpired(platform string, lastSuccessAt time.Time) bool {
 	timeout := kernel.Platform(platform).SessionTimeout()
 	return time.Since(lastSuccessAt) > timeout
+}
+
+func (sc *Cache) ClearPendingSessionSuccess(platform, sessionID string) {
+	if sc.cache == nil || sessionID == "" {
+		return
+	}
+	key := sc.cacheKey(platform, sessionID)
+	entry, ok := sc.cache.Get(key)
+	if !ok || entry == nil {
+		return
+	}
+	entry.pendingPersistAt = time.Time{}
 }
 
 func (sc *Cache) Stats() (size int, capacity int) {

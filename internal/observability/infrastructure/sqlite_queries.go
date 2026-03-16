@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"log"
+	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	modelpricing "codeswitch/resources/model-pricing"
@@ -9,6 +10,10 @@ import (
 
 type SQLiteQueries struct {
 	pricing *modelpricing.Service
+
+	statsCache         *ttlCache[observabilitydomain.LogStats]
+	providerDailyCache *ttlCache[[]observabilitydomain.ProviderDailyStat]
+	heatmapCache       *ttlCache[[]observabilitydomain.HeatmapStat]
 }
 
 func NewSQLiteQueries() *SQLiteQueries {
@@ -16,7 +21,12 @@ func NewSQLiteQueries() *SQLiteQueries {
 	if err != nil {
 		log.Printf("pricing service init failed: %v", err)
 	}
-	return &SQLiteQueries{pricing: svc}
+	return &SQLiteQueries{
+		pricing:            svc,
+		statsCache:         newTTLCache(30*time.Second, cloneLogStats),
+		providerDailyCache: newTTLCache(5*time.Minute, cloneProviderDailyStats),
+		heatmapCache:       newTTLCache(5*time.Minute, cloneHeatmapStats),
+	}
 }
 
 func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
@@ -45,4 +55,28 @@ func (q *SQLiteQueries) calculateCost(model string, usage modelpricing.UsageSnap
 		return modelpricing.CostBreakdown{}
 	}
 	return q.pricing.CalculateCost(model, usage)
+}
+
+func cloneLogStats(stats observabilitydomain.LogStats) observabilitydomain.LogStats {
+	cloned := stats
+	if stats.Series == nil {
+		cloned.Series = []observabilitydomain.LogStatsSeries{}
+		return cloned
+	}
+	cloned.Series = append([]observabilitydomain.LogStatsSeries(nil), stats.Series...)
+	return cloned
+}
+
+func cloneProviderDailyStats(stats []observabilitydomain.ProviderDailyStat) []observabilitydomain.ProviderDailyStat {
+	if stats == nil {
+		return []observabilitydomain.ProviderDailyStat{}
+	}
+	return append([]observabilitydomain.ProviderDailyStat(nil), stats...)
+}
+
+func cloneHeatmapStats(stats []observabilitydomain.HeatmapStat) []observabilitydomain.HeatmapStat {
+	if stats == nil {
+		return []observabilitydomain.HeatmapStat{}
+	}
+	return append([]observabilitydomain.HeatmapStat(nil), stats...)
 }

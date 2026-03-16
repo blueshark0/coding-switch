@@ -2,6 +2,7 @@ package relay
 
 import (
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -9,6 +10,19 @@ import (
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	"codeswitch/internal/shared/kernel"
 )
+
+var relayDebugEnabled = os.Getenv("CODE_SWITCH_DEBUG_RELAY") == "1"
+
+func relayDebugf(format string, args ...any) {
+	if !relayDebugEnabled {
+		return
+	}
+	log.Printf(format, args...)
+}
+
+func relayWarnf(format string, args ...any) {
+	log.Printf("[WARN] [relay] "+format, args...)
+}
 
 func (s *Server) startRequestLogRetentionTask() {
 	if s == nil || requestLogRetentionDays <= 0 {

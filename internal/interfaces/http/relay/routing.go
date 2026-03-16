@@ -2,7 +2,6 @@ package relay
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	routingdomain "codeswitch/internal/routing/domain"
@@ -24,18 +23,18 @@ func ReplaceModelInRequestBody(bodyBytes []byte, newModel string) ([]byte, error
 
 func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	kind := ctx.Platform.String()
-	sessionID := ctx.Platform.ExtractSessionID(ctx.Headers, ctx.BodyBytes)
-	log.Printf("[INFO] [手动路由] 会话ID: %s\n", sessionID)
+	sessionID := ctx.RequestMeta.SessionID
+	relayDebugf("session=%s platform=%s", sessionID, kind)
 	var targetProviderName string
 	sessionAlreadyBound := false
 	if sessionID != "" {
 		boundProvider, err := s.sessionCache.GetSessionProvider(kind, sessionID)
 		if err != nil {
-			log.Printf("[WARN] 查询会话绑定失败: %v\n", err)
+			relayWarnf("查询会话绑定失败: %v", err)
 		} else if boundProvider != "" {
 			targetProviderName = boundProvider
 			sessionAlreadyBound = true
-			log.Printf("[INFO] [手动路由] 会话已绑定到供应商: %s\n", boundProvider)
+			relayDebugf("session already bound: %s", boundProvider)
 		}
 	}
 	if targetProviderName == "" {
@@ -46,7 +45,7 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 		if targetProviderName == "" {
 			return false, fmt.Errorf("未配置默认供应商")
 		}
-		log.Printf("[INFO] [手动路由] 使用默认供应商: %s\n", targetProviderName)
+		relayDebugf("using default provider: %s", targetProviderName)
 	}
 	provider := s.findProvider(ctx.Profile.Providers, targetProviderName)
 	if provider == nil {
@@ -55,8 +54,8 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	if err := s.validateProvider(provider); err != nil {
 		return false, err
 	}
-	if ctx.RequestedModel != "" && !provider.IsModelSupported(ctx.RequestedModel) {
-		return false, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, ctx.RequestedModel)
+	if ctx.RequestMeta.RequestedModel != "" && !provider.IsModelSupported(ctx.RequestMeta.RequestedModel) {
+		return false, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, ctx.RequestMeta.RequestedModel)
 	}
 	fwdCtx, err := s.prepareForwardContext(ctx, provider)
 	if err != nil {
@@ -85,43 +84,43 @@ func (s *Server) validateProvider(provider *routingdomain.Provider) error {
 }
 
 func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomain.Provider) (*ForwardContext, error) {
-	effectiveModel := provider.GetEffectiveModel(ctx.RequestedModel)
+	effectiveModel := provider.GetEffectiveModel(ctx.RequestMeta.RequestedModel)
 	currentBodyBytes := ctx.BodyBytes
 	bodyModelValue := effectiveModel
-	if ctx.RouteOptions != nil && ctx.RouteOptions.bodyModelFormatter != nil {
-		bodyModelValue = ctx.RouteOptions.bodyModelFormatter(effectiveModel)
+	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.bodyModelFormatter != nil {
+		bodyModelValue = ctx.RequestMeta.RouteOptions.bodyModelFormatter(effectiveModel)
 	}
-	bodyHasModelField := gjson.GetBytes(ctx.BodyBytes, "model").Exists()
-	shouldRewriteBody := effectiveModel != ctx.RequestedModel && ctx.RequestedModel != ""
-	if ctx.RouteOptions != nil && ctx.RouteOptions.forceBodyRewrite {
-		shouldRewriteBody = shouldRewriteBody || (bodyHasModelField && ctx.RequestedModel != "")
+	bodyHasModelField := ctx.RequestMeta.BodyHasModelField
+	shouldRewriteBody := effectiveModel != ctx.RequestMeta.RequestedModel && ctx.RequestMeta.RequestedModel != ""
+	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.forceBodyRewrite {
+		shouldRewriteBody = shouldRewriteBody || (bodyHasModelField && ctx.RequestMeta.RequestedModel != "")
 	}
 	if shouldRewriteBody && bodyHasModelField {
-		log.Printf("[INFO] [手动路由] 映射模型: %s -> %s\n", ctx.RequestedModel, bodyModelValue)
+		relayDebugf("remap model: %s -> %s", ctx.RequestMeta.RequestedModel, bodyModelValue)
 		modifiedBody, err := ReplaceModelInRequestBody(ctx.BodyBytes, bodyModelValue)
 		if err != nil {
 			return nil, fmt.Errorf("替换模型名失败: %w", err)
 		}
 		currentBodyBytes = modifiedBody
 	}
-	targetEndpoint := ctx.Endpoint
-	if ctx.RouteOptions != nil && ctx.RouteOptions.endpointMutator != nil {
-		newEndpoint, err := ctx.RouteOptions.endpointMutator(targetEndpoint, ctx.RequestedModel, effectiveModel)
+	targetEndpoint := ctx.RequestMeta.Endpoint
+	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.endpointMutator != nil {
+		newEndpoint, err := ctx.RequestMeta.RouteOptions.endpointMutator(targetEndpoint, ctx.RequestMeta.RequestedModel, effectiveModel)
 		if err != nil {
 			return nil, err
 		}
 		targetEndpoint = newEndpoint
 	}
 	targetQuery := ctx.Query
-	if ctx.RouteOptions != nil && ctx.RouteOptions.queryMutator != nil {
-		targetQuery = ctx.RouteOptions.queryMutator(cloneMap(ctx.Query), *provider)
+	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.queryMutator != nil {
+		targetQuery = ctx.RequestMeta.RouteOptions.queryMutator(cloneMap(ctx.Query), *provider)
 	}
 	if targetQuery == nil {
 		targetQuery = make(map[string]string)
 	}
 	targetHeaders := ctx.Headers
-	if ctx.RouteOptions != nil && ctx.RouteOptions.headerMutator != nil {
-		targetHeaders = ctx.RouteOptions.headerMutator(cloneMap(ctx.Headers), *provider)
+	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.headerMutator != nil {
+		targetHeaders = ctx.RequestMeta.RouteOptions.headerMutator(cloneMap(ctx.Headers), *provider)
 	}
 	if targetHeaders == nil {
 		targetHeaders = make(map[string]string)
@@ -134,7 +133,7 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		Query:     targetQuery,
 		Headers:   targetHeaders,
 		BodyBytes: currentBodyBytes,
-		IsStream:  ctx.IsStream,
+		IsStream:  ctx.RequestMeta.IsStream,
 		Model:     effectiveModel,
 	}, nil
 }
@@ -145,7 +144,7 @@ func (s *Server) executeAndHandleSession(
 	sessionAlreadyBound bool,
 ) (bool, error) {
 	kind := fwdCtx.Platform.String()
-	log.Printf("[INFO] [手动路由] 转发请求到供应商: %s | 模型: %s\n", fwdCtx.Provider.Name, fwdCtx.Model)
+	relayDebugf("forwarding provider=%s model=%s", fwdCtx.Provider.Name, fwdCtx.Model)
 	startTime := time.Now()
 	ok, err := s.forwardRequest(
 		fwdCtx.GinCtx,
@@ -160,15 +159,15 @@ func (s *Server) executeAndHandleSession(
 	)
 	duration := time.Since(startTime)
 	if ok {
-		log.Printf("[INFO] [手动路由] ✓ 请求成功: %s | 耗时: %.2fs\n", fwdCtx.Provider.Name, duration.Seconds())
 		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound)
+		relayDebugf("request succeeded provider=%s duration=%.2fs", fwdCtx.Provider.Name, duration.Seconds())
 		return true, nil
 	}
 	errorMsg := "未知错误"
 	if err != nil {
 		errorMsg = err.Error()
 	}
-	log.Printf("[WARN] [手动路由] ✗ 请求失败: %s | 错误: %s | 耗时: %.2fs\n", fwdCtx.Provider.Name, errorMsg, duration.Seconds())
+	relayWarnf("请求失败: provider=%s error=%s duration=%.2fs", fwdCtx.Provider.Name, errorMsg, duration.Seconds())
 	return false, err
 }
 
@@ -178,15 +177,18 @@ func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, a
 	}
 	if !alreadyBound {
 		if err := s.sessionCache.BindSessionToProvider(kind, sessionID, providerName); err != nil {
-			log.Printf("[WARN] 绑定会话失败: %v\n", err)
+			relayWarnf("绑定会话失败: %v", err)
 		}
-	} else {
-		if s.sessionUpdateWorker != nil {
-			s.sessionUpdateWorker.Enqueue(sessionUpdateRequest{platform: kind, sessionID: sessionID})
-			return
-		}
-		if err := s.sessionCache.UpdateSessionSuccess(kind, sessionID); err != nil {
-			log.Printf("[WARN] 更新会话时间失败: %v\n", err)
-		}
+		return
+	}
+	if !s.sessionCache.RecordSessionSuccess(kind, sessionID, providerName) {
+		return
+	}
+	if s.sessionUpdateWorker != nil {
+		s.sessionUpdateWorker.Enqueue(sessionUpdateRequest{platform: kind, sessionID: sessionID})
+		return
+	}
+	if err := s.sessionCache.UpdateSessionSuccess(kind, sessionID); err != nil {
+		relayWarnf("更新会话时间失败: %v", err)
 	}
 }

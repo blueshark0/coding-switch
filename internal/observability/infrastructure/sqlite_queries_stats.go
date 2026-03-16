@@ -17,6 +17,10 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 	if days <= 0 {
 		days = 30
 	}
+	cacheKey := fmt.Sprintf("days:%d", days)
+	if cached, ok := q.heatmapCache.Get(cacheKey); ok {
+		return cached, nil
+	}
 	totalHours := days * 24
 	if totalHours <= 0 {
 		totalHours = 24
@@ -89,7 +93,7 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 		return nil, err
 	}
 	if len(hourBuckets) == 0 {
-		return []observabilitydomain.HeatmapStat{}, nil
+		return q.heatmapCache.Set(cacheKey, []observabilitydomain.HeatmapStat{}), nil
 	}
 
 	hourKeys := make([]int64, 0, len(hourBuckets))
@@ -107,12 +111,16 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 			break
 		}
 	}
-	return stats, nil
+	return q.heatmapCache.Set(cacheKey, stats), nil
 }
 
 func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabilitydomain.LogStats, error) {
 	const seriesHours = 24
 
+	cacheKey := fmt.Sprintf("platform:%s|provider:%s", platform, provider)
+	if cached, ok := q.statsCache.Get(cacheKey); ok {
+		return cached, nil
+	}
 	stats := observabilitydomain.LogStats{
 		Series: make([]observabilitydomain.LogStatsSeries, 0, seriesHours),
 	}
@@ -216,10 +224,14 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabil
 	for i := 0; i < seriesHours; i++ {
 		stats.Series = append(stats.Series, *seriesBuckets[i])
 	}
-	return stats, nil
+	return q.statsCache.Set(cacheKey, stats), nil
 }
 
 func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydomain.ProviderDailyStat, error) {
+	cacheKey := fmt.Sprintf("platform:%s", platform)
+	if cached, ok := q.providerDailyCache.Get(cacheKey); ok {
+		return cached, nil
+	}
 	start := startOfDay(time.Now())
 	end := start.Add(24 * time.Hour)
 
@@ -304,5 +316,5 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 		}
 		return stats[i].TotalRequests > stats[j].TotalRequests
 	})
-	return stats, nil
+	return q.providerDailyCache.Set(cacheKey, stats), nil
 }

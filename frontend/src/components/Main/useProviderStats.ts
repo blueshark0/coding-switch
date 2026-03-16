@@ -54,6 +54,7 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
   })
 
   let providerStatsTimer: number | undefined
+  const providerStatsRequests = createTabRecord<Promise<void> | null>(null)
 
   const currencyFormatter = computed(
     () =>
@@ -98,31 +99,43 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
   }
 
   const loadProviderStats = async (tab: ProviderTab) => {
-    try {
-      const stats = await fetchProviderDailyStats(tab)
-      const mapped: Record<string, ProviderDailyStat> = {}
-      ;(stats ?? []).forEach((stat) => {
-        mapped[normalizeProviderKey(stat.provider)] = stat
-      })
-      const hadExistingStats = Object.keys(providerStatsMap[tab] ?? {}).length > 0
-      if ((stats?.length ?? 0) > 0 || !hadExistingStats) {
-        providerStatsMap[tab] = mapped
-      }
-      providerStatsLoaded[tab] = true
-    } catch (error) {
-      console.error(`Failed to load provider stats for ${tab}`, error)
-      if (!providerStatsLoaded[tab]) {
+    if (providerStatsRequests[tab]) {
+      return providerStatsRequests[tab]
+    }
+
+    providerStatsRequests[tab] = (async () => {
+      try {
+        const stats = await fetchProviderDailyStats(tab)
+        const mapped: Record<string, ProviderDailyStat> = {}
+        ;(stats ?? []).forEach((stat) => {
+          mapped[normalizeProviderKey(stat.provider)] = stat
+        })
+        const hadExistingStats = Object.keys(providerStatsMap[tab] ?? {}).length > 0
+        if ((stats?.length ?? 0) > 0 || !hadExistingStats) {
+          providerStatsMap[tab] = mapped
+        }
         providerStatsLoaded[tab] = true
+      } catch (error) {
+        console.error(`Failed to load provider stats for ${tab}`, error)
+        if (!providerStatsLoaded[tab]) {
+          providerStatsLoaded[tab] = true
+        }
+      } finally {
+        providerStatsRequests[tab] = null
       }
+    })()
+
+    try {
+      await providerStatsRequests[tab]
+    } finally {
+      providerStatsRequests[tab] = null
     }
   }
 
   const startProviderStatsTimer = () => {
     stopProviderStatsTimer()
     providerStatsTimer = window.setInterval(() => {
-      providerTabIds.forEach((tab) => {
-        void loadProviderStats(tab)
-      })
+      void loadProviderStats(activeTab.value)
     }, 300_000)
   }
 
@@ -136,13 +149,15 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
   const initializeProviderStats = async () => {
     void loadUsageHeatmap()
     await Promise.all(providerTabIds.map(refreshProxyState))
-    await Promise.all(providerTabIds.map((tab) => loadProviderStats(tab)))
+    await loadProviderStats(activeTab.value)
     startProviderStatsTimer()
   }
 
   const handleTabActivated = (tab: ProviderTab) => {
     void refreshProxyState(tab)
-    void loadProviderStats(tab)
+    if (!providerStatsLoaded[tab]) {
+      void loadProviderStats(tab)
+    }
   }
 
   const formatSuccessRateLabel = (value: number) => {

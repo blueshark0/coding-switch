@@ -114,27 +114,23 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 	return q.heatmapCache.Set(cacheKey, stats), nil
 }
 
-func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabilitydomain.LogStats, error) {
-	const seriesHours = 24
-
-	cacheKey := fmt.Sprintf("platform:%s|provider:%s", platform, provider)
+func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey string) (observabilitydomain.LogStats, error) {
+	rangeSpec := buildLogRangeSpec(rangeKey, timeNow())
+	cacheKey := fmt.Sprintf("platform:%s|provider:%s|range:%s", platform, provider, rangeSpec.key)
 	if cached, ok := q.statsCache.Get(cacheKey); ok {
 		return cached, nil
 	}
 	stats := observabilitydomain.LogStats{
-		Series: make([]observabilitydomain.LogStatsSeries, 0, seriesHours),
+		Series: make([]observabilitydomain.LogStatsSeries, 0, rangeSpec.seriesCount),
 	}
-	now := time.Now()
-	seriesStart := startOfDay(now)
-	seriesEnd := seriesStart.Add(seriesHours * time.Hour)
-	queryStart := seriesStart.Add(-24 * time.Hour)
+	seriesBuckets, bucketIndexes := newStatsSeriesBuckets(rangeSpec)
 
 	db, err := xdb.DB(storage.RequestLogDBName)
 	if err != nil {
 		return stats, err
 	}
 
-	args := []any{queryStart.Format(timeLayout)}
+	args := []any{rangeSpec.startUTCString(), rangeSpec.endUTCString()}
 	filterClause := ""
 	if platform != "" {
 		filterClause += " AND platform = ?"
@@ -145,31 +141,26 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabil
 		args = append(args, provider)
 	}
 
-	rows, err := db.Query(fmt.Sprintf(`SELECT strftime('%%Y-%%m-%%d %%H:00:00', created_at, 'localtime') AS bucket,
-		model,
-		COUNT(*) AS total_requests,
-		SUM(input_tokens) AS input_tokens,
+	rows, err := db.Query(fmt.Sprintf(`SELECT strftime('%s', created_at, 'localtime') AS bucket,
+			model,
+			COUNT(*) AS total_requests,
+			SUM(input_tokens) AS input_tokens,
 		SUM(output_tokens) AS output_tokens,
-		SUM(reasoning_tokens) AS reasoning_tokens,
-		SUM(cache_create_tokens) AS cache_create_tokens,
-		SUM(cache_read_tokens) AS cache_read_tokens
-		FROM request_log
-		WHERE created_at >= ?%s
-		GROUP BY bucket, model
-		ORDER BY bucket ASC`, filterClause), args...)
+			SUM(reasoning_tokens) AS reasoning_tokens,
+			SUM(cache_create_tokens) AS cache_create_tokens,
+			SUM(cache_read_tokens) AS cache_read_tokens
+			FROM request_log
+			WHERE created_at >= ? AND created_at < ?%s
+			GROUP BY bucket, model
+			ORDER BY bucket ASC`, rangeSpec.bucketSQLFormat(), filterClause), args...)
 	if err != nil {
 		if isNoSuchTableErr(err) {
+			appendStatsSeries(&stats, seriesBuckets)
 			return stats, nil
 		}
 		return stats, err
 	}
 	defer rows.Close()
-
-	seriesBuckets := make([]*observabilitydomain.LogStatsSeries, seriesHours)
-	for i := 0; i < seriesHours; i++ {
-		bucketTime := seriesStart.Add(time.Duration(i) * time.Hour)
-		seriesBuckets[i] = &observabilitydomain.LogStatsSeries{Day: bucketTime.Format(timeLayout)}
-	}
 
 	for rows.Next() {
 		var bucketStr sql.NullString
@@ -183,11 +174,11 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabil
 			continue
 		}
 		bucketTime, err := time.ParseInLocation(timeLayout, bucketStr.String, time.Local)
-		if err != nil || bucketTime.Before(seriesStart) || !bucketTime.Before(seriesEnd) {
+		if err != nil {
 			continue
 		}
-		bucketIndex := int(bucketTime.Sub(seriesStart) / time.Hour)
-		if bucketIndex < 0 || bucketIndex >= seriesHours {
+		bucketIndex, ok := bucketIndexes[bucketTime.Format(timeLayout)]
+		if !ok {
 			continue
 		}
 
@@ -221,10 +212,39 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string) (observabil
 	if err := rows.Err(); err != nil {
 		return stats, err
 	}
-	for i := 0; i < seriesHours; i++ {
-		stats.Series = append(stats.Series, *seriesBuckets[i])
-	}
+	appendStatsSeries(&stats, seriesBuckets)
 	return q.statsCache.Set(cacheKey, stats), nil
+}
+
+func newStatsSeriesBuckets(rangeSpec logRangeSpec) ([]*observabilitydomain.LogStatsSeries, map[string]int) {
+	buckets := make([]*observabilitydomain.LogStatsSeries, 0, rangeSpec.seriesCount)
+	indexes := make(map[string]int, rangeSpec.seriesCount)
+	bucketTime := rangeSpec.startLocal
+
+	for i := 0; i < rangeSpec.seriesCount; i++ {
+		key := bucketTime.Format(timeLayout)
+		buckets = append(buckets, &observabilitydomain.LogStatsSeries{Day: key})
+		indexes[key] = i
+
+		if rangeSpec.bucketGranularity == logRangeDaily {
+			bucketTime = bucketTime.AddDate(0, 0, 1)
+			continue
+		}
+		bucketTime = bucketTime.Add(time.Hour)
+	}
+	return buckets, indexes
+}
+
+func appendStatsSeries(stats *observabilitydomain.LogStats, seriesBuckets []*observabilitydomain.LogStatsSeries) {
+	if stats == nil {
+		return
+	}
+	for _, bucket := range seriesBuckets {
+		if bucket == nil {
+			continue
+		}
+		stats.Series = append(stats.Series, *bucket)
+	}
 }
 
 func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydomain.ProviderDailyStat, error) {

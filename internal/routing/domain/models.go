@@ -52,6 +52,7 @@ func (p RouteProfile) Normalize() RouteProfile {
 	}
 	for idx, provider := range p.Providers {
 		next := provider
+		next.Name = strings.TrimSpace(next.Name)
 		if next.Position <= 0 {
 			next.Position = idx + 1
 		}
@@ -84,15 +85,21 @@ func (p RouteProfile) Validate() error {
 		return fmt.Errorf("platform is required")
 	}
 	seenIDs := make(map[int]struct{}, len(p.Providers))
+	seenNames := make(map[string]struct{}, len(p.Providers))
 	seenPositions := make(map[int]struct{}, len(p.Providers))
 	var defaultProvider *Provider
 	for _, provider := range p.Providers {
 		if provider.ID == 0 {
 			return fmt.Errorf("provider id is required")
 		}
-		if provider.Name == "" {
+		normalizedName := strings.ToLower(strings.TrimSpace(provider.Name))
+		if normalizedName == "" {
 			return fmt.Errorf("provider name is required")
 		}
+		if _, ok := seenNames[normalizedName]; ok {
+			return fmt.Errorf("duplicate provider name: %s", provider.Name)
+		}
+		seenNames[normalizedName] = struct{}{}
 		if _, ok := seenIDs[provider.ID]; ok {
 			return fmt.Errorf("duplicate provider id: %d", provider.ID)
 		}

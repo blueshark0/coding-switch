@@ -5,6 +5,7 @@ import (
 	appdesktop "codeswitch/internal/app/desktop"
 	"embed"
 	"log"
+	"os"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -25,7 +26,7 @@ func main() {
 	versionService := NewVersionService()
 	app := application.New(application.Options{
 		Name:        "Code Switch",
-		Description: "Claude Code and Codex provier manager",
+		Description: "Claude Code and Codex provider manager",
 		Services: container.ApplicationServices(
 			application.NewService(versionService),
 		),
@@ -39,10 +40,16 @@ func main() {
 
 	container.LogsWindowService().SetApp(app)
 	appdesktop.NewShell(app, container.DockService(), trayIcons).Configure()
-	container.StartBackground()
+	if err := container.StartBackground(); err != nil {
+		container.Shutdown()
+		log.Printf("启动本地代理失败: %v", err)
+		os.Exit(1)
+	}
 	app.OnShutdown(container.Shutdown)
 
 	if err := app.Run(); err != nil {
-		log.Fatal(err)
+		container.Shutdown()
+		log.Printf("应用运行失败: %v", err)
+		os.Exit(1)
 	}
 }

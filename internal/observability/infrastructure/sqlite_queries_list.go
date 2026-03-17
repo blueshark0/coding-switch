@@ -8,7 +8,7 @@ import (
 	"github.com/daodao97/xgo/xdb"
 )
 
-func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, limit int) ([]observabilitydomain.RequestLog, error) {
+func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeKey string, limit int) ([]observabilitydomain.RequestLog, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -16,9 +16,13 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, limit 
 		limit = 1000
 	}
 
+	rangeSpec := buildLogRangeSpec(rangeKey, timeNow())
+
 	options := []xdb.Option{
 		xdb.OrderByDesc("id"),
 		xdb.Limit(limit),
+		xdb.WhereGte("created_at", rangeSpec.startUTCString()),
+		xdb.WhereLt("created_at", rangeSpec.endUTCString()),
 	}
 	if platform != "" {
 		options = append(options, xdb.WhereEq("platform", platform))
@@ -29,6 +33,9 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, limit 
 
 	records, err := requestLogModel().Selects(options...)
 	if err != nil {
+		if isNoSuchTableErr(err) {
+			return []observabilitydomain.RequestLog{}, nil
+		}
 		return nil, err
 	}
 

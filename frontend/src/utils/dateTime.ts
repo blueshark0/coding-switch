@@ -58,6 +58,21 @@ export const formatHourBucketLabel = (value?: string) => {
   return value
 }
 
+export const formatDayBucketLabel = (value?: string) => {
+  if (!value) return ''
+
+  const parsed = parseDateTime(value)
+  if (parsed) {
+    return `${padDatePart(parsed.getMonth() + 1)}-${padDatePart(parsed.getDate())}`
+  }
+
+  if (value.length >= 10) {
+    return value.slice(5, 10)
+  }
+
+  return value
+}
+
 export const startOfTodayLocal = () => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)

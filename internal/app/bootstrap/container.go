@@ -2,7 +2,6 @@ package bootstrap
 
 import (
 	"io"
-	"log"
 	"sync"
 	"time"
 
@@ -107,16 +106,17 @@ func (c *Container) DockService() *dock.DockService {
 	return c.dockService
 }
 
-func (c *Container) StartBackground() {
+func (c *Container) StartBackground() error {
 	if c == nil {
-		return
+		return nil
 	}
-	go func() {
-		if err := c.relayServer.Start(); err != nil {
-			log.Printf("provider relay start error: %v", err)
-		}
-	}()
-	c.cleanupRunner.Start()
+	if err := c.relayServer.Start(); err != nil {
+		return err
+	}
+	if c.cleanupRunner != nil {
+		c.cleanupRunner.Start()
+	}
+	return nil
 }
 
 func (c *Container) Shutdown() {

@@ -3,6 +3,7 @@ package relay
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type Server struct {
 	routingService      *routingapp.Service
 	sessionService      *sessionapp.Service
 	sessionCache        *sessioninfra.Cache
+	listener            net.Listener
 	server              *http.Server
 	addr                string
 	requestLogWorker    *worker.BackgroundWorker[*observabilitydomain.RequestLog]
@@ -86,13 +88,18 @@ func (s *Server) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	s.registerRoutes(router)
+	listener, err := net.Listen("tcp", s.addr)
+	if err != nil {
+		return err
+	}
 	s.server = &http.Server{
 		Addr:    s.addr,
 		Handler: router,
 	}
+	s.listener = listener
 	log.Printf("provider relay server listening on %s\n", s.addr)
 	go func() {
-		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
 			log.Printf("provider relay server error: %v\n", err)
 		}
 	}()
@@ -105,6 +112,7 @@ func (s *Server) Stop() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		err = s.server.Shutdown(ctx)
+		s.listener = nil
 	}
 	s.stopBackgroundWorkers()
 	return err

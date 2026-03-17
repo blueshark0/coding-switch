@@ -88,6 +88,7 @@
       "pinToTop": "Pin to top",
       "pinnedToTop": "Pinned to top",
       "providerDisabledWarning": "This provider is disabled and cannot be set as default. Please enable it first.",
+      "providerSaveFailed": "Failed to save providers. Your changes were reverted.",
       "saveFailed": "Failed to save settings, please try again.",
       "viewSessions": "View session bindings",
       "sessionDialogTitle": "Session Bindings - {provider}",
@@ -140,7 +141,9 @@
         "confirmDeleteTitle": "Remove vendor",
         "confirmDeleteMessage": "Are you sure you want to remove {name}? This action cannot be undone.",
         "errors": {
-          "invalidUrl": "Please enter a valid API URL"
+          "duplicateName": "Provider names must be unique within the same platform",
+          "invalidUrl": "Please enter a valid API URL",
+          "nameRequired": "Please enter a provider name"
         }
       }
     },
@@ -158,6 +161,12 @@
         "allPlatforms": "All platforms",
         "provider": "Provider",
         "allProviders": "All providers",
+        "range": "Range",
+        "ranges": {
+          "today": "Today",
+          "last3days": "Last 3 days",
+          "last7days": "Last 7 days"
+        },
         "providerPlaceholder": "Provider name",
         "limit": "Limit"
       },
@@ -175,7 +184,9 @@
         "cache": "Cache reads",
         "cacheHint": "Read hits across responses",
         "costHint": "24h total cost",
-        "todayScope": "Today · {date}"
+        "todayScope": "Today · {date}",
+        "last3daysScope": "Last 3 days",
+        "last7daysScope": "Last 7 days"
       },
       "table": {
         "time": "Time",
@@ -227,10 +238,15 @@
         "authorized": "Auth",
         "go_authorized": "Auth now",
         "back": "Back to home"
+      },
+      "messages": {
+        "loadFailed": "Failed to load settings",
+        "saveFailed": "Failed to save settings, please try again."
       }
     },
     "themesetting": {
       "select": {
+        "opt_system": "Follow system",
         "opt_dark": "Dark Mode",
         "opt_light": "Bright Mode"
       }

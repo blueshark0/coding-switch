@@ -1,18 +1,19 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { i18n, setupI18n } from '../../utils/i18n'
+import { Locale } from '../../locales'
+
+const locale = computed({
+  get: () => i18n.global.locale.value as Locale,
+  set: (value: Locale) => {
+    void setupI18n(value)
+  },
+})
+</script>
+
 <template>
-  <select class="mac-select" v-model="locale" @change="switchLang">
+  <select class="mac-select" v-model="locale">
     <option value="zh">简体中文</option>
     <option value="en">English</option>
   </select>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-import { i18n, setupI18n } from '../../utils/i18n'
-import { Locale } from '../../locales'
-
-const locale = ref(i18n.global.locale.value)
-
-const switchLang = async () => {
-  await setupI18n(locale.value as Locale)
-}
-</script>

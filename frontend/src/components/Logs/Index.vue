@@ -44,6 +44,14 @@
             </option>
           </select>
         </label>
+        <label class="filter-field">
+          <span>{{ t('components.logs.filters.range') }}</span>
+          <select v-model="filters.rangeKey" class="mac-select">
+            <option v-for="option in rangeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
       <div class="filter-actions">
         <BaseButton type="submit" :disabled="loading">
@@ -146,6 +154,7 @@ const {
   pagedLogs,
   prevPage,
   providerOptions,
+  rangeOptions,
   statsCards,
   totalPages,
 } = useLogsDashboard({

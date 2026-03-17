@@ -1,9 +1,13 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
 import {
+  DEFAULT_LOG_RANGE,
   fetchRequestLogs,
   fetchLogProviders,
   fetchLogStats,
+  LOG_RANGE_OPTIONS,
+  normalizeLogRangeKey,
   type LogStats,
+  type LogRangeKey,
   type RequestLog,
 } from '../../services/logs'
 import { useLogsPresentation } from './useLogsPresentation'
@@ -27,13 +31,24 @@ export const useLogsDashboard = ({
   const logs = ref<RequestLog[]>([])
   const stats = ref<LogStats | null>(null)
   const loading = ref(false)
-  const filters = reactive({ platform: '', provider: '' })
+  const filters = reactive<{ platform: string; provider: string; rangeKey: LogRangeKey }>({
+    platform: '',
+    provider: '',
+    rangeKey: DEFAULT_LOG_RANGE,
+  })
   const page = ref(1)
   const providerOptions = ref<string[]>([])
   const countdown = ref(REFRESH_INTERVAL)
   let timer: number | undefined
   let dashboardLoadPromise: Promise<void> | null = null
   let queuedDashboardReload = false
+  const selectedRangeKey = computed(() => normalizeLogRangeKey(filters.rangeKey))
+  const rangeOptions = computed(() =>
+    LOG_RANGE_OPTIONS.map((value) => ({
+      value,
+      label: t(`components.logs.filters.ranges.${value}`),
+    })),
+  )
 
   const pagedLogs = computed(() => {
     const start = (page.value - 1) * PAGE_SIZE
@@ -56,6 +71,7 @@ export const useLogsDashboard = ({
     getCssVarValue,
     isDarkMode,
     stats,
+    rangeKey: selectedRangeKey,
     t,
   })
 
@@ -77,11 +93,13 @@ export const useLogsDashboard = ({
             fetchRequestLogs({
               platform: filters.platform,
               provider: filters.provider,
+              rangeKey: selectedRangeKey.value,
               limit: 100,
             }),
             fetchLogStats({
               platform: filters.platform,
               provider: filters.provider,
+              rangeKey: selectedRangeKey.value,
             }),
           ])
           const nextLogs = logData ?? []
@@ -207,6 +225,7 @@ export const useLogsDashboard = ({
     pagedLogs,
     prevPage,
     providerOptions,
+    rangeOptions,
     statsCards,
     totalPages,
   }

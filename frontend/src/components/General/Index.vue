@@ -1,65 +1,57 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ListItem from '../Setting/ListRow.vue'
 import LanguageSwitcher from '../Setting/LanguageSwitcher.vue'
 import ThemeSetting from '../Setting/ThemeSetting.vue'
-import { fetchAppSettings, saveAppSettings, type AppSettings } from '../../services/appSettings'
+import { useAppSettingsStore } from '../../composables/useAppSettingsStore'
+import { getErrorMessage } from '../../utils/errors'
+import { showToast } from '../../utils/toast'
 
 const router = useRouter()
-const heatmapEnabled = ref(true)
-const homeTitleVisible = ref(true)
-const fullAppSettings = ref<AppSettings | null>(null)
-const settingsLoading = ref(true)
-const saveBusy = ref(false)
+const { t } = useI18n()
+const {
+  loadSettings,
+  loading: settingsLoading,
+  saving: saveBusy,
+  showHeatmap: heatmapEnabled,
+  showHomeTitle: homeTitleVisible,
+  updateSettings,
+} = useAppSettingsStore()
 
 const goBack = () => {
   router.push('/')
 }
 
-const loadAppSettings = async () => {
-  settingsLoading.value = true
+const updateVisibilitySetting = async (
+  key: 'show_heatmap' | 'show_home_title',
+  value: boolean,
+) => {
+  if (settingsLoading.value || saveBusy.value) return
   try {
-    const data = await fetchAppSettings()
-    fullAppSettings.value = data  // 保存完整设置，用于后续保存时保留其他字段
-    heatmapEnabled.value = data?.show_heatmap ?? true
-    homeTitleVisible.value = data?.show_home_title ?? true
+    await updateSettings({ [key]: value })
   } catch (error) {
-    console.error('failed to load app settings', error)
-    heatmapEnabled.value = true
-    homeTitleVisible.value = true
-  } finally {
-    settingsLoading.value = false
+    console.error('failed to save app settings', error)
+    showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
   }
 }
 
-const persistAppSettings = async () => {
-  if (settingsLoading.value || saveBusy.value) return
-  const currentSettings = fullAppSettings.value
-  if (!currentSettings) {
-    console.warn('attempted to persist app settings before they finished loading')
-    return
-  }
+const onHeatmapChange = (event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  void updateVisibilitySetting('show_heatmap', Boolean(target?.checked))
+}
 
-  saveBusy.value = true
-  try {
-    const payload: AppSettings = {
-      ...currentSettings,  // 保留现有的所有设置
-      // 只更新当前页面管理的字段
-      show_heatmap: heatmapEnabled.value,
-      show_home_title: homeTitleVisible.value,
-    }
-    await saveAppSettings(payload)
-    window.dispatchEvent(new CustomEvent('app-settings-updated'))
-  } catch (error) {
-    console.error('failed to save app settings', error)
-  } finally {
-    saveBusy.value = false
-  }
+const onHomeTitleChange = (event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  void updateVisibilitySetting('show_home_title', Boolean(target?.checked))
 }
 
 onMounted(() => {
-  void loadAppSettings()
+  void loadSettings().catch((error) => {
+    console.error('failed to load app settings', error)
+    showToast(getErrorMessage(error, t('components.general.messages.loadFailed')), 'error')
+  })
 })
 </script>
 
@@ -90,8 +82,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :disabled="settingsLoading || saveBusy"
-                v-model="heatmapEnabled"
-                @change="persistAppSettings"
+                :checked="heatmapEnabled"
+                @change="onHeatmapChange"
               />
               <span></span>
             </label>
@@ -101,8 +93,8 @@ onMounted(() => {
               <input
                 type="checkbox"
                 :disabled="settingsLoading || saveBusy"
-                v-model="homeTitleVisible"
-                @change="persistAppSettings"
+                :checked="homeTitleVisible"
+                @change="onHomeTitleChange"
               />
               <span></span>
             </label>

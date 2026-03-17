@@ -6,13 +6,19 @@
   >
     <form class="vendor-form" @submit.prevent="$emit('submit')">
       <label class="form-field">
-        <span>{{ t('components.main.form.labels.name') }}</span>
+        <span class="label-row">
+          {{ t('components.main.form.labels.name') }}
+          <span v-if="nameError" class="field-error">
+            {{ nameError }}
+          </span>
+        </span>
         <BaseInput
           v-model="form.name"
           type="text"
           :placeholder="t('components.main.form.placeholders.name')"
           required
           :disabled="editing"
+          :class="{ 'has-error': !!nameError }"
         />
       </label>
 
@@ -134,6 +140,7 @@ defineProps<{
   apiUrlError: string
   editing: boolean
   form: VendorForm
+  nameError: string
   open: boolean
 }>()
 

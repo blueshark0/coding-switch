@@ -89,6 +89,7 @@
       "pinToTop": "置顶到最前",
       "pinnedToTop": "已置顶",
       "providerDisabledWarning": "该供应商已被禁用，无法设为默认供应商。请先启用该供应商。",
+      "providerSaveFailed": "保存供应商失败，已回滚本次修改。",
       "saveFailed": "保存设置失败，请重试。",
       "viewSessions": "查看会话绑定",
       "sessionDialogTitle": "供应商会话绑定 - {provider}",
@@ -141,7 +142,9 @@
         "confirmDeleteTitle": "删除供应商",
         "confirmDeleteMessage": "确认删除 {name} 吗？操作不可撤销",
         "errors": {
-          "invalidUrl": "请输入合法的 API 地址"
+          "duplicateName": "同一平台下的供应商名称必须唯一",
+          "invalidUrl": "请输入合法的 API 地址",
+          "nameRequired": "请输入供应商名称"
         }
       }
     },
@@ -159,6 +162,12 @@
         "allPlatforms": "全部平台",
         "provider": "供应商",
         "allProviders": "全部供应商",
+        "range": "时间范围",
+        "ranges": {
+          "today": "今天",
+          "last3days": "近三天",
+          "last7days": "近一周"
+        },
         "providerPlaceholder": "输入供应商名称",
         "limit": "条数上限"
       },
@@ -176,7 +185,9 @@
         "cache": "缓存命中",
         "cacheHint": "响应中的读取命中数",
         "costHint": "近 24 小时总花费",
-        "todayScope": "今日 · {date}"
+        "todayScope": "今日 · {date}",
+        "last3daysScope": "近三天",
+        "last7daysScope": "近一周"
       },
       "table": {
         "time": "时间",
@@ -228,10 +239,15 @@
         "authorized": "已授权",
         "go_authorized": "去授权",
         "back": "返回首页"
+      },
+      "messages": {
+        "loadFailed": "加载设置失败",
+        "saveFailed": "保存设置失败，请重试。"
       }
     },
     "themesetting": {
       "select": {
+        "opt_system": "跟随系统",
         "opt_light": "亮色模式",
         "opt_dark": "暗色模式"
       }

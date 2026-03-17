@@ -188,6 +188,7 @@
         :api-url-error="modalState.errors.apiUrl"
         :editing="Boolean(modalState.editingId)"
         :form="modalState.form"
+        :name-error="modalState.errors.name"
         :open="modalState.open"
         @close="closeModal"
         @submit="submitModal"
@@ -207,26 +208,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HeatmapWall from './HeatmapWall.vue'
 import ProviderDeleteModal from './ProviderDeleteModal.vue'
 import ProviderEditorModal from './ProviderEditorModal.vue'
 import ProviderCard from './ProviderCard.vue'
-import { getCurrentTheme, setTheme, type ThemeMode } from '../../utils/ThemeManager'
+import { setTheme } from '../../utils/ThemeManager'
 import { useProviderWorkbench } from './useProviderWorkbench'
 import { useRouter } from 'vue-router'
+import { useDarkMode } from '../../composables/useDarkMode'
 
 const { t, locale } = useI18n()
 const router = useRouter()
-const themeMode = ref<ThemeMode>(getCurrentTheme())
-const resolvedTheme = computed(() => {
-  if (themeMode.value === 'systemdefault') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return themeMode.value
-})
-const themeIcon = computed(() => (resolvedTheme.value === 'dark' ? 'moon' : 'sun'))
+const { isDarkMode } = useDarkMode()
+const themeIcon = computed(() => (isDarkMode.value ? 'moon' : 'sun'))
 const {
   activeTab,
   activeCards,
@@ -278,8 +274,7 @@ const goToSettings = () => {
 }
 
 const toggleTheme = () => {
-  const next = resolvedTheme.value === 'dark' ? 'light' : 'dark'
-  themeMode.value = next
+  const next = isDarkMode.value ? 'light' : 'dark'
   setTheme(next)
 }
 </script>

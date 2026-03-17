@@ -1,8 +1,14 @@
 import { computed, type Ref } from 'vue'
 import type { ChartOptions } from 'chart.js'
-import type { LogStats, LogStatsSeries } from '../../services/logs'
+import {
+  DEFAULT_LOG_RANGE,
+  type LogRangeKey,
+  type LogStats,
+  type LogStatsSeries,
+} from '../../services/logs'
 import {
   formatDateTime,
+  formatDayBucketLabel,
   formatHourBucketLabel,
   padDatePart,
   parseDateTime,
@@ -14,6 +20,7 @@ type TranslateFn = (key: string, named?: Record<string, unknown>) => string
 type UseLogsPresentationOptions = {
   getCssVarValue: (name: string, fallback: string) => string
   isDarkMode: Ref<boolean>
+  rangeKey: Ref<LogRangeKey>
   stats: Ref<LogStats | null>
   t: TranslateFn
 }
@@ -21,6 +28,7 @@ type UseLogsPresentationOptions = {
 export const useLogsPresentation = ({
   getCssVarValue,
   isDarkMode,
+  rangeKey,
   stats,
   t,
 }: UseLogsPresentationOptions) => {
@@ -29,7 +37,11 @@ export const useLogsPresentation = ({
   const chartData = computed(() => {
     const series = statsSeries.value
     return {
-      labels: series.map((item) => formatHourBucketLabel(item.day)),
+      labels: series.map((item) =>
+        rangeKey.value === DEFAULT_LOG_RANGE
+          ? formatHourBucketLabel(item.day)
+          : formatDayBucketLabel(item.day),
+      ),
       datasets: [
         {
           label: t('components.logs.tokenLabels.cost'),
@@ -193,16 +205,21 @@ export const useLogsPresentation = ({
     return `$${value.toFixed(4)}`
   }
 
-  const summaryDateLabel = computed(() => {
-    const firstBucket = statsSeries.value.find((item) => item.day)
-    const parsed = parseDateTime(firstBucket?.day ?? '')
-    const date = parsed ?? startOfTodayLocal()
-    return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+  const summaryScopeHint = computed(() => {
+    if (rangeKey.value === 'last3days') {
+      return t('components.logs.summary.last3daysScope')
+    }
+    if (rangeKey.value === 'last7days') {
+      return t('components.logs.summary.last7daysScope')
+    }
+
+    const date = startOfTodayLocal()
+    const dateLabel = `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`
+    return t('components.logs.summary.todayScope', { date: dateLabel })
   })
 
   const statsCards = computed(() => {
     const data = stats.value
-    const summaryDate = summaryDateLabel.value
     const totalTokens =
       (data?.input_tokens ?? 0) + (data?.output_tokens ?? 0) + (data?.reasoning_tokens ?? 0)
 
@@ -228,7 +245,7 @@ export const useLogsPresentation = ({
       {
         key: 'cost',
         label: t('components.logs.tokenLabels.cost'),
-        hint: summaryDate ? t('components.logs.summary.todayScope', { date: summaryDate }) : '',
+        hint: summaryScopeHint.value,
         value: formatCurrency(data?.cost_total ?? 0),
       },
     ]

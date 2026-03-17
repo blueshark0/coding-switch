@@ -25,43 +25,24 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	kind := ctx.Platform.String()
 	sessionID := ctx.RequestMeta.SessionID
 	relayDebugf("session=%s platform=%s", sessionID, kind)
-	var targetProviderName string
-	sessionAlreadyBound := false
-	if sessionID != "" {
-		boundProvider, err := s.sessionCache.GetSessionProvider(kind, sessionID)
+
+	if provider, sessionAlreadyBound, ok := s.resolveBoundProvider(ctx, kind, sessionID); ok {
+		fwdCtx, err := s.prepareForwardContext(ctx, provider)
 		if err != nil {
-			relayWarnf("查询会话绑定失败: %v", err)
-		} else if boundProvider != "" {
-			targetProviderName = boundProvider
-			sessionAlreadyBound = true
-			relayDebugf("session already bound: %s", boundProvider)
+			return false, err
 		}
+		return s.executeAndHandleSession(fwdCtx, sessionID, sessionAlreadyBound)
 	}
-	if targetProviderName == "" {
-		provider := ctx.Profile.DefaultProvider()
-		if provider != nil {
-			targetProviderName = provider.Name
-		}
-		if targetProviderName == "" {
-			return false, fmt.Errorf("未配置默认供应商")
-		}
-		relayDebugf("using default provider: %s", targetProviderName)
-	}
-	provider := s.findProvider(ctx.Profile.Providers, targetProviderName)
-	if provider == nil {
-		return false, fmt.Errorf("供应商 %s 不存在", targetProviderName)
-	}
-	if err := s.validateProvider(provider); err != nil {
+
+	provider, err := s.resolveDefaultProvider(ctx.Profile, ctx.RequestMeta.RequestedModel)
+	if err != nil {
 		return false, err
-	}
-	if ctx.RequestMeta.RequestedModel != "" && !provider.IsModelSupported(ctx.RequestMeta.RequestedModel) {
-		return false, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, ctx.RequestMeta.RequestedModel)
 	}
 	fwdCtx, err := s.prepareForwardContext(ctx, provider)
 	if err != nil {
 		return false, err
 	}
-	return s.executeAndHandleSession(fwdCtx, sessionID, sessionAlreadyBound)
+	return s.executeAndHandleSession(fwdCtx, sessionID, false)
 }
 
 func (s *Server) findProvider(providers []routingdomain.Provider, name string) *routingdomain.Provider {
@@ -81,6 +62,80 @@ func (s *Server) validateProvider(provider *routingdomain.Provider) error {
 		return fmt.Errorf("供应商 %s 配置不完整", provider.Name)
 	}
 	return nil
+}
+
+func (s *Server) resolveBoundProvider(
+	ctx *RelayContext,
+	kind string,
+	sessionID string,
+) (*routingdomain.Provider, bool, bool) {
+	if sessionID == "" || s.sessionCache == nil {
+		return nil, false, false
+	}
+
+	boundProviderName, err := s.sessionCache.GetSessionProvider(kind, sessionID)
+	if err != nil {
+		relayWarnf("查询会话绑定失败: %v", err)
+		return nil, false, false
+	}
+	if boundProviderName == "" {
+		return nil, false, false
+	}
+
+	relayDebugf("session already bound: %s", boundProviderName)
+	provider, err := s.resolveProviderForRequest(ctx.Profile, boundProviderName, ctx.RequestMeta.RequestedModel)
+	if err == nil {
+		return provider, true, true
+	}
+
+	relayWarnf("检测到失效会话绑定，session=%s provider=%s error=%v", sessionID, boundProviderName, err)
+	s.clearInvalidSessionBinding(kind, sessionID)
+	return nil, false, false
+}
+
+func (s *Server) clearInvalidSessionBinding(kind, sessionID string) {
+	if sessionID == "" {
+		return
+	}
+	if s.sessionCache != nil {
+		s.sessionCache.InvalidateSession(kind, sessionID)
+	}
+	if s.sessionService == nil {
+		return
+	}
+	if err := s.sessionService.Unbind(kind, sessionID); err != nil {
+		relayWarnf("清理失效会话绑定失败: %v", err)
+	}
+}
+
+func (s *Server) resolveDefaultProvider(
+	profile routingdomain.RouteProfile,
+	requestedModel string,
+) (*routingdomain.Provider, error) {
+	defaultProvider := profile.DefaultProvider()
+	if defaultProvider == nil {
+		return nil, fmt.Errorf("未配置默认供应商")
+	}
+	relayDebugf("using default provider: %s", defaultProvider.Name)
+	return s.resolveProviderForRequest(profile, defaultProvider.Name, requestedModel)
+}
+
+func (s *Server) resolveProviderForRequest(
+	profile routingdomain.RouteProfile,
+	providerName string,
+	requestedModel string,
+) (*routingdomain.Provider, error) {
+	provider := s.findProvider(profile.Providers, providerName)
+	if provider == nil {
+		return nil, fmt.Errorf("供应商 %s 不存在", providerName)
+	}
+	if err := s.validateProvider(provider); err != nil {
+		return nil, err
+	}
+	if requestedModel != "" && !provider.IsModelSupported(requestedModel) {
+		return nil, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, requestedModel)
+	}
+	return provider, nil
 }
 
 func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomain.Provider) (*ForwardContext, error) {

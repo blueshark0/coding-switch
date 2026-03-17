@@ -62,8 +62,12 @@ const applyDefaultProvider = async (platform: string, providerName: string): Pro
   const provider = providerName
     ? profile.providers?.find((item) => item.name === providerName)
     : null
+  const nextDefaultProviderId = provider?.id ?? null
+  if ((profile.defaultProviderId ?? null) === nextDefaultProviderId) {
+    return
+  }
   await saveRouteProfile({
     ...profile,
-    defaultProviderId: provider?.id ?? null,
+    defaultProviderId: nextDefaultProviderId,
   })
 }

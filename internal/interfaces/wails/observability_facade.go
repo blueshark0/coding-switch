@@ -13,16 +13,16 @@ func NewObservabilityFacade(service *observabilityapp.Service) *ObservabilityFac
 	return &ObservabilityFacade{service: service}
 }
 
-func (f *ObservabilityFacade) ListRequestLogs(platform string, provider string, limit int) ([]observabilitydomain.RequestLog, error) {
-	return f.service.ListRequestLogs(platform, provider, limit)
+func (f *ObservabilityFacade) ListRequestLogs(platform string, provider string, rangeKey string, limit int) ([]observabilitydomain.RequestLog, error) {
+	return f.service.ListRequestLogs(platform, provider, rangeKey, limit)
 }
 
 func (f *ObservabilityFacade) ListProviders(platform string) ([]string, error) {
 	return f.service.ListProviders(platform)
 }
 
-func (f *ObservabilityFacade) StatsSince(platform string, provider string) (observabilitydomain.LogStats, error) {
-	return f.service.StatsSince(platform, provider)
+func (f *ObservabilityFacade) StatsSince(platform string, provider string, rangeKey string) (observabilitydomain.LogStats, error) {
+	return f.service.StatsSince(platform, provider, rangeKey)
 }
 
 func (f *ObservabilityFacade) ProviderDailyStats(platform string) ([]observabilitydomain.ProviderDailyStat, error) {

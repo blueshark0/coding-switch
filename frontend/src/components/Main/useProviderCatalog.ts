@@ -1,8 +1,10 @@
-import { computed, onUnmounted, reactive, ref, type ComputedRef } from 'vue'
+import { computed, reactive, ref, type ComputedRef } from 'vue'
 import { automationCardGroups, createAutomationCards, type AutomationCard } from '../../data/cards'
 import { providerTabs, providerTabIds, type ProviderTab } from '../../constants/platforms'
 import { getIconOptions } from '../../icons/lobeIconMap'
 import { loadProviders, saveProviders } from '../../services/providers'
+import { getErrorMessage } from '../../utils/errors'
+import { showToast } from '../../utils/toast'
 import type { TranslateFn, VendorForm } from './types'
 
 type UseProviderCatalogOptions = {
@@ -17,16 +19,30 @@ const buildDefaultCards = () =>
     gemini: createAutomationCards(automationCardGroups.gemini),
   })
 
+const moveCardToFrontInList = (providers: AutomationCard[], cardId: number) => {
+  if (providers[0]?.id === cardId) {
+    return false
+  }
+
+  const fromIndex = providers.findIndex((card) => card.id === cardId)
+  if (fromIndex < 0) {
+    return false
+  }
+
+  const [moved] = providers.splice(fromIndex, 1)
+  providers.unshift(moved)
+  return true
+}
+
 export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) => {
   const cards = buildDefaultCards()
   const draggingId = ref<number | null>(null)
-  const editingCard = ref<AutomationCard | null>(null)
   const defaultIconKey = getIconOptions()[0] ?? 'aicoding'
-  const persistTimers: Record<ProviderTab, number | undefined> = {
-    claude: undefined,
-    codex: undefined,
-    gemini: undefined,
-  }
+  const savingTabs = reactive<Record<ProviderTab, boolean>>({
+    claude: false,
+    codex: false,
+    gemini: false,
+  })
 
   const createDefaultForm = (): VendorForm => ({
     name: '',
@@ -45,6 +61,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     editingId: null as number | null,
     form: createDefaultForm(),
     errors: {
+      name: '',
       apiUrl: '',
     },
   })
@@ -60,44 +77,24 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const serializeProviders = (providers: AutomationCard[]) =>
     providers.map((provider, index) => ({ ...provider, position: index + 1 }))
 
-  const persistProviders = async (tabId: ProviderTab) => {
-    if (persistTimers[tabId]) {
-      clearTimeout(persistTimers[tabId])
-      persistTimers[tabId] = undefined
-    }
-    try {
-      await saveProviders(tabId, serializeProviders(cards[tabId]))
-    } catch (error) {
-      console.error('Failed to save providers', error)
-    }
-  }
-
-  const persistProvidersDebounced = (tabId: ProviderTab) => {
-    if (persistTimers[tabId]) {
-      clearTimeout(persistTimers[tabId])
-    }
-    persistTimers[tabId] = window.setTimeout(() => {
-      persistTimers[tabId] = undefined
-      void persistProviders(tabId)
-    }, 300)
-  }
-
   const replaceProviders = (tabId: ProviderTab, data: AutomationCard[]) => {
     cards[tabId].splice(0, cards[tabId].length, ...createAutomationCards(data))
+  }
+
+  const cloneCards = (data: AutomationCard[]) => createAutomationCards(data)
+
+  const persistProviders = async (tabId: ProviderTab) => {
+    await saveProviders(tabId, serializeProviders(cards[tabId]))
   }
 
   const initializeProviderCatalog = async () => {
     await Promise.all(
       providerTabIds.map(async (tab) => {
         try {
-          const saved = await loadProviders(tab)
-          if (Array.isArray(saved)) {
-            replaceProviders(tab, saved as AutomationCard[])
-          } else {
-            await persistProviders(tab)
-          }
+          replaceProviders(tab, await loadProviders(tab))
         } catch (error) {
           console.error('Failed to load providers', error)
+          showToast(getErrorMessage(error, t('components.main.providerSaveFailed')), 'error')
         }
       }),
     )
@@ -105,6 +102,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
 
   const resetModalForm = () => {
     Object.assign(modalState.form, createDefaultForm())
+    modalState.errors.name = ''
     modalState.errors.apiUrl = ''
   }
 
@@ -112,20 +110,100 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     return icon.toString().trim().toLowerCase() || defaultIconKey
   }
 
+  const normalizeProviderName = (name: string) => name.trim().toLowerCase()
+
   const buildCardValues = (form: VendorForm) => ({
     apiKey: form.apiKey.trim(),
     apiUrl: form.apiUrl.trim(),
     enabled: form.enabled,
     icon: normalizeIconKey(form.icon || defaultIconKey),
-    modelMapping: form.modelMapping || {},
+    modelMapping: { ...(form.modelMapping ?? {}) },
     officialSite: form.officialSite.trim(),
-    supportedModels: form.supportedModels || {},
+    supportedModels: { ...(form.supportedModels ?? {}) },
+  })
+
+  const nextProviderID = (tabId: ProviderTab) => {
+    const currentIDs = cards[tabId].map((card) => card.id)
+    return Math.max(0, ...currentIDs) + 1
+  }
+
+  const hasDuplicateName = (tabId: ProviderTab, name: string, editingID: number | null) => {
+    const normalizedName = normalizeProviderName(name)
+    return cards[tabId].some((provider) => {
+      if (editingID !== null && provider.id === editingID) {
+        return false
+      }
+      return normalizeProviderName(provider.name) === normalizedName
+    })
+  }
+
+  const validateProviderName = (tabId: ProviderTab, editingID: number | null) => {
+    const name = modalState.form.name.trim()
+    if (!name) {
+      modalState.errors.name = t('components.main.form.errors.nameRequired')
+      return false
+    }
+    if (hasDuplicateName(tabId, name, editingID)) {
+      modalState.errors.name = t('components.main.form.errors.duplicateName')
+      return false
+    }
+    modalState.errors.name = ''
+    return true
+  }
+
+  const validateApiUrl = (value: string) => {
+    try {
+      const parsed = new URL(value)
+      if (!/^https?:/.test(parsed.protocol)) {
+        throw new Error('protocol')
+      }
+      modalState.errors.apiUrl = ''
+      return true
+    } catch {
+      modalState.errors.apiUrl = t('components.main.form.errors.invalidUrl')
+      return false
+    }
+  }
+
+  const saveMutation = async (
+    tabId: ProviderTab,
+    mutate: (providers: AutomationCard[]) => boolean | void,
+  ) => {
+    if (savingTabs[tabId]) {
+      return false
+    }
+
+    const snapshot = cloneCards(cards[tabId])
+    const changed = mutate(cards[tabId])
+    if (changed === false) {
+      return false
+    }
+
+    savingTabs[tabId] = true
+    try {
+      await persistProviders(tabId)
+      return true
+    } catch (error) {
+      console.error('Failed to save providers', error)
+      replaceProviders(tabId, snapshot)
+      showToast(getErrorMessage(error, t('components.main.providerSaveFailed')), 'error')
+      return false
+    } finally {
+      savingTabs[tabId] = false
+    }
+  }
+
+  const buildNewCard = (form: VendorForm): AutomationCard => ({
+    id: nextProviderID(modalState.tabId),
+    name: form.name.trim(),
+    accent: '#0a84ff',
+    tint: 'rgba(15, 23, 42, 0.12)',
+    ...buildCardValues(form),
   })
 
   const openCreateModal = () => {
     modalState.tabId = activeTab.value
     modalState.editingId = null
-    editingCard.value = null
     resetModalForm()
     modalState.open = true
   }
@@ -133,11 +211,11 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const openEditModal = (card: AutomationCard) => {
     modalState.tabId = activeTab.value
     modalState.editingId = card.id
-    editingCard.value = card
     Object.assign(modalState.form, {
       name: card.name,
       ...buildCardValues(card),
     })
+    modalState.errors.name = ''
     modalState.errors.apiUrl = ''
     modalState.open = true
   }
@@ -151,34 +229,10 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     confirmState.card = null
   }
 
-  const validateApiUrl = (value: string) => {
-    try {
-      const parsed = new URL(value)
-      if (!/^https?:/.test(parsed.protocol)) {
-        throw new Error('protocol')
-      }
-      return true
-    } catch {
-      modalState.errors.apiUrl = t('components.main.form.errors.invalidUrl')
-      return false
-    }
-  }
-
-  const buildNewCard = (form: VendorForm): AutomationCard => ({
-    id: Date.now(),
-    name: form.name.trim() || 'Untitled vendor',
-    accent: '#0a84ff',
-    tint: 'rgba(15, 23, 42, 0.12)',
-    ...buildCardValues(form),
-  })
-
-  const submitModal = () => {
-    const list = cards[modalState.tabId]
-    if (!list) return
-
+  const submitModal = async () => {
+    const tabId = modalState.tabId
     const apiUrl = modalState.form.apiUrl.trim()
-    modalState.errors.apiUrl = ''
-    if (!validateApiUrl(apiUrl)) {
+    if (!validateProviderName(tabId, modalState.editingId) || !validateApiUrl(apiUrl)) {
       return
     }
 
@@ -187,29 +241,41 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
       apiUrl,
     }
 
-    if (editingCard.value) {
-      Object.assign(editingCard.value, nextValues)
-    } else {
-      list.unshift(buildNewCard(modalState.form))
-    }
+    const success = await saveMutation(tabId, (providers) => {
+      if (modalState.editingId !== null) {
+        const editingIndex = providers.findIndex((card) => card.id === modalState.editingId)
+        if (editingIndex < 0) {
+          return false
+        }
+        providers.splice(editingIndex, 1, {
+          ...providers[editingIndex],
+          ...nextValues,
+        })
+        return true
+      }
 
-    void persistProviders(modalState.tabId)
-    closeModal()
+      providers.unshift(buildNewCard(modalState.form))
+      return true
+    })
+
+    if (success) {
+      closeModal()
+    }
   }
 
   const configure = (card: AutomationCard) => {
     openEditModal(card)
   }
 
-  const remove = (id: number, tabId: ProviderTab = activeTab.value) => {
-    const list = cards[tabId]
-    if (!list) return
-
-    const index = list.findIndex((card) => card.id === id)
-    if (index > -1) {
-      list.splice(index, 1)
-      void persistProviders(tabId)
-    }
+  const remove = async (id: number, tabId: ProviderTab = activeTab.value) => {
+    await saveMutation(tabId, (providers) => {
+      const index = providers.findIndex((card) => card.id === id)
+      if (index < 0) {
+        return false
+      }
+      providers.splice(index, 1)
+      return true
+    })
   }
 
   const requestRemove = (card: AutomationCard) => {
@@ -218,34 +284,33 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     confirmState.open = true
   }
 
-  const confirmRemove = () => {
-    if (!confirmState.card) return
-    remove(confirmState.card.id, confirmState.tabId)
+  const confirmRemove = async () => {
+    if (!confirmState.card) {
+      return
+    }
+    await remove(confirmState.card.id, confirmState.tabId)
     closeConfirm()
   }
 
   const isTopProvider = (cardId: number) => activeCards.value[0]?.id === cardId
 
-  const moveCardToFront = (tabId: ProviderTab, cardId: number) => {
-    const list = cards[tabId]
-    if (!list || list[0]?.id === cardId) return false
-
-    const fromIndex = list.findIndex((card) => card.id === cardId)
-    if (fromIndex < 0) return false
-
-    const [moved] = list.splice(fromIndex, 1)
-    list.unshift(moved)
-    return true
-  }
-
   const pinProvider = (cardId: number) => {
-    if (!moveCardToFront(activeTab.value, cardId)) return
-    persistProvidersDebounced(activeTab.value)
+    void saveMutation(activeTab.value, (providers) => moveCardToFrontInList(providers, cardId))
   }
 
   const updateProviderEnabled = (card: AutomationCard, enabled: boolean) => {
-    card.enabled = enabled
-    persistProvidersDebounced(activeTab.value)
+    const tabId = activeTab.value
+    void saveMutation(tabId, (providers) => {
+      const index = providers.findIndex((provider) => provider.id === card.id)
+      if (index < 0) {
+        return false
+      }
+      providers.splice(index, 1, {
+        ...providers[index],
+        enabled,
+      })
+      return true
+    })
   }
 
   const onDragStart = (id: number, event: DragEvent) => {
@@ -256,33 +321,29 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   }
 
   const onDrop = (targetId: number) => {
-    if (draggingId.value === null || draggingId.value === targetId) return
+    if (draggingId.value === null || draggingId.value === targetId) {
+      return
+    }
 
-    const currentTab = activeTab.value
-    const list = cards[currentTab]
-    if (!list) return
-
-    const fromIndex = list.findIndex((card) => card.id === draggingId.value)
-    const toIndex = list.findIndex((card) => card.id === targetId)
-    if (fromIndex === -1 || toIndex === -1) return
-
-    const [moved] = list.splice(fromIndex, 1)
-    list.splice(toIndex, 0, moved)
+    const tabId = activeTab.value
+    const draggingCardID = draggingId.value
     draggingId.value = null
-    persistProvidersDebounced(currentTab)
+    void saveMutation(tabId, (providers) => {
+      const fromIndex = providers.findIndex((card) => card.id === draggingCardID)
+      const toIndex = providers.findIndex((card) => card.id === targetId)
+      if (fromIndex < 0 || toIndex < 0) {
+        return false
+      }
+
+      const [moved] = providers.splice(fromIndex, 1)
+      providers.splice(toIndex, 0, moved)
+      return true
+    })
   }
 
   const onDragEnd = () => {
     draggingId.value = null
   }
-
-  onUnmounted(() => {
-    Object.values(persistTimers).forEach((timerId) => {
-      if (timerId) {
-        clearTimeout(timerId)
-      }
-    })
-  })
 
   return {
     activeCards,

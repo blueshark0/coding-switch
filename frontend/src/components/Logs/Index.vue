@@ -52,6 +52,14 @@
             </option>
           </select>
         </label>
+        <label class="filter-field">
+          <span>{{ t('components.logs.filters.costTier') }}</span>
+          <select v-model="filters.costTier" class="mac-select">
+            <option v-for="option in costTierOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
       <div class="filter-actions">
         <BaseButton type="submit" :disabled="loading">
@@ -138,6 +146,7 @@ const {
   applyFilters,
   chartData,
   chartOptions,
+  costTierOptions,
   countdown,
   durationColor,
   filters,

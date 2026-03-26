@@ -11,6 +11,7 @@ import {
   type RequestLog,
 } from '../../services/logs'
 import { useLogsPresentation } from './useLogsPresentation'
+import { matchesCostTier, type CostTier } from './costTier'
 
 type TranslateFn = (key: string, named?: Record<string, unknown>) => string
 
@@ -31,10 +32,16 @@ export const useLogsDashboard = ({
   const logs = ref<RequestLog[]>([])
   const stats = ref<LogStats | null>(null)
   const loading = ref(false)
-  const filters = reactive<{ platform: string; provider: string; rangeKey: LogRangeKey }>({
+  const filters = reactive<{
+    platform: string
+    provider: string
+    rangeKey: LogRangeKey
+    costTier: CostTier
+  }>({
     platform: '',
     provider: '',
     rangeKey: DEFAULT_LOG_RANGE,
+    costTier: 'all',
   })
   const page = ref(1)
   const providerOptions = ref<string[]>([])
@@ -49,13 +56,35 @@ export const useLogsDashboard = ({
       label: t(`components.logs.filters.ranges.${value}`),
     })),
   )
+  const costTierOptions = computed<Array<{ value: CostTier; label: string }>>(() => [
+    {
+      value: 'all',
+      label: t('components.logs.filters.allCostTiers'),
+    },
+    {
+      value: 'low',
+      label: t('components.logs.filters.costTiers.low'),
+    },
+    {
+      value: 'medium',
+      label: t('components.logs.filters.costTiers.medium'),
+    },
+    {
+      value: 'high',
+      label: t('components.logs.filters.costTiers.high'),
+    },
+  ])
+
+  const filteredLogs = computed(() =>
+    logs.value.filter((log) => matchesCostTier(log, filters.costTier)),
+  )
 
   const pagedLogs = computed(() => {
     const start = (page.value - 1) * PAGE_SIZE
-    return logs.value.slice(start, start + PAGE_SIZE)
+    return filteredLogs.value.slice(start, start + PAGE_SIZE)
   })
 
-  const totalPages = computed(() => Math.max(1, Math.ceil(logs.value.length / PAGE_SIZE)))
+  const totalPages = computed(() => Math.max(1, Math.ceil(filteredLogs.value.length / PAGE_SIZE)))
   const {
     chartData,
     chartOptions,
@@ -105,7 +134,7 @@ export const useLogsDashboard = ({
           const nextLogs = logData ?? []
           logs.value = nextLogs
           stats.value = statData ?? null
-          const nextTotalPages = Math.max(1, Math.ceil(nextLogs.length / PAGE_SIZE))
+          const nextTotalPages = Math.max(1, Math.ceil(filteredLogs.value.length / PAGE_SIZE))
           page.value = Math.min(page.value, nextTotalPages)
         } while (queuedDashboardReload)
       } catch (error) {
@@ -209,6 +238,7 @@ export const useLogsDashboard = ({
     applyFilters,
     chartData,
     chartOptions,
+    costTierOptions,
     countdown,
     durationColor,
     filters,

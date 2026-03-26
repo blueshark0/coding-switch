@@ -162,6 +162,13 @@
         "provider": "Provider",
         "allProviders": "All providers",
         "range": "Range",
+        "costTier": "Cost tier",
+        "allCostTiers": "All costs",
+        "costTiers": {
+          "low": "Low cost",
+          "medium": "Medium cost",
+          "high": "High cost"
+        },
         "ranges": {
           "today": "Today",
           "last3days": "Last 3 days",

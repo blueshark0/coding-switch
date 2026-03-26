@@ -163,6 +163,13 @@
         "provider": "供应商",
         "allProviders": "全部供应商",
         "range": "时间范围",
+        "costTier": "金额等级",
+        "allCostTiers": "全部金额",
+        "costTiers": {
+          "low": "低金额",
+          "medium": "中金额",
+          "high": "高金额"
+        },
         "ranges": {
           "today": "今天",
           "last3days": "近三天",

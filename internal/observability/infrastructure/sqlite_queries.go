@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 
+	"codeswitch/internal/shared/storage"
 	observabilitydomain "codeswitch/internal/observability/domain"
 	modelpricing "codeswitch/resources/model-pricing"
 )
@@ -17,7 +18,8 @@ type SQLiteQueries struct {
 }
 
 func NewSQLiteQueries() *SQLiteQueries {
-	svc, err := modelpricing.DefaultService()
+	pricingPath, _ := storage.AppDataPath("model_prices_and_context_window.json")
+	svc, err := modelpricing.NewServiceWithFile(pricingPath)
 	if err != nil {
 		log.Printf("pricing service init failed: %v", err)
 	}

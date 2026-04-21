@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 )
@@ -24,6 +25,7 @@ type Service struct {
 	normalized   map[string]string
 	ephemeral1h  map[string]float64
 	longContexts map[string]LongContextPricing
+	mu           sync.RWMutex
 }
 
 // PricingEntry 映射 JSON 内的字段。
@@ -146,6 +148,9 @@ func (s *Service) getPricing(model string) (*PricingEntry, bool) {
 	if model == "" {
 		return nil, false
 	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if entry, ok := s.pricingMap[model]; ok {
 		return entry, true
 	}
@@ -280,5 +285,39 @@ func buildLongContextPricing() map[string]LongContextPricing {
 			Input:  0.000006,
 			Output: 0.0000225,
 		},
+	}
+}
+
+// NewServiceWithFile 创建服务并尝试加载外部定价文件。
+// 先加载内置默认值，再从指定路径加载外部定价（外部优先级更高）。
+func NewServiceWithFile(path string) (*Service, error) {
+	svc, err := NewService()
+	if err != nil {
+		return nil, err
+	}
+
+	if data, err := os.ReadFile(path); err == nil {
+		var external map[string]PricingEntry
+		if json.Unmarshal(data, &external) == nil {
+			svc.mergeExternal(external)
+		}
+	}
+	return svc, nil
+}
+
+// mergeExternal 将外部定价合并到现有映射中。
+func (s *Service) mergeExternal(external map[string]PricingEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, entry := range external {
+		item := entry
+		ensureCachePricing(&item)
+		s.pricingMap[key] = &item
+
+		norm := normalizeName(key)
+		if _, exists := s.normalized[norm]; !exists {
+			s.normalized[norm] = key
+		}
 	}
 }

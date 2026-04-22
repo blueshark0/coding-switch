@@ -46,6 +46,9 @@ type Server struct {
 	shutdownCh          chan struct{}
 	backgroundWG        sync.WaitGroup
 	shutdownOnce        sync.Once
+	proxyMu             sync.RWMutex
+	proxyEnabled        bool
+	proxyURL            string
 }
 
 func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Service, addr string) *Server {
@@ -74,6 +77,7 @@ func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Se
 	}, newSessionUpdateProcessor(server.sessionCache))
 	server.sessionUpdateWorker.Start()
 	server.startRequestLogRetentionTask()
+	server.initProxyConfig()
 	return server
 }
 

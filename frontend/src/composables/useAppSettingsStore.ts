@@ -5,6 +5,8 @@ import { fetchAppSettings, saveAppSettings, type AppSettings } from '../services
 const DEFAULT_APP_SETTINGS: AppSettings = {
   show_heatmap: true,
   show_home_title: true,
+  proxy_enabled: false,
+  proxy_url: '',
   default_claude_provider: '',
   default_codex_provider: '',
   default_gemini_provider: '',
@@ -25,6 +27,8 @@ type DefaultProviderKey =
 const normalizeAppSettings = (settings?: Partial<AppSettings> | null): AppSettings => ({
   show_heatmap: settings?.show_heatmap ?? DEFAULT_APP_SETTINGS.show_heatmap,
   show_home_title: settings?.show_home_title ?? DEFAULT_APP_SETTINGS.show_home_title,
+  proxy_enabled: settings?.proxy_enabled ?? DEFAULT_APP_SETTINGS.proxy_enabled,
+  proxy_url: settings?.proxy_url ?? DEFAULT_APP_SETTINGS.proxy_url,
   default_claude_provider:
     settings?.default_claude_provider ?? DEFAULT_APP_SETTINGS.default_claude_provider,
   default_codex_provider:
@@ -96,6 +100,11 @@ const updateSettings = async (partial: Partial<AppSettings>): Promise<AppSetting
 export const useAppSettingsStore = () => {
   const showHeatmap = computed(() => appSettings.value.show_heatmap)
   const showHomeTitle = computed(() => appSettings.value.show_home_title)
+  const proxyEnabled = computed({
+    get: () => appSettings.value.proxy_enabled,
+    set: (val: boolean) => { appSettings.value.proxy_enabled = val },
+  })
+  const proxyURL = computed(() => appSettings.value.proxy_url)
 
   const getDefaultProviderName = (tab: ProviderTab) => {
     return appSettings.value[getDefaultProviderKey(tab)]
@@ -107,6 +116,8 @@ export const useAppSettingsStore = () => {
     initialized,
     loadSettings,
     loading,
+    proxyEnabled,
+    proxyURL,
     saving,
     showHeatmap,
     showHomeTitle,

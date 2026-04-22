@@ -224,6 +224,7 @@
       "title": {
         "power": "权限设置",
         "application": "应用设置",
+        "network": "网络设置",
         "exterior": "外观设置",
         "update": "应用更新"
       },
@@ -236,16 +237,21 @@
         "heatmap": "显示主界面热力墙",
         "homeTitle": "显示首页标题",
         "automatic_up": "自动检查更新",
-        "next_up": "下次启动自动检查更新"
+        "next_up": "下次启动自动检查更新",
+        "proxy": "HTTP 代理"
       },
       "sublabel": {
         "sb_assistant_access": "需要无障碍访问权限来操作剪切板内容",
         "sb_disk_access": "需要完全磁盘访问权限来实现文件预览"
       },
+      "placeholder": {
+        "proxy": "例如 http://127.0.0.1:7890"
+      },
       "buttons": {
         "authorized": "已授权",
         "go_authorized": "去授权",
-        "back": "返回首页"
+        "back": "返回首页",
+        "save": "保存"
       },
       "messages": {
         "loadFailed": "加载设置失败",

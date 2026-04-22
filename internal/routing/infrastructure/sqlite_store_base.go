@@ -36,37 +36,39 @@ func (s *SQLiteStore) EnsureSchema() error {
 	}
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS route_profiles (
-			platform TEXT PRIMARY KEY,
-			default_provider_id INTEGER NULL,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
+				platform TEXT PRIMARY KEY,
+				default_provider_id INTEGER NULL,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`,
 		`CREATE TABLE IF NOT EXISTS providers (
-			platform TEXT NOT NULL,
-			id INTEGER NOT NULL,
-			name TEXT NOT NULL,
-			api_url TEXT NOT NULL DEFAULT '',
-			api_key TEXT NOT NULL DEFAULT '',
-			official_site TEXT NOT NULL DEFAULT '',
-			icon TEXT NOT NULL DEFAULT '',
-			tint TEXT NOT NULL DEFAULT '',
-			accent TEXT NOT NULL DEFAULT '',
-			enabled INTEGER NOT NULL DEFAULT 0,
-			position INTEGER NOT NULL,
-			supported_models_json TEXT NOT NULL DEFAULT '{}',
-			model_mapping_json TEXT NOT NULL DEFAULT '{}',
-			PRIMARY KEY(platform, id),
-			UNIQUE(platform, name)
-		)`,
+				platform TEXT NOT NULL,
+				id INTEGER NOT NULL,
+				name TEXT NOT NULL,
+				api_url TEXT NOT NULL DEFAULT '',
+				api_key TEXT NOT NULL DEFAULT '',
+				official_site TEXT NOT NULL DEFAULT '',
+				icon TEXT NOT NULL DEFAULT '',
+				tint TEXT NOT NULL DEFAULT '',
+				accent TEXT NOT NULL DEFAULT '',
+				enabled INTEGER NOT NULL DEFAULT 0,
+				position INTEGER NOT NULL,
+				supported_models_json TEXT NOT NULL DEFAULT '{}',
+				model_mapping_json TEXT NOT NULL DEFAULT '{}',
+				PRIMARY KEY(platform, id),
+				UNIQUE(platform, name)
+			)`,
 		`CREATE TABLE IF NOT EXISTS app_preferences (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
-			show_heatmap INTEGER NOT NULL DEFAULT 1,
-			show_home_title INTEGER NOT NULL DEFAULT 1,
-			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-		)`,
+				id INTEGER PRIMARY KEY CHECK (id = 1),
+				show_heatmap INTEGER NOT NULL DEFAULT 1,
+				show_home_title INTEGER NOT NULL DEFAULT 1,
+				proxy_enabled INTEGER NOT NULL DEFAULT 0,
+				proxy_url TEXT NOT NULL DEFAULT '',
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`,
 		`CREATE TABLE IF NOT EXISTS schema_meta (
-			key TEXT PRIMARY KEY,
-			value TEXT NOT NULL
-		)`,
+				key TEXT PRIMARY KEY,
+				value TEXT NOT NULL
+			)`,
 		`CREATE INDEX IF NOT EXISTS idx_providers_platform_position ON providers(platform, position ASC)`,
 	}
 	for _, stmt := range statements {
@@ -74,10 +76,43 @@ func (s *SQLiteStore) EnsureSchema() error {
 			return err
 		}
 	}
-	if _, err := db.Exec(`INSERT INTO app_preferences (id, show_heatmap, show_home_title)
-		VALUES (1, 1, 1)
-		ON CONFLICT(id) DO NOTHING`); err != nil {
+	if err := ensureAppPreferencesColumns(db); err != nil {
 		return err
+	}
+	if _, err := db.Exec(`INSERT INTO app_preferences (id, show_heatmap, show_home_title, proxy_enabled, proxy_url)
+			VALUES (1, 1, 1, 0, '')
+			ON CONFLICT(id) DO NOTHING`); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureAppPreferencesColumns(db *sql.DB) error {
+	columns := []struct {
+		name       string
+		definition string
+	}{
+		{name: "proxy_enabled", definition: "INTEGER NOT NULL DEFAULT 0"},
+		{name: "proxy_url", definition: "TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, column := range columns {
+		var count int
+		if err := db.QueryRow(
+			"SELECT COUNT(*) FROM pragma_table_info('app_preferences') WHERE name = ?",
+			column.name,
+		).Scan(&count); err != nil {
+			return fmt.Errorf("query app_preferences.%s: %w", column.name, err)
+		}
+		if count > 0 {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER TABLE app_preferences ADD COLUMN %s %s",
+			column.name,
+			column.definition,
+		)); err != nil {
+			return fmt.Errorf("add app_preferences.%s: %w", column.name, err)
+		}
 	}
 	return nil
 }

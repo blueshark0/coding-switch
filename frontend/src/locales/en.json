@@ -222,6 +222,7 @@
     "general": {
       "title": {
         "application": "Apply settings",
+        "network": "Network",
         "exterior": "Appearance settings",
         "power": "Permission settings",
         "update": "Application update"
@@ -235,16 +236,21 @@
         "startup": "Started when logged in",
         "theme": "Theme mode",
         "heatmap": "Show dashboard heatmap",
-        "homeTitle": "Show home title"
+        "homeTitle": "Show home title",
+        "proxy": "HTTP Proxy"
       },
       "sublabel": {
         "sb_assistant_access": "Accessibility permission is required to operate clipboard contents",
         "sb_disk_access": "Full disk access is required to implement file preview"
       },
+      "placeholder": {
+        "proxy": "e.g. http://127.0.0.1:7890"
+      },
       "buttons": {
         "authorized": "Auth",
         "go_authorized": "Auth now",
-        "back": "Back to home"
+        "back": "Back to home",
+        "save": "Save"
       },
       "messages": {
         "loadFailed": "Failed to load settings",

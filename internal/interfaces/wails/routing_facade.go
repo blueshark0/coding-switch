@@ -3,16 +3,18 @@ package wails
 import (
 	"context"
 
+	relayhttp "codeswitch/internal/interfaces/http/relay"
 	routingapp "codeswitch/internal/routing/application"
 	routingdomain "codeswitch/internal/routing/domain"
 )
 
 type RoutingFacade struct {
-	service *routingapp.Service
+	service     *routingapp.Service
+	relayServer *relayhttp.Server
 }
 
-func NewRoutingFacade(service *routingapp.Service) *RoutingFacade {
-	return &RoutingFacade{service: service}
+func NewRoutingFacade(service *routingapp.Service, relayServer *relayhttp.Server) *RoutingFacade {
+	return &RoutingFacade{service: service, relayServer: relayServer}
 }
 
 func (f *RoutingFacade) GetProfile(platform string) (routingdomain.RouteProfile, error) {
@@ -28,5 +30,12 @@ func (f *RoutingFacade) GetAppPreferences() (routingdomain.AppPreferences, error
 }
 
 func (f *RoutingFacade) SaveAppPreferences(preferences routingdomain.AppPreferences) (routingdomain.AppPreferences, error) {
-	return f.service.SaveAppPreferences(context.Background(), preferences)
+	saved, err := f.service.SaveAppPreferences(context.Background(), preferences)
+	if err != nil {
+		return routingdomain.AppPreferences{}, err
+	}
+	if f.relayServer != nil {
+		f.relayServer.SetProxyConfig(saved.ProxyEnabled, saved.ProxyURL)
+	}
+	return saved, nil
 }

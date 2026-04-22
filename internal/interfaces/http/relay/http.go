@@ -109,6 +109,10 @@ func (s *Server) forwardRequest(
 		SetRetry(1, 500*time.Millisecond).
 		SetTimeout(900 * time.Second)
 	req = req.SetBody(bytes.NewReader(bodyBytes))
+	if proxyURL := s.getProxyURL(); proxyURL != "" {
+		req = req.SetProxy(proxyURL)
+		relayDebugf("using proxy: %s", proxyURL)
+	}
 	resp, err := req.Post(targetURL)
 	if err != nil {
 		return false, err

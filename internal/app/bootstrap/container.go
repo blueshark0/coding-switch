@@ -76,7 +76,7 @@ func Initialize() (*Container, error) {
 		cleanupRunner: sessionapp.NewCleanupRunner(sessionService, defaultSessionCleanupInterval),
 		hotkeyService: facades.NewHotkeyFacade(hotkeyapp.NewService(hotkeyStore)),
 		logsWindow:    logsWindow,
-		routingFacade: facades.NewRoutingFacade(routingService),
+		routingFacade: facades.NewRoutingFacade(routingService, relayServer),
 		sessionFacade: facades.NewSessionFacade(sessionService),
 		obsFacade:     facades.NewObservabilityFacade(observabilityapp.NewService(observabilityinfra.NewSQLiteQueries())),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),

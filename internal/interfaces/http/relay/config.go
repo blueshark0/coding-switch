@@ -42,3 +42,31 @@ func (s *Server) loadProfile(kind string) (routingdomain.RouteProfile, error) {
 	}
 	return profile, nil
 }
+
+func (s *Server) initProxyConfig() {
+	prefs, err := s.routingService.GetAppPreferences(context.Background())
+	if err != nil {
+		relayWarnf("failed to load proxy preferences: %v", err)
+		return
+	}
+	s.proxyMu.Lock()
+	s.proxyEnabled = prefs.ProxyEnabled
+	s.proxyURL = prefs.ProxyURL
+	s.proxyMu.Unlock()
+}
+
+func (s *Server) SetProxyConfig(enabled bool, url string) {
+	s.proxyMu.Lock()
+	s.proxyEnabled = enabled
+	s.proxyURL = url
+	s.proxyMu.Unlock()
+}
+
+func (s *Server) getProxyURL() string {
+	s.proxyMu.RLock()
+	defer s.proxyMu.RUnlock()
+	if s.proxyEnabled && s.proxyURL != "" {
+		return s.proxyURL
+	}
+	return ""
+}

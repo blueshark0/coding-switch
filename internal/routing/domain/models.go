@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -9,8 +10,10 @@ import (
 )
 
 type AppPreferences struct {
-	ShowHeatmap   bool `json:"show_heatmap"`
-	ShowHomeTitle bool `json:"show_home_title"`
+	ShowHeatmap   bool   `json:"show_heatmap"`
+	ShowHomeTitle bool   `json:"show_home_title"`
+	ProxyEnabled  bool   `json:"proxy_enabled"`
+	ProxyURL      string `json:"proxy_url"`
 }
 
 func DefaultAppPreferences() AppPreferences {
@@ -18,6 +21,25 @@ func DefaultAppPreferences() AppPreferences {
 		ShowHeatmap:   true,
 		ShowHomeTitle: true,
 	}
+}
+
+func ValidateProxyURL(raw string) error {
+	if raw == "" {
+		return nil
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+	switch u.Scheme {
+	case "http", "https", "socks5", "socks5h":
+	default:
+		return fmt.Errorf("unsupported proxy scheme: %s (must be http, https, socks5, or socks5h)", u.Scheme)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("proxy URL must include a host")
+	}
+	return nil
 }
 
 type Provider struct {

@@ -267,9 +267,14 @@ onMounted(() => {
 }
 
 .proxy-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 5px 14px;
+  min-height: 28px;
   font-size: 0.8rem;
   font-weight: 600;
+  line-height: 1;
   border: none;
   border-radius: 6px;
   background: var(--mac-accent, #007aff);

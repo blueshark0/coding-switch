@@ -120,14 +120,22 @@
           "apiKey": "API key",
           "officialSite": "Official site",
           "icon": "Icon",
-          "enabled": "Enabled"
+          "enabled": "Enabled",
+          "proxyMode": "Proxy mode",
+          "proxyUrl": "Proxy URL"
+        },
+        "proxyMode": {
+          "inherit": "Follow global",
+          "custom": "Custom proxy",
+          "direct": "No proxy"
         },
         "placeholders": {
           "name": "e.g. AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "e.g. aicoding, kimi"
+          "icon": "e.g. aicoding, kimi",
+          "proxyUrl": "e.g. socks5://127.0.0.1:1080"
         },
         "actions": {
           "cancel": "Cancel",
@@ -143,7 +151,9 @@
         "errors": {
           "duplicateName": "Provider names must be unique within the same platform",
           "invalidUrl": "Please enter a valid API URL",
-          "nameRequired": "Please enter a provider name"
+          "nameRequired": "Please enter a provider name",
+          "invalidProxyUrl": "Proxy URL must start with http://, https://, socks5://, or socks5h://",
+          "proxyUrlRequired": "Proxy URL is required when using custom proxy mode"
         }
       }
     },

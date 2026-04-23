@@ -42,6 +42,12 @@ func ValidateProxyURL(raw string) error {
 	return nil
 }
 
+const (
+	ProxyModeInherit = ""
+	ProxyModeCustom  = "custom"
+	ProxyModeDirect  = "direct"
+)
+
 type Provider struct {
 	ID              int               `json:"id"`
 	Name            string            `json:"name"`
@@ -55,6 +61,22 @@ type Provider struct {
 	Position        int               `json:"position"`
 	SupportedModels map[string]bool   `json:"supportedModels,omitempty"`
 	ModelMapping    map[string]string `json:"modelMapping,omitempty"`
+	ProxyMode       string            `json:"proxyMode,omitempty"`
+	ProxyURL        string            `json:"proxyUrl,omitempty"`
+}
+
+func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string {
+	switch p.ProxyMode {
+	case ProxyModeDirect:
+		return ""
+	case ProxyModeCustom:
+		return p.ProxyURL
+	default:
+		if globalEnabled && globalURL != "" {
+			return globalURL
+		}
+		return ""
+	}
 }
 
 type RouteProfile struct {

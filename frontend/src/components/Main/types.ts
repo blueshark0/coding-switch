@@ -10,6 +10,8 @@ export type VendorForm = {
   enabled: boolean
   supportedModels?: Record<string, boolean>
   modelMapping?: Record<string, string>
+  proxyMode?: string
+  proxyUrl?: string
 }
 
 export type ProviderStatDisplay =

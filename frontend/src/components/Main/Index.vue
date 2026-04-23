@@ -190,6 +190,7 @@
         :form="modalState.form"
         :name-error="modalState.errors.name"
         :open="modalState.open"
+        :proxy-url-error="modalState.errors.proxyUrl"
         @close="closeModal"
         @submit="submitModal"
       />

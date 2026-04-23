@@ -57,6 +57,39 @@
       </label>
 
       <div class="form-field">
+        <span>{{ t('components.main.form.labels.proxyMode') }}</span>
+        <div class="proxy-mode-options">
+          <label class="proxy-mode-option">
+            <input type="radio" v-model="form.proxyMode" value="" />
+            <span>{{ t('components.main.form.proxyMode.inherit') }}</span>
+          </label>
+          <label class="proxy-mode-option">
+            <input type="radio" v-model="form.proxyMode" value="custom" />
+            <span>{{ t('components.main.form.proxyMode.custom') }}</span>
+          </label>
+          <label class="proxy-mode-option">
+            <input type="radio" v-model="form.proxyMode" value="direct" />
+            <span>{{ t('components.main.form.proxyMode.direct') }}</span>
+          </label>
+        </div>
+      </div>
+
+      <label v-if="form.proxyMode === 'custom'" class="form-field">
+        <span class="label-row">
+          {{ t('components.main.form.labels.proxyUrl') }}
+          <span v-if="proxyUrlError" class="field-error">
+            {{ proxyUrlError }}
+          </span>
+        </span>
+        <BaseInput
+          v-model="form.proxyUrl"
+          type="text"
+          :placeholder="t('components.main.form.placeholders.proxyUrl')"
+          :class="{ 'has-error': !!proxyUrlError }"
+        />
+      </label>
+
+      <div class="form-field">
         <span>{{ t('components.main.form.labels.icon') }}</span>
         <Listbox v-model="form.icon" v-slot="{ open: optionsOpen }">
           <div class="icon-select">
@@ -142,6 +175,7 @@ defineProps<{
   form: VendorForm
   nameError: string
   open: boolean
+  proxyUrlError: string
 }>()
 
 defineEmits<{

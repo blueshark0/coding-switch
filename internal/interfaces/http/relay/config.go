@@ -70,3 +70,15 @@ func (s *Server) getProxyURL() string {
 	}
 	return ""
 }
+
+func (s *Server) getProxyURLForProvider(provider *routingdomain.Provider) string {
+	s.proxyMu.RLock()
+	enabled := s.proxyEnabled
+	globalURL := s.proxyURL
+	s.proxyMu.RUnlock()
+	proxyURL := provider.ResolveProxyURL(enabled, globalURL)
+	if proxyURL != "" {
+		relayDebugf("provider %s proxy: %s", provider.Name, proxyURL)
+	}
+	return proxyURL
+}

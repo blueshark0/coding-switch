@@ -53,6 +53,8 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     enabled: true,
     supportedModels: {},
     modelMapping: {},
+    proxyMode: '',
+    proxyUrl: '',
   })
 
   const modalState = reactive({
@@ -63,6 +65,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     errors: {
       name: '',
       apiUrl: '',
+      proxyUrl: '',
     },
   })
 
@@ -104,6 +107,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     Object.assign(modalState.form, createDefaultForm())
     modalState.errors.name = ''
     modalState.errors.apiUrl = ''
+    modalState.errors.proxyUrl = ''
   }
 
   const normalizeIconKey = (icon: string) => {
@@ -120,6 +124,8 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     modelMapping: { ...(form.modelMapping ?? {}) },
     officialSite: form.officialSite.trim(),
     supportedModels: { ...(form.supportedModels ?? {}) },
+    proxyMode: form.proxyMode ?? '',
+    proxyUrl: (form.proxyUrl ?? '').trim(),
   })
 
   const nextProviderID = (tabId: ProviderTab) => {
@@ -163,6 +169,25 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
       modalState.errors.apiUrl = t('components.main.form.errors.invalidUrl')
       return false
     }
+  }
+
+  const PROXY_PREFIXES = ['http://', 'https://', 'socks5://', 'socks5h://']
+
+  const validateProxyUrl = (mode: string, value: string) => {
+    if (mode !== 'custom') {
+      modalState.errors.proxyUrl = ''
+      return true
+    }
+    if (!value.trim()) {
+      modalState.errors.proxyUrl = t('components.main.form.errors.proxyUrlRequired')
+      return false
+    }
+    if (!PROXY_PREFIXES.some((p) => value.trim().startsWith(p))) {
+      modalState.errors.proxyUrl = t('components.main.form.errors.invalidProxyUrl')
+      return false
+    }
+    modalState.errors.proxyUrl = ''
+    return true
   }
 
   const saveMutation = async (
@@ -217,6 +242,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     })
     modalState.errors.name = ''
     modalState.errors.apiUrl = ''
+    modalState.errors.proxyUrl = ''
     modalState.open = true
   }
 
@@ -232,7 +258,11 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const submitModal = async () => {
     const tabId = modalState.tabId
     const apiUrl = modalState.form.apiUrl.trim()
-    if (!validateProviderName(tabId, modalState.editingId) || !validateApiUrl(apiUrl)) {
+    if (
+      !validateProviderName(tabId, modalState.editingId) ||
+      !validateApiUrl(apiUrl) ||
+      !validateProxyUrl(modalState.form.proxyMode ?? '', modalState.form.proxyUrl ?? '')
+    ) {
       return
     }
 

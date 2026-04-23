@@ -10,6 +10,8 @@ export type AutomationCard = {
   enabled: boolean
   supportedModels?: Record<string, boolean>
   modelMapping?: Record<string, string>
+  proxyMode?: string
+  proxyUrl?: string
 }
 
 export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', AutomationCard[]> = {
@@ -99,5 +101,7 @@ export function createAutomationCards(data: AutomationCard[] = []): AutomationCa
     modelMapping: { ...(item.modelMapping ?? {}) },
     officialSite: item.officialSite ?? '',
     supportedModels: { ...(item.supportedModels ?? {}) },
+    proxyMode: item.proxyMode ?? '',
+    proxyUrl: item.proxyUrl ?? '',
   }))
 }

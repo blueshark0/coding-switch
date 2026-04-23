@@ -79,6 +79,9 @@ func (s *SQLiteStore) EnsureSchema() error {
 	if err := ensureAppPreferencesColumns(db); err != nil {
 		return err
 	}
+	if err := ensureProviderColumns(db); err != nil {
+		return err
+	}
 	if _, err := db.Exec(`INSERT INTO app_preferences (id, show_heatmap, show_home_title, proxy_enabled, proxy_url)
 			VALUES (1, 1, 1, 0, '')
 			ON CONFLICT(id) DO NOTHING`); err != nil {
@@ -122,6 +125,36 @@ func boolToInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func ensureProviderColumns(db *sql.DB) error {
+	columns := []struct {
+		name       string
+		definition string
+	}{
+		{name: "proxy_mode", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "proxy_url", definition: "TEXT NOT NULL DEFAULT ''"},
+	}
+	for _, column := range columns {
+		var count int
+		if err := db.QueryRow(
+			"SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = ?",
+			column.name,
+		).Scan(&count); err != nil {
+			return fmt.Errorf("query providers.%s: %w", column.name, err)
+		}
+		if count > 0 {
+			continue
+		}
+		if _, err := db.Exec(fmt.Sprintf(
+			"ALTER TABLE providers ADD COLUMN %s %s",
+			column.name,
+			column.definition,
+		)); err != nil {
+			return fmt.Errorf("add providers.%s: %w", column.name, err)
+		}
+	}
+	return nil
 }
 
 func encodeJSONMap[T any](value T) (string, error) {

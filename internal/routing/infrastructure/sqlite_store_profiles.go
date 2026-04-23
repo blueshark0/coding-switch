@@ -29,7 +29,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 	}
 
 	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, icon, tint, accent,
-		enabled, position, supported_models_json, model_mapping_json
+		enabled, position, supported_models_json, model_mapping_json, proxy_mode, proxy_url
 		FROM providers
 		WHERE platform = ?
 		ORDER BY position ASC, id ASC`, platform.String())
@@ -56,6 +56,8 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 			&provider.Position,
 			&supportedModelsJSON,
 			&modelMappingJSON,
+			&provider.ProxyMode,
+			&provider.ProxyURL,
 		); err != nil {
 			return domain.RouteProfile{}, err
 		}
@@ -130,8 +132,8 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
 			platform, id, name, api_url, api_key, official_site, icon, tint, accent, enabled, position,
-			supported_models_json, model_mapping_json
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			supported_models_json, model_mapping_json, proxy_mode, proxy_url
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, id) DO UPDATE SET
 			name = excluded.name,
 			api_url = excluded.api_url,
@@ -143,7 +145,9 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			enabled = excluded.enabled,
 			position = excluded.position,
 			supported_models_json = excluded.supported_models_json,
-			model_mapping_json = excluded.model_mapping_json`,
+			model_mapping_json = excluded.model_mapping_json,
+			proxy_mode = excluded.proxy_mode,
+			proxy_url = excluded.proxy_url`,
 			profile.Platform.String(),
 			provider.ID,
 			provider.Name,
@@ -157,6 +161,8 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			provider.Position,
 			supportedModelsJSON,
 			modelMappingJSON,
+			provider.ProxyMode,
+			provider.ProxyURL,
 		); err != nil {
 			return domain.RouteProfile{}, err
 		}

@@ -121,14 +121,22 @@
           "apiKey": "API 密钥",
           "officialSite": "官网地址",
           "icon": "图标",
-          "enabled": "启用状态"
+          "enabled": "启用状态",
+          "proxyMode": "代理模式",
+          "proxyUrl": "代理地址"
+        },
+        "proxyMode": {
+          "inherit": "跟随全局",
+          "custom": "自定义代理",
+          "direct": "禁用代理"
         },
         "placeholders": {
           "name": "例如：AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "例如：aicoding、kimi"
+          "icon": "例如：aicoding、kimi",
+          "proxyUrl": "例如 socks5://127.0.0.1:1080"
         },
         "actions": {
           "cancel": "取消",
@@ -144,7 +152,9 @@
         "errors": {
           "duplicateName": "同一平台下的供应商名称必须唯一",
           "invalidUrl": "请输入合法的 API 地址",
-          "nameRequired": "请输入供应商名称"
+          "nameRequired": "请输入供应商名称",
+          "invalidProxyUrl": "代理地址必须以 http://、https://、socks5:// 或 socks5h:// 开头",
+          "proxyUrlRequired": "自定义代理模式下代理地址不能为空"
         }
       }
     },

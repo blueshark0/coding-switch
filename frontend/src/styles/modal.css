@@ -246,3 +246,25 @@
   padding: 0;
   width: 100%;
 }
+
+.proxy-mode-options {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.proxy-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.proxy-mode-option input[type="radio"] {
+  accent-color: var(--mac-accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}

@@ -50,7 +50,6 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     apiKey: '',
     officialSite: '',
     icon: defaultIconKey,
-    enabled: true,
     supportedModels: {},
     modelMapping: {},
     proxyMode: '',
@@ -119,7 +118,6 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
   const buildCardValues = (form: VendorForm) => ({
     apiKey: form.apiKey.trim(),
     apiUrl: form.apiUrl.trim(),
-    enabled: form.enabled,
     icon: normalizeIconKey(form.icon || defaultIconKey),
     modelMapping: { ...(form.modelMapping ?? {}) },
     officialSite: form.officialSite.trim(),
@@ -328,21 +326,6 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     void saveMutation(activeTab.value, (providers) => moveCardToFrontInList(providers, cardId))
   }
 
-  const updateProviderEnabled = (card: AutomationCard, enabled: boolean) => {
-    const tabId = activeTab.value
-    void saveMutation(tabId, (providers) => {
-      const index = providers.findIndex((provider) => provider.id === card.id)
-      if (index < 0) {
-        return false
-      }
-      providers.splice(index, 1, {
-        ...providers[index],
-        enabled,
-      })
-      return true
-    })
-  }
-
   const onDragStart = (id: number, event: DragEvent) => {
     draggingId.value = id
     if (event.dataTransfer) {
@@ -393,6 +376,5 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     pinProvider,
     requestRemove,
     submitModal,
-    updateProviderEnabled,
   }
 }

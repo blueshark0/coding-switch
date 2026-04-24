@@ -87,7 +87,6 @@
       "removeDefault": "Remove default provider",
       "pinToTop": "Pin to top",
       "pinnedToTop": "Pinned to top",
-      "providerDisabledWarning": "This provider is disabled and cannot be set as default. Please enable it first.",
       "providerSaveFailed": "Failed to save providers. Your changes were reverted.",
       "saveFailed": "Failed to save settings, please try again.",
       "viewSessions": "View session bindings",
@@ -120,7 +119,6 @@
           "apiKey": "API key",
           "officialSite": "Official site",
           "icon": "Icon",
-          "enabled": "Enabled",
           "proxyMode": "Proxy mode",
           "proxyUrl": "Proxy URL"
         },
@@ -141,10 +139,6 @@
           "cancel": "Cancel",
           "save": "Save",
           "delete": "Delete"
-        },
-        "switch": {
-          "on": "Active",
-          "off": "Paused"
         },
         "confirmDeleteTitle": "Remove vendor",
         "confirmDeleteMessage": "Are you sure you want to remove {name}? This action cannot be undone.",

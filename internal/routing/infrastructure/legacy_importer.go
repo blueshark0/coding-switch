@@ -80,7 +80,6 @@ func (i *LegacyImporter) EnsureImported(ctx context.Context) error {
 				Icon:            provider.Icon,
 				Tint:            provider.Tint,
 				Accent:          provider.Accent,
-				Enabled:         provider.Enabled,
 				Position:        position,
 				SupportedModels: cloneBoolMap(provider.SupportedModels),
 				ModelMapping:    cloneStringMap(provider.ModelMapping),
@@ -88,7 +87,7 @@ func (i *LegacyImporter) EnsureImported(ctx context.Context) error {
 		}
 		defaultName := legacySettings.DefaultProviderName(platform)
 		if defaultName != "" {
-			if provider := profile.FindProviderByName(defaultName); provider != nil && provider.Enabled {
+			if provider := profile.FindProviderByName(defaultName); provider != nil {
 				defaultProviderID := provider.ID
 				profile.DefaultProviderID = &defaultProviderID
 			}

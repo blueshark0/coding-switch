@@ -37,7 +37,6 @@ export const useProviderWorkbench = ({ locale, t }: UseProviderWorkbenchOptions)
     pinProvider,
     requestRemove,
     submitModal,
-    updateProviderEnabled,
   } = useProviderCatalog({
     activeTab,
     t,
@@ -124,7 +123,6 @@ export const useProviderWorkbench = ({ locale, t }: UseProviderWorkbenchOptions)
     submitModal,
     tabs,
     toggleDefaultProvider,
-    updateProviderEnabled,
     usageHeatmap,
   }
 }

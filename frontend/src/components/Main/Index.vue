@@ -179,7 +179,6 @@
           @pin="pinProvider"
           @remove="requestRemove"
           @toggle-default="toggleDefaultProvider"
-          @toggle-enabled="updateProviderEnabled"
         />
       </div>
       </section>
@@ -255,7 +254,6 @@ const {
   submitModal,
   tabs,
   toggleDefaultProvider,
-  updateProviderEnabled,
   usageHeatmap,
 } = useProviderWorkbench({
   locale,

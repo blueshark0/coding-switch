@@ -29,7 +29,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 	}
 
 	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, icon, tint, accent,
-		enabled, position, supported_models_json, model_mapping_json, proxy_mode, proxy_url
+		position, supported_models_json, model_mapping_json, proxy_mode, proxy_url
 		FROM providers
 		WHERE platform = ?
 		ORDER BY position ASC, id ASC`, platform.String())
@@ -40,7 +40,6 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 
 	for rows.Next() {
 		var provider domain.Provider
-		var enabled int
 		var supportedModelsJSON string
 		var modelMappingJSON string
 		if err := rows.Scan(
@@ -52,7 +51,6 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 			&provider.Icon,
 			&provider.Tint,
 			&provider.Accent,
-			&enabled,
 			&provider.Position,
 			&supportedModelsJSON,
 			&modelMappingJSON,
@@ -61,7 +59,6 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 		); err != nil {
 			return domain.RouteProfile{}, err
 		}
-		provider.Enabled = enabled == 1
 		provider.SupportedModels = map[string]bool{}
 		provider.ModelMapping = map[string]string{}
 		if err := decodeJSONMap(supportedModelsJSON, &provider.SupportedModels); err != nil {
@@ -131,9 +128,9 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			return domain.RouteProfile{}, err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
-			platform, id, name, api_url, api_key, official_site, icon, tint, accent, enabled, position,
+			platform, id, name, api_url, api_key, official_site, icon, tint, accent, position,
 			supported_models_json, model_mapping_json, proxy_mode, proxy_url
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, id) DO UPDATE SET
 			name = excluded.name,
 			api_url = excluded.api_url,
@@ -142,7 +139,6 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			icon = excluded.icon,
 			tint = excluded.tint,
 			accent = excluded.accent,
-			enabled = excluded.enabled,
 			position = excluded.position,
 			supported_models_json = excluded.supported_models_json,
 			model_mapping_json = excluded.model_mapping_json,
@@ -157,7 +153,6 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			provider.Icon,
 			provider.Tint,
 			provider.Accent,
-			boolToInt(provider.Enabled),
 			provider.Position,
 			supportedModelsJSON,
 			modelMappingJSON,

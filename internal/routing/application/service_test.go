@@ -39,7 +39,7 @@ func TestServiceGetProfileUsesCache(t *testing.T) {
 			kernel.PlatformClaude: {
 				Platform: kernel.PlatformClaude,
 				Providers: []domain.Provider{
-					{ID: 1, Name: "alpha", Enabled: true, Position: 1},
+					{ID: 1, Name: "alpha", Position: 1},
 				},
 			},
 		},
@@ -72,7 +72,7 @@ func TestServiceSaveProfileRefreshesCache(t *testing.T) {
 				Platform:          kernel.PlatformClaude,
 				DefaultProviderID: intPtr(1),
 				Providers: []domain.Provider{
-					{ID: 1, Name: "alpha", Enabled: true, Position: 1},
+					{ID: 1, Name: "alpha", Position: 1},
 				},
 			},
 		},
@@ -83,7 +83,7 @@ func TestServiceSaveProfileRefreshesCache(t *testing.T) {
 		Platform:          kernel.PlatformClaude,
 		DefaultProviderID: intPtr(1),
 		Providers: []domain.Provider{
-			{ID: 1, Name: "alpha", Enabled: true, Position: 1, APIURL: "https://example.com", APIKey: "secret"},
+			{ID: 1, Name: "alpha", Position: 1, APIURL: "https://example.com", APIKey: "secret"},
 		},
 	})
 	if err != nil {

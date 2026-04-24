@@ -88,7 +88,6 @@
       "removeDefault": "取消默认供应商",
       "pinToTop": "置顶到最前",
       "pinnedToTop": "已置顶",
-      "providerDisabledWarning": "该供应商已被禁用，无法设为默认供应商。请先启用该供应商。",
       "providerSaveFailed": "保存供应商失败，已回滚本次修改。",
       "saveFailed": "保存设置失败，请重试。",
       "viewSessions": "查看会话绑定",
@@ -121,7 +120,6 @@
           "apiKey": "API 密钥",
           "officialSite": "官网地址",
           "icon": "图标",
-          "enabled": "启用状态",
           "proxyMode": "代理模式",
           "proxyUrl": "代理地址"
         },
@@ -142,10 +140,6 @@
           "cancel": "取消",
           "save": "保存",
           "delete": "删除"
-        },
-        "switch": {
-          "on": "已启用",
-          "off": "未启用"
         },
         "confirmDeleteTitle": "删除供应商",
         "confirmDeleteMessage": "确认删除 {name} 吗？操作不可撤销",

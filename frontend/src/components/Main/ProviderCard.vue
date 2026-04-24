@@ -52,15 +52,6 @@
     </div>
 
     <div class="card-actions">
-      <label class="mac-switch sm">
-        <input
-          type="checkbox"
-          :checked="card.enabled"
-          @change="handleEnabledChange"
-        />
-        <span></span>
-      </label>
-
       <button
         class="ghost-icon pin-icon"
         :class="{ 'is-top': isTopProvider }"
@@ -166,7 +157,6 @@ const emit = defineEmits<{
   pin: [cardId: number]
   remove: [card: AutomationCard]
   'toggle-default': [card: AutomationCard]
-  'toggle-enabled': [card: AutomationCard, enabled: boolean]
 }>()
 
 const { t } = useI18n()
@@ -216,11 +206,6 @@ const handleDragStart = (event: DragEvent) => {
     event.dataTransfer.effectAllowed = 'move'
   }
   emit('dragstart', props.card.id, event)
-}
-
-const handleEnabledChange = (event: Event) => {
-  const target = event.target as HTMLInputElement | null
-  emit('toggle-enabled', props.card, Boolean(target?.checked))
 }
 </script>
 

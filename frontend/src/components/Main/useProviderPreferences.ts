@@ -34,10 +34,6 @@ export const useProviderPreferences = ({
 
   const toggleDefaultProvider = async (card: AutomationCard) => {
     const tab = activeTab.value
-    if (!card.enabled) {
-      showToast(t('components.main.providerDisabledWarning'), 'error')
-      return
-    }
 
     try {
       await updateSettings({

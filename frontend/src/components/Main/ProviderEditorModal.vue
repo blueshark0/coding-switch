@@ -131,19 +131,6 @@
         <ModelMappingEditor v-model="form.modelMapping" />
       </div>
 
-      <div class="form-field switch-field">
-        <span>{{ t('components.main.form.labels.enabled') }}</span>
-        <div class="switch-inline">
-          <label class="mac-switch">
-            <input type="checkbox" v-model="form.enabled" />
-            <span></span>
-          </label>
-          <span class="switch-text">
-            {{ form.enabled ? t('components.main.form.switch.on') : t('components.main.form.switch.off') }}
-          </span>
-        </div>
-      </div>
-
       <footer class="form-actions">
         <BaseButton variant="outline" type="button" @click="$emit('close')">
           {{ t('components.main.form.actions.cancel') }}

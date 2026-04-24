@@ -12,8 +12,8 @@ func TestRouteProfileValidateRejectsDuplicateProviderNames(t *testing.T) {
 		Platform:          kernel.PlatformClaude,
 		DefaultProviderID: intPtr(1),
 		Providers: []Provider{
-			{ID: 1, Name: "Alpha", Enabled: true, Position: 1, APIURL: "https://alpha.example", APIKey: "secret"},
-			{ID: 2, Name: " alpha ", Enabled: true, Position: 2, APIURL: "https://beta.example", APIKey: "secret"},
+			{ID: 1, Name: "Alpha", Position: 1, APIURL: "https://alpha.example", APIKey: "secret"},
+			{ID: 2, Name: " alpha ", Position: 2, APIURL: "https://beta.example", APIKey: "secret"},
 		},
 	}
 

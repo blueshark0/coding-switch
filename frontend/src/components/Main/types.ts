@@ -7,7 +7,6 @@ export type VendorForm = {
   apiKey: string
   officialSite: string
   icon: string
-  enabled: boolean
   supportedModels?: Record<string, boolean>
   modelMapping?: Record<string, string>
   proxyMode?: string

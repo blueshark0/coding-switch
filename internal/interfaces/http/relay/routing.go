@@ -55,9 +55,6 @@ func (s *Server) findProvider(providers []routingdomain.Provider, name string) *
 }
 
 func (s *Server) validateProvider(provider *routingdomain.Provider) error {
-	if !provider.Enabled {
-		return fmt.Errorf("供应商 %s 已被禁用", provider.Name)
-	}
 	if provider.APIURL == "" || provider.APIKey == "" {
 		return fmt.Errorf("供应商 %s 配置不完整", provider.Name)
 	}

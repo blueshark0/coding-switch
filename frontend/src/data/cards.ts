@@ -7,7 +7,6 @@ export type AutomationCard = {
   icon: string
   tint: string
   accent: string
-  enabled: boolean
   supportedModels?: Record<string, boolean>
   modelMapping?: Record<string, string>
   proxyMode?: string
@@ -25,7 +24,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'aicoding',
       tint: 'rgba(10, 132, 255, 0.14)',
       accent: '#0aff5cff',
-      enabled: false,
     },
     {
       id: 101,
@@ -36,7 +34,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'aicoding',
       tint: 'rgba(10, 132, 255, 0.14)',
       accent: '#0a84ff',
-      enabled: false,
     },
     {
       id: 102,
@@ -47,7 +44,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'kimi',
       tint: 'rgba(16, 185, 129, 0.16)',
       accent: '#10b981',
-      enabled: false,
     },
     {
       id: 103,
@@ -58,7 +54,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'deepseek',
       tint: 'rgba(251, 146, 60, 0.18)',
       accent: '#f97316',
-      enabled: false,
     },
   ],
   codex: [
@@ -71,7 +66,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'aicoding',
       tint: 'rgba(236, 72, 153, 0.16)',
       accent: '#ec4899',
-      enabled: false,
     },
   ],
   gemini: [
@@ -84,7 +78,6 @@ export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', Automat
       icon: 'gemini',
       tint: 'rgba(99, 102, 241, 0.16)',
       accent: '#6366f1',
-      enabled: false,
       supportedModels: {
         'gemini-1.5-pro': true,
         'gemini-1.5-flash': true,

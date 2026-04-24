@@ -188,7 +188,7 @@ func TestRouteToManualProviderClearsInvalidBoundSessionAndFallsBackToDefault(t *
 					Name:     "default-provider",
 					APIURL:   upstream.URL,
 					APIKey:   "test-key",
-					Enabled:  true,
+					
 					Position: 1,
 				},
 			},

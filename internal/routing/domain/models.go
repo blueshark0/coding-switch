@@ -57,7 +57,6 @@ type Provider struct {
 	Icon            string            `json:"icon"`
 	Tint            string            `json:"tint"`
 	Accent          string            `json:"accent"`
-	Enabled         bool              `json:"enabled"`
 	Position        int               `json:"position"`
 	SupportedModels map[string]bool   `json:"supportedModels,omitempty"`
 	ModelMapping    map[string]string `json:"modelMapping,omitempty"`
@@ -166,9 +165,6 @@ func (p RouteProfile) Validate() error {
 		if defaultProvider == nil {
 			return fmt.Errorf("default provider %d not found", *p.DefaultProviderID)
 		}
-		if !defaultProvider.Enabled {
-			return fmt.Errorf("default provider %s is disabled", defaultProvider.Name)
-		}
 	}
 	return nil
 }
@@ -206,9 +202,6 @@ func (p *RouteProfile) SetDefaultProvider(id *int) error {
 	provider := p.FindProviderByID(*id)
 	if provider == nil {
 		return fmt.Errorf("provider %d not found", *id)
-	}
-	if !provider.Enabled {
-		return fmt.Errorf("provider %s is disabled", provider.Name)
 	}
 	value := *id
 	p.DefaultProviderID = &value

@@ -182,8 +182,8 @@ export const useLogsPresentation = ({
 
   const durationColor = (value?: number) => {
     if (!value || Number.isNaN(value)) return 'neutral'
-    if (value < 2) return 'fast'
-    if (value < 5) return 'medium'
+    if (value <= 30) return 'fast'
+    if (value < 60) return 'medium'
     return 'slow'
   }
 

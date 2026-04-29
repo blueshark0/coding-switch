@@ -6,6 +6,18 @@
   gap: 24px;
   max-width: 1280px;
   margin: 0 auto;
+  height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.logs-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .logs-header {

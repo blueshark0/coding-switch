@@ -12,18 +12,6 @@
       </div>
     </div>
 
-    <section class="logs-summary" v-if="statsCards.length">
-      <article v-for="card in statsCards" :key="card.key" class="summary-card">
-        <div class="summary-card__label">{{ card.label }}</div>
-        <div class="summary-card__value">{{ card.value }}</div>
-        <div class="summary-card__hint">{{ card.hint }}</div>
-      </article>
-    </section>
-
-    <section class="logs-chart">
-      <Line :data="chartData" :options="chartOptions" />
-    </section>
-
     <form class="logs-filter-row" @submit.prevent="applyFilters">
       <div class="filter-fields">
         <label class="filter-field">
@@ -68,42 +56,56 @@
       </div>
     </form>
 
-    <section class="logs-table-wrapper">
-      <table class="logs-table">
-        <thead>
-          <tr>
-            <th class="col-time">{{ t('components.logs.table.time') }}</th>
-            <th class="col-platform">{{ t('components.logs.table.platform') }}</th>
-            <th class="col-provider">{{ t('components.logs.table.provider') }}</th>
-            <th class="col-model">{{ t('components.logs.table.model') }}</th>
-            <th class="col-http">{{ t('components.logs.table.httpCode') }}</th>
-            <th class="col-stream">{{ t('components.logs.table.stream') }}</th>
-            <th class="col-duration">{{ t('components.logs.table.duration') }}</th>
-            <th class="col-tokens">{{ t('components.logs.table.tokens') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in pagedLogs" :key="item.id">
-            <td>{{ formatTime(item.created_at) }}</td>
-            <td>{{ item.platform || '—' }}</td>
-            <td>{{ item.provider || '—' }}</td>
-            <td>{{ item.model || '—' }}</td>
-            <td :class="['code', httpCodeClass(item.http_code)]">{{ item.http_code }}</td>
-            <td><span :class="['stream-tag', item.is_stream ? 'on' : 'off']">{{ formatStream(item.is_stream) }}</span></td>
-            <td><span :class="['duration-tag', durationColor(item.duration_sec)]">{{ formatDuration(item.duration_sec) }}</span></td>
-            <TokenBreakdown
-              :log="item"
-              :format-number="formatNumber"
-              :format-currency="formatCurrency"
-            />
-          </tr>
-          <tr v-if="!pagedLogs.length && !loading">
-            <td colspan="8" class="empty">{{ t('components.logs.empty') }}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p v-if="loading" class="empty">{{ t('components.logs.loading') }}</p>
-    </section>
+    <div class="logs-scroll">
+      <section class="logs-summary" v-if="statsCards.length">
+        <article v-for="card in statsCards" :key="card.key" class="summary-card">
+          <div class="summary-card__label">{{ card.label }}</div>
+          <div class="summary-card__value">{{ card.value }}</div>
+          <div class="summary-card__hint">{{ card.hint }}</div>
+        </article>
+      </section>
+
+      <section class="logs-chart">
+        <Line :data="chartData" :options="chartOptions" />
+      </section>
+
+      <section class="logs-table-wrapper">
+        <table class="logs-table">
+          <thead>
+            <tr>
+              <th class="col-time">{{ t('components.logs.table.time') }}</th>
+              <th class="col-platform">{{ t('components.logs.table.platform') }}</th>
+              <th class="col-provider">{{ t('components.logs.table.provider') }}</th>
+              <th class="col-model">{{ t('components.logs.table.model') }}</th>
+              <th class="col-http">{{ t('components.logs.table.httpCode') }}</th>
+              <th class="col-stream">{{ t('components.logs.table.stream') }}</th>
+              <th class="col-duration">{{ t('components.logs.table.duration') }}</th>
+              <th class="col-tokens">{{ t('components.logs.table.tokens') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in pagedLogs" :key="item.id">
+              <td>{{ formatTime(item.created_at) }}</td>
+              <td>{{ item.platform || '—' }}</td>
+              <td>{{ item.provider || '—' }}</td>
+              <td>{{ item.model || '—' }}</td>
+              <td :class="['code', httpCodeClass(item.http_code)]">{{ item.http_code }}</td>
+              <td><span :class="['stream-tag', item.is_stream ? 'on' : 'off']">{{ formatStream(item.is_stream) }}</span></td>
+              <td><span :class="['duration-tag', durationColor(item.duration_sec)]">{{ formatDuration(item.duration_sec) }}</span></td>
+              <TokenBreakdown
+                :log="item"
+                :format-number="formatNumber"
+                :format-currency="formatCurrency"
+              />
+            </tr>
+            <tr v-if="!pagedLogs.length && !loading">
+              <td colspan="8" class="empty">{{ t('components.logs.empty') }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="loading" class="empty">{{ t('components.logs.loading') }}</p>
+      </section>
+    </div>
 
     <div class="logs-pagination">
       <label class="page-size-field">

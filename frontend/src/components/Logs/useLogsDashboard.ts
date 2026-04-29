@@ -1,17 +1,20 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
 import {
   DEFAULT_LOG_RANGE,
+  DEFAULT_LOG_PAGE_SIZE,
   fetchRequestLogs,
   fetchLogProviders,
   fetchLogStats,
+  LOG_PAGE_SIZE_OPTIONS,
   LOG_RANGE_OPTIONS,
+  normalizeLogPageSize,
   normalizeLogRangeKey,
   type LogStats,
   type LogRangeKey,
   type RequestLog,
 } from '../../services/logs'
 import { useLogsPresentation } from './useLogsPresentation'
-import { matchesCostTier, type CostTier } from './costTier'
+import type { CostTier } from './costTier'
 
 type TranslateFn = (key: string, named?: Record<string, unknown>) => string
 
@@ -21,7 +24,6 @@ type UseLogsDashboardOptions = {
   t: TranslateFn
 }
 
-const PAGE_SIZE = 15
 const REFRESH_INTERVAL = 30
 
 export const useLogsDashboard = ({
@@ -44,6 +46,8 @@ export const useLogsDashboard = ({
     costTier: 'all',
   })
   const page = ref(1)
+  const pageSize = ref(DEFAULT_LOG_PAGE_SIZE)
+  const totalLogs = ref(0)
   const providerOptions = ref<string[]>([])
   const countdown = ref(REFRESH_INTERVAL)
   let timer: number | undefined
@@ -75,16 +79,9 @@ export const useLogsDashboard = ({
     },
   ])
 
-  const filteredLogs = computed(() =>
-    logs.value.filter((log) => matchesCostTier(log, filters.costTier)),
-  )
-
-  const pagedLogs = computed(() => {
-    const start = (page.value - 1) * PAGE_SIZE
-    return filteredLogs.value.slice(start, start + PAGE_SIZE)
-  })
-
-  const totalPages = computed(() => Math.max(1, Math.ceil(filteredLogs.value.length / PAGE_SIZE)))
+  const pageSizeOptions = computed(() => LOG_PAGE_SIZE_OPTIONS.map((value) => ({ value })))
+  const pagedLogs = computed(() => logs.value)
+  const totalPages = computed(() => Math.max(1, Math.ceil(totalLogs.value / pageSize.value)))
   const {
     chartData,
     chartOptions,
@@ -118,24 +115,36 @@ export const useLogsDashboard = ({
       try {
         do {
           queuedDashboardReload = false
+          const requestedPage = Math.max(1, Math.floor(page.value))
+          const requestedPageSize = normalizeLogPageSize(pageSize.value)
           const [logData, statData] = await Promise.all([
             fetchRequestLogs({
               platform: filters.platform,
               provider: filters.provider,
               rangeKey: selectedRangeKey.value,
-              limit: 100,
+              costTier: filters.costTier,
+              page: requestedPage,
+              pageSize: requestedPageSize,
             }),
             fetchLogStats({
               platform: filters.platform,
               provider: filters.provider,
               rangeKey: selectedRangeKey.value,
+              costTier: filters.costTier,
             }),
           ])
-          const nextLogs = logData ?? []
+          const nextLogs = logData?.items ?? []
           logs.value = nextLogs
+          totalLogs.value = logData?.total ?? 0
+          pageSize.value = normalizeLogPageSize(logData?.page_size ?? requestedPageSize)
           stats.value = statData ?? null
-          const nextTotalPages = Math.max(1, Math.ceil(filteredLogs.value.length / PAGE_SIZE))
-          page.value = Math.min(page.value, nextTotalPages)
+          const nextTotalPages = Math.max(1, Math.ceil(totalLogs.value / pageSize.value))
+          if (requestedPage > nextTotalPages) {
+            page.value = nextTotalPages
+            queuedDashboardReload = true
+          } else {
+            page.value = logData?.page ?? requestedPage
+          }
         } while (queuedDashboardReload)
       } catch (error) {
         console.error('failed to load dashboard data', error)
@@ -207,13 +216,24 @@ export const useLogsDashboard = ({
   const nextPage = () => {
     if (page.value < totalPages.value) {
       page.value += 1
+      void loadDashboard()
     }
   }
 
   const prevPage = () => {
     if (page.value > 1) {
       page.value -= 1
+      void loadDashboard()
     }
+  }
+
+  const updatePageSize = () => {
+    pageSize.value = normalizeLogPageSize(Number(pageSize.value))
+    page.value = 1
+    if (dashboardLoadPromise) {
+      queuedDashboardReload = true
+    }
+    void loadDashboard()
   }
 
   watch(
@@ -252,11 +272,15 @@ export const useLogsDashboard = ({
     manualRefresh,
     nextPage,
     page,
+    pageSize,
+    pageSizeOptions,
     pagedLogs,
     prevPage,
     providerOptions,
     rangeOptions,
     statsCards,
+    totalLogs,
     totalPages,
+    updatePageSize,
   }
 }

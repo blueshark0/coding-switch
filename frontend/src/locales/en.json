@@ -181,6 +181,10 @@
         "providerPlaceholder": "Provider name",
         "limit": "Limit"
       },
+      "pagination": {
+        "pageSize": "Rows",
+        "total": "{total} total"
+      },
       "tabs": {
         "all": "All logs",
         "errors": "Errors only"

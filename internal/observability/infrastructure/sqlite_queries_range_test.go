@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeswitch/internal/shared/storage"
+	modelpricing "codeswitch/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"
@@ -26,36 +27,108 @@ func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
 
 	queries := NewSQLiteQueries()
 
-	todayLogs, err := queries.ListRequestLogs("", "", "today", 100)
+	todayLogs, err := queries.ListRequestLogs("", "", "today", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs today: %v", err)
 	}
-	if got := len(todayLogs); got != 1 {
+	if got := len(todayLogs.Items); got != 1 {
 		t.Fatalf("expected 1 today log, got %d", got)
 	}
+	if todayLogs.Total != 1 {
+		t.Fatalf("expected today total 1, got %d", todayLogs.Total)
+	}
 
-	last3DaysLogs, err := queries.ListRequestLogs("", "", "last3days", 100)
+	last3DaysLogs, err := queries.ListRequestLogs("", "", "last3days", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs last3days: %v", err)
 	}
-	if got := len(last3DaysLogs); got != 3 {
+	if got := len(last3DaysLogs.Items); got != 3 {
 		t.Fatalf("expected 3 logs in last3days, got %d", got)
 	}
 
-	last7DaysLogs, err := queries.ListRequestLogs("", "", "last7days", 100)
+	last7DaysLogs, err := queries.ListRequestLogs("", "", "last7days", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs last7days: %v", err)
 	}
-	if got := len(last7DaysLogs); got != 4 {
+	if got := len(last7DaysLogs.Items); got != 4 {
 		t.Fatalf("expected 4 logs in last7days, got %d", got)
 	}
 
-	filteredLogs, err := queries.ListRequestLogs("claude", "alpha", "last3days", 100)
+	filteredLogs, err := queries.ListRequestLogs("claude", "alpha", "last3days", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs filtered last3days: %v", err)
 	}
-	if got := len(filteredLogs); got != 2 {
+	if got := len(filteredLogs.Items); got != 2 {
 		t.Fatalf("expected 2 filtered logs in last3days, got %d", got)
+	}
+}
+
+func TestListRequestLogs_PaginatesWithTotal(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
+	db := setupRangeQueryTestDB(t)
+	setRangeTestClock(t, now)
+
+	for i := 0; i < 5; i++ {
+		seedRequestLog(t, db, time.Date(2026, time.March, 16, 9, i, 0, 0, loc), "claude", "alpha", "gpt-4.1")
+	}
+
+	queries := NewSQLiteQueries()
+	page, err := queries.ListRequestLogs("", "", "today", "all", 2, 2)
+	if err != nil {
+		t.Fatalf("ListRequestLogs page 2: %v", err)
+	}
+	if page.Total != 5 {
+		t.Fatalf("expected total 5, got %d", page.Total)
+	}
+	if page.Page != 2 || page.PageSize != 15 {
+		t.Fatalf("expected invalid page size to normalize to page=2 pageSize=15, got page=%d pageSize=%d", page.Page, page.PageSize)
+	}
+
+	page, err = queries.ListRequestLogs("", "", "today", "all", 2, 30)
+	if err != nil {
+		t.Fatalf("ListRequestLogs normalized page 2: %v", err)
+	}
+	if page.Total != 5 || len(page.Items) != 0 {
+		t.Fatalf("expected empty second page with total 5, got total=%d items=%d", page.Total, len(page.Items))
+	}
+
+	page, err = queries.ListRequestLogs("", "", "today", "all", 1, 30)
+	if err != nil {
+		t.Fatalf("ListRequestLogs page 1: %v", err)
+	}
+	if page.Page != 1 || page.PageSize != 30 || len(page.Items) != 5 {
+		t.Fatalf("unexpected first page: page=%d pageSize=%d items=%d", page.Page, page.PageSize, len(page.Items))
+	}
+}
+
+func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
+	db := setupRangeQueryTestDB(t)
+	setRangeTestClock(t, now)
+
+	seedRequestLogWithUsage(t, db, time.Date(2026, time.March, 16, 9, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 1, 0)
+	seedRequestLogWithUsage(t, db, time.Date(2026, time.March, 16, 10, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 100000, 0)
+
+	queries := newRangeTestQueriesWithPricing(t)
+	highLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "high", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs high: %v", err)
+	}
+	if highLogs.Total != 1 || len(highLogs.Items) != 1 {
+		t.Fatalf("expected one high-cost log, got total=%d items=%d", highLogs.Total, len(highLogs.Items))
+	}
+	if highLogs.Items[0].TotalCost <= 0.5 {
+		t.Fatalf("expected high-cost log above 0.5, got %.4f", highLogs.Items[0].TotalCost)
+	}
+
+	highStats, err := queries.StatsSince("claude", "alpha", "today", "high")
+	if err != nil {
+		t.Fatalf("StatsSince high: %v", err)
+	}
+	if highStats.TotalRequests != 1 {
+		t.Fatalf("expected high-cost stats total 1, got %d", highStats.TotalRequests)
 	}
 }
 
@@ -73,7 +146,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 
 	queries := NewSQLiteQueries()
 
-	todayStats, err := queries.StatsSince("claude", "alpha", "today")
+	todayStats, err := queries.StatsSince("claude", "alpha", "today", "all")
 	if err != nil {
 		t.Fatalf("StatsSince today: %v", err)
 	}
@@ -90,7 +163,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 		t.Fatalf("expected 09:00 bucket to have 2 requests, got %d", bucket.TotalRequests)
 	}
 
-	last3DaysStats, err := queries.StatsSince("claude", "", "last3days")
+	last3DaysStats, err := queries.StatsSince("claude", "", "last3days", "all")
 	if err != nil {
 		t.Fatalf("StatsSince last3days: %v", err)
 	}
@@ -107,7 +180,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 		t.Fatalf("unexpected last3days bucket counts: %+v", last3DaysStats.Series)
 	}
 
-	last7DaysStats, err := queries.StatsSince("claude", "alpha", "last7days")
+	last7DaysStats, err := queries.StatsSince("claude", "alpha", "last7days", "all")
 	if err != nil {
 		t.Fatalf("StatsSince last7days: %v", err)
 	}
@@ -117,6 +190,17 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 	if last7DaysStats.TotalRequests != 4 {
 		t.Fatalf("expected 4 alpha requests in last7days, got %d", last7DaysStats.TotalRequests)
 	}
+}
+
+func newRangeTestQueriesWithPricing(t *testing.T) *SQLiteQueries {
+	t.Helper()
+	pricing, err := modelpricing.NewService()
+	if err != nil {
+		t.Fatalf("modelpricing.NewService: %v", err)
+	}
+	queries := NewSQLiteQueries()
+	queries.pricing = pricing
+	return queries
 }
 
 func setupRangeQueryTestDB(t *testing.T) *sql.DB {

@@ -24,6 +24,13 @@ type RequestLog struct {
 	HasPricing        bool    `json:"has_pricing"`
 }
 
+type RequestLogPage struct {
+	Items    []RequestLog `json:"items"`
+	Total    int64        `json:"total"`
+	Page     int          `json:"page"`
+	PageSize int          `json:"page_size"`
+}
+
 type HeatmapStat struct {
 	Day             string  `json:"day"`
 	TotalRequests   int64   `json:"total_requests"`

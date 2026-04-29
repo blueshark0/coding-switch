@@ -114,9 +114,10 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 	return q.heatmapCache.Set(cacheKey, stats), nil
 }
 
-func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey string) (observabilitydomain.LogStats, error) {
+func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey string, costTier string) (observabilitydomain.LogStats, error) {
 	rangeSpec := buildLogRangeSpec(rangeKey, timeNow())
-	cacheKey := fmt.Sprintf("platform:%s|provider:%s|range:%s", platform, provider, rangeSpec.key)
+	normalizedCostTier := normalizeRequestLogCostTier(costTier)
+	cacheKey := fmt.Sprintf("platform:%s|provider:%s|range:%s|cost:%s", platform, provider, rangeSpec.key, normalizedCostTier)
 	if cached, ok := q.statsCache.Get(cacheKey); ok {
 		return cached, nil
 	}
@@ -124,6 +125,10 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 		Series: make([]observabilitydomain.LogStatsSeries, 0, rangeSpec.seriesCount),
 	}
 	seriesBuckets, bucketIndexes := newStatsSeriesBuckets(rangeSpec)
+
+	if normalizedCostTier != requestLogCostTierAll {
+		return q.statsSinceCostTierFiltered(cacheKey, stats, rangeSpec, seriesBuckets, bucketIndexes, platform, provider, normalizedCostTier)
+	}
 
 	db, err := xdb.DB(storage.RequestLogDBName)
 	if err != nil {
@@ -214,6 +219,105 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	}
 	appendStatsSeries(&stats, seriesBuckets)
 	return q.statsCache.Set(cacheKey, stats), nil
+}
+
+func (q *SQLiteQueries) statsSinceCostTierFiltered(
+	cacheKey string,
+	stats observabilitydomain.LogStats,
+	rangeSpec logRangeSpec,
+	seriesBuckets []*observabilitydomain.LogStatsSeries,
+	bucketIndexes map[string]int,
+	platform string,
+	provider string,
+	costTier string,
+) (observabilitydomain.LogStats, error) {
+	options := []xdb.Option{
+		xdb.WhereGte("created_at", rangeSpec.startUTCString()),
+		xdb.WhereLt("created_at", rangeSpec.endUTCString()),
+	}
+	if platform != "" {
+		options = append(options, xdb.WhereEq("platform", platform))
+	}
+	if provider != "" {
+		options = append(options, xdb.WhereEq("provider", provider))
+	}
+
+	records, err := requestLogModel().Selects(options...)
+	if err != nil {
+		if isNoSuchTableErr(err) {
+			appendStatsSeries(&stats, seriesBuckets)
+			return stats, nil
+		}
+		return stats, err
+	}
+
+	for _, logEntry := range q.requestLogsFromRecords(records) {
+		if !matchesRequestLogCostTier(logEntry, costTier) {
+			continue
+		}
+		bucketKey, ok := requestLogStatsBucketKey(logEntry.CreatedAt, rangeSpec)
+		if !ok {
+			continue
+		}
+		bucketIndex, ok := bucketIndexes[bucketKey]
+		if !ok {
+			continue
+		}
+
+		bucket := seriesBuckets[bucketIndex]
+		bucket.TotalRequests++
+		bucket.InputTokens += int64(logEntry.InputTokens)
+		bucket.OutputTokens += int64(logEntry.OutputTokens)
+		bucket.ReasoningTokens += int64(logEntry.ReasoningTokens)
+		bucket.CacheCreateTokens += int64(logEntry.CacheCreateTokens)
+		bucket.CacheReadTokens += int64(logEntry.CacheReadTokens)
+		bucket.TotalCost += logEntry.TotalCost
+
+		stats.TotalRequests++
+		stats.InputTokens += int64(logEntry.InputTokens)
+		stats.OutputTokens += int64(logEntry.OutputTokens)
+		stats.ReasoningTokens += int64(logEntry.ReasoningTokens)
+		stats.CacheCreateTokens += int64(logEntry.CacheCreateTokens)
+		stats.CacheReadTokens += int64(logEntry.CacheReadTokens)
+		stats.CostInput += logEntry.InputCost
+		stats.CostOutput += logEntry.OutputCost
+		stats.CostCacheCreate += logEntry.CacheCreateCost
+		stats.CostCacheRead += logEntry.CacheReadCost
+		stats.CostTotal += logEntry.TotalCost
+	}
+
+	appendStatsSeries(&stats, seriesBuckets)
+	return q.statsCache.Set(cacheKey, stats), nil
+}
+
+func requestLogStatsBucketKey(createdAt string, rangeSpec logRangeSpec) (string, bool) {
+	createdAtUTC, err := parseRequestLogCreatedAt(createdAt)
+	if err != nil {
+		return "", false
+	}
+	localTime := createdAtUTC.In(time.Local)
+	if rangeSpec.bucketGranularity == logRangeDaily {
+		return startOfDay(localTime).Format(timeLayout), true
+	}
+	return startOfHour(localTime).Format(timeLayout), true
+}
+
+func parseRequestLogCreatedAt(createdAt string) (time.Time, error) {
+	layouts := []string{
+		timeLayout,
+		"2006-01-02 15:04:05 -0700 MST",
+		time.RFC3339,
+		time.RFC3339Nano,
+	}
+	var lastErr error
+	for _, layout := range layouts {
+		parsed, err := time.Parse(layout, createdAt)
+		if err == nil {
+			return parsed, nil
+		}
+		lastErr = err
+	}
+	return time.Time{}, lastErr
 }
 
 func newStatsSeriesBuckets(rangeSpec logRangeSpec) ([]*observabilitydomain.LogStatsSeries, map[string]int) {

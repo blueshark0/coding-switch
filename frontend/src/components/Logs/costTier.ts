@@ -1,8 +1,8 @@
-import type { RequestLog } from '../../services/logs'
+import type { LogCostTier, RequestLog } from '../../services/logs'
 
 export const COST_TIER_OPTIONS = ['all', 'low', 'medium', 'high'] as const
 
-export type CostTier = (typeof COST_TIER_OPTIONS)[number]
+export type CostTier = LogCostTier
 type PricedCostTier = Exclude<CostTier, 'all'>
 
 const classifyPricedCostTier = (

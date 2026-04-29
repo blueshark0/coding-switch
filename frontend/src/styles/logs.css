@@ -304,9 +304,28 @@
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
+  color: var(--mac-text-secondary);
+  font-size: 0.85rem;
 }
 
 .logs-pagination .pagination-actions {
   display: inline-flex;
   gap: 8px;
+}
+
+.logs-pagination .page-size-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logs-pagination .page-size-field span {
+  white-space: nowrap;
+}
+
+.logs-pagination .page-size-field select {
+  width: 76px;
+  min-width: 76px;
+  padding: 6px 8px;
 }

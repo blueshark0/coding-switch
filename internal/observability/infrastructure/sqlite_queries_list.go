@@ -8,19 +8,15 @@ import (
 	"github.com/daodao97/xgo/xdb"
 )
 
-func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeKey string, limit int) ([]observabilitydomain.RequestLog, error) {
-	if limit <= 0 {
-		limit = 100
+func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeKey string, costTier string, page int, pageSize int) (observabilitydomain.RequestLogPage, error) {
+	page, pageSize = normalizeRequestLogPagination(page, pageSize)
+	result := observabilitydomain.RequestLogPage{
+		Items:    []observabilitydomain.RequestLog{},
+		Page:     page,
+		PageSize: pageSize,
 	}
-	if limit > 1000 {
-		limit = 1000
-	}
-
 	rangeSpec := buildLogRangeSpec(rangeKey, timeNow())
-
 	options := []xdb.Option{
-		xdb.OrderByDesc("id"),
-		xdb.Limit(limit),
 		xdb.WhereGte("created_at", rangeSpec.startUTCString()),
 		xdb.WhereLt("created_at", rangeSpec.endUTCString()),
 	}
@@ -31,14 +27,45 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeK
 		options = append(options, xdb.WhereEq("provider", provider))
 	}
 
-	records, err := requestLogModel().Selects(options...)
-	if err != nil {
-		if isNoSuchTableErr(err) {
-			return []observabilitydomain.RequestLog{}, nil
+	normalizedCostTier := normalizeRequestLogCostTier(costTier)
+	if normalizedCostTier == requestLogCostTierAll {
+		total, records, err := requestLogModel().Page(page, pageSize, append(options, xdb.OrderByDesc("id"))...)
+		if err != nil {
+			if isNoSuchTableErr(err) {
+				return result, nil
+			}
+			return result, err
 		}
-		return nil, err
+		result.Total = total
+		result.Items = q.requestLogsFromRecords(records)
+		return result, nil
 	}
 
+	records, err := requestLogModel().Selects(append(options, xdb.OrderByDesc("id"))...)
+	if err != nil {
+		if isNoSuchTableErr(err) {
+			return result, nil
+		}
+		return result, err
+	}
+
+	filteredLogs := make([]observabilitydomain.RequestLog, 0, len(records))
+	for _, logEntry := range q.requestLogsFromRecords(records) {
+		if matchesRequestLogCostTier(logEntry, normalizedCostTier) {
+			filteredLogs = append(filteredLogs, logEntry)
+		}
+	}
+	result.Total = int64(len(filteredLogs))
+	start := (page - 1) * pageSize
+	if start >= len(filteredLogs) {
+		return result, nil
+	}
+	end := min(start+pageSize, len(filteredLogs))
+	result.Items = filteredLogs[start:end]
+	return result, nil
+}
+
+func (q *SQLiteQueries) requestLogsFromRecords(records []xdb.Record) []observabilitydomain.RequestLog {
 	logs := make([]observabilitydomain.RequestLog, 0, len(records))
 	for _, record := range records {
 		logEntry := observabilitydomain.RequestLog{
@@ -59,7 +86,7 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeK
 		q.decorateCost(&logEntry)
 		logs = append(logs, logEntry)
 	}
-	return logs, nil
+	return logs
 }
 
 func (q *SQLiteQueries) ListProviders(platform string) ([]string, error) {

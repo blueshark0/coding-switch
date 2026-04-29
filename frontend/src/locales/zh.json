@@ -182,6 +182,10 @@
         "providerPlaceholder": "输入供应商名称",
         "limit": "条数上限"
       },
+      "pagination": {
+        "pageSize": "每页",
+        "total": "共 {total} 条"
+      },
       "tabs": {
         "all": "全部日志",
         "errors": "仅错误"

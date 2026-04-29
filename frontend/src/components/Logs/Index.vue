@@ -106,6 +106,15 @@
     </section>
 
     <div class="logs-pagination">
+      <label class="page-size-field">
+        <span>{{ t('components.logs.pagination.pageSize') }}</span>
+        <select v-model.number="pageSize" class="mac-select" :disabled="loading" @change="updatePageSize">
+          <option v-for="option in pageSizeOptions" :key="option.value" :value="option.value">
+            {{ option.value }}
+          </option>
+        </select>
+      </label>
+      <span>{{ t('components.logs.pagination.total', { total: formatNumber(totalLogs) }) }}</span>
       <span>{{ page }} / {{ totalPages }}</span>
       <div class="pagination-actions">
         <BaseButton variant="outline" size="sm" :disabled="page === 1 || loading" @click="prevPage">
@@ -160,12 +169,16 @@ const {
   manualRefresh,
   nextPage,
   page,
+  pageSize,
+  pageSizeOptions,
   pagedLogs,
   prevPage,
   providerOptions,
   rangeOptions,
   statsCards,
+  totalLogs,
   totalPages,
+  updatePageSize,
 } = useLogsDashboard({
   getCssVarValue,
   isDarkMode,

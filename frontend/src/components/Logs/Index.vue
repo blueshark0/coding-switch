@@ -56,19 +56,19 @@
       </div>
     </form>
 
+    <section class="logs-summary" v-if="statsCards.length">
+      <article v-for="card in statsCards" :key="card.key" class="summary-card">
+        <div class="summary-card__label">{{ card.label }}</div>
+        <div class="summary-card__value">{{ card.value }}</div>
+        <div class="summary-card__hint">{{ card.hint }}</div>
+      </article>
+    </section>
+
+    <section class="logs-chart">
+      <Line :data="chartData" :options="chartOptions" />
+    </section>
+
     <div class="logs-scroll">
-      <section class="logs-summary" v-if="statsCards.length">
-        <article v-for="card in statsCards" :key="card.key" class="summary-card">
-          <div class="summary-card__label">{{ card.label }}</div>
-          <div class="summary-card__value">{{ card.value }}</div>
-          <div class="summary-card__hint">{{ card.hint }}</div>
-        </article>
-      </section>
-
-      <section class="logs-chart">
-        <Line :data="chartData" :options="chartOptions" />
-      </section>
-
       <section class="logs-table-wrapper">
         <table class="logs-table">
           <thead>

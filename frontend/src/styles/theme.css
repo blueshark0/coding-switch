@@ -11,6 +11,9 @@
   --mac-text-secondary: #6e6e73;
   --mac-accent: #0a84ff;
   --app-background: linear-gradient(180deg, #f6f7fb 0%, #eef1f7 50%, #e7ebf5 100%);
+  --sticky-bar-bg: rgba(255, 255, 255, 0.72);
+  --sticky-bar-border: rgba(15, 23, 42, 0.08);
+  --sticky-bar-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
   --contrib-surface: #f6f8fa;
   --contrib-text: #0f1116;
   --contrib-muted: rgba(15, 23, 42, 0.6);
@@ -39,6 +42,9 @@ html.dark {
   --mac-text-secondary: #b7bac7;
   --mac-accent: #0a84ff;
   --app-background: linear-gradient(180deg, #0f1116 0%, #11131a 45%, #0d0f15 100%);
+  --sticky-bar-bg: rgba(17, 19, 26, 0.72);
+  --sticky-bar-border: rgba(255, 255, 255, 0.06);
+  --sticky-bar-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
   --contrib-surface: #0d1117;
   --contrib-text: #ffffff;
   --contrib-muted: rgba(255, 255, 255, 0.7);

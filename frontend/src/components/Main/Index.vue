@@ -1,6 +1,6 @@
 <template>
   <div class="main-shell">
-    <div class="global-actions">
+    <div class="global-actions home-actions">
       <p class="global-eyebrow">{{ t('components.main.hero.eyebrow') }}</p>
       <button
         class="ghost-icon"

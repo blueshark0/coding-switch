@@ -161,8 +161,49 @@
               />
             </svg>
           </button>
+          <button
+            class="ghost-icon"
+            :disabled="providerConfigBusy"
+            :data-tooltip="t('components.main.providerConfig.export')"
+            @click="exportProviders"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 3v10m0 0 3-3m-3 3-3-3M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            class="ghost-icon"
+            :disabled="providerConfigBusy"
+            :data-tooltip="t('components.main.providerConfig.import')"
+            @click="openImportDialog"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M12 21V11m0 0 3 3m-3-3-3 3M5 9V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
         </div>
       </div>
+      <input
+        ref="providerConfigInput"
+        class="sr-only"
+        type="file"
+        accept=".json,application/json"
+        @change="onImportFileChange"
+      />
       <div class="automation-list" @dragover.prevent>
         <ProviderCard
           v-for="card in activeCards"
@@ -245,7 +286,10 @@ const {
   onProxyToggle,
   onTabChange,
   openCreateModal,
+  openImportDialog,
   pinProvider,
+  providerConfigBusy,
+  providerConfigInput,
   providerStatDisplay,
   requestRemove,
   selectedIndex,
@@ -255,6 +299,8 @@ const {
   tabs,
   toggleDefaultProvider,
   usageHeatmap,
+  exportProviders,
+  onImportFileChange,
 } = useProviderWorkbench({
   locale,
   t,

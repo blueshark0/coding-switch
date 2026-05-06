@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"codeswitch/internal/routing/domain"
 	"codeswitch/internal/shared/kernel"
@@ -62,6 +63,47 @@ func (s *Service) SaveProfile(ctx context.Context, profile domain.RouteProfile) 
 	}
 	s.storeProfileCache(saved)
 	return saved, nil
+}
+
+func (s *Service) ExportProviderConfig(ctx context.Context) (domain.ProviderConfigBundle, error) {
+	profiles := make([]domain.RouteProfile, 0, len(kernel.AllPlatforms()))
+	for _, platform := range kernel.AllPlatforms() {
+		profile, err := s.getProfile(ctx, platform)
+		if err != nil {
+			return domain.ProviderConfigBundle{}, err
+		}
+		profiles = append(profiles, profile.Normalize())
+	}
+	return domain.ProviderConfigBundle{
+		Format:     domain.ProviderConfigFormat,
+		Version:    domain.ProviderConfigVersion,
+		ExportedAt: time.Now().UTC().Format(time.RFC3339),
+		Profiles:   profiles,
+	}, nil
+}
+
+func (s *Service) ImportProviderConfig(ctx context.Context, bundle domain.ProviderConfigBundle) (domain.ProviderConfigBundle, error) {
+	profiles, err := validateProviderConfigBundle(bundle)
+	if err != nil {
+		return domain.ProviderConfigBundle{}, err
+	}
+
+	savedProfiles := make([]domain.RouteProfile, 0, len(profiles))
+	for _, profile := range profiles {
+		saved, err := s.repo.SaveProfile(ctx, profile)
+		if err != nil {
+			return domain.ProviderConfigBundle{}, err
+		}
+		s.storeProfileCache(saved)
+		savedProfiles = append(savedProfiles, saved.Normalize())
+	}
+
+	return domain.ProviderConfigBundle{
+		Format:     domain.ProviderConfigFormat,
+		Version:    domain.ProviderConfigVersion,
+		ExportedAt: time.Now().UTC().Format(time.RFC3339),
+		Profiles:   savedProfiles,
+	}, nil
 }
 
 func (s *Service) GetAppPreferences(ctx context.Context) (domain.AppPreferences, error) {
@@ -139,4 +181,40 @@ func cloneStringMap(input map[string]string) map[string]string {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func validateProviderConfigBundle(bundle domain.ProviderConfigBundle) ([]domain.RouteProfile, error) {
+	if bundle.Format != domain.ProviderConfigFormat {
+		return nil, fmt.Errorf("unsupported provider config format: %s", bundle.Format)
+	}
+	if bundle.Version != domain.ProviderConfigVersion {
+		return nil, fmt.Errorf("unsupported provider config version: %d", bundle.Version)
+	}
+
+	byPlatform := make(map[kernel.Platform]domain.RouteProfile, len(bundle.Profiles))
+	for _, profile := range bundle.Profiles {
+		platform, err := kernel.ParsePlatform(profile.Platform.String())
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := byPlatform[platform]; exists {
+			return nil, fmt.Errorf("duplicate platform profile: %s", platform)
+		}
+		profile.Platform = platform
+		profile = profile.Normalize()
+		if err := profile.Validate(); err != nil {
+			return nil, err
+		}
+		byPlatform[platform] = profile
+	}
+
+	profiles := make([]domain.RouteProfile, 0, len(kernel.AllPlatforms()))
+	for _, platform := range kernel.AllPlatforms() {
+		profile, ok := byPlatform[platform]
+		if !ok {
+			return nil, fmt.Errorf("missing platform profile: %s", platform)
+		}
+		profiles = append(profiles, profile)
+	}
+	return profiles, nil
 }

@@ -24,8 +24,8 @@ export const useProviderPreferences = ({
     updateSettings,
   } = useAppSettingsStore()
 
-  const initializeProviderPreferences = async () => {
-    await loadSettings()
+  const initializeProviderPreferences = async (force = false) => {
+    await loadSettings(force)
   }
 
   const isDefaultProvider = (providerName: string) => {

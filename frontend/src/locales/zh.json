@@ -89,6 +89,15 @@
       "pinToTop": "置顶到最前",
       "pinnedToTop": "已置顶",
       "providerSaveFailed": "保存供应商失败，已回滚本次修改。",
+      "providerConfig": {
+        "export": "导出供应商配置",
+        "import": "导入供应商配置",
+        "importConfirm": "导入后会覆盖本应用中 Claude、Codex、Gemini 的全部供应商配置，是否继续？",
+        "exportSuccess": "供应商配置已导出。",
+        "exportFailed": "导出供应商配置失败。",
+        "importSuccess": "供应商配置已导入。",
+        "importFailed": "导入供应商配置失败。"
+      },
       "saveFailed": "保存设置失败，请重试。",
       "viewSessions": "查看会话绑定",
       "sessionDialogTitle": "供应商会话绑定 - {provider}",

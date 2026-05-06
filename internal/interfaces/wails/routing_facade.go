@@ -25,6 +25,14 @@ func (f *RoutingFacade) SaveProfile(profile routingdomain.RouteProfile) (routing
 	return f.service.SaveProfile(context.Background(), profile)
 }
 
+func (f *RoutingFacade) ExportProviderConfig() (routingdomain.ProviderConfigBundle, error) {
+	return f.service.ExportProviderConfig(context.Background())
+}
+
+func (f *RoutingFacade) ImportProviderConfig(bundle routingdomain.ProviderConfigBundle) (routingdomain.ProviderConfigBundle, error) {
+	return f.service.ImportProviderConfig(context.Background(), bundle)
+}
+
 func (f *RoutingFacade) GetAppPreferences() (routingdomain.AppPreferences, error) {
 	return f.service.GetAppPreferences(context.Background())
 }

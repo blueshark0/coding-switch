@@ -84,6 +84,18 @@ type RouteProfile struct {
 	Providers         []Provider      `json:"providers"`
 }
 
+const (
+	ProviderConfigFormat  = "codeswitch.provider-config"
+	ProviderConfigVersion = 1
+)
+
+type ProviderConfigBundle struct {
+	Format     string         `json:"format"`
+	Version    int            `json:"version"`
+	ExportedAt string         `json:"exportedAt"`
+	Profiles   []RouteProfile `json:"profiles"`
+}
+
 func (p RouteProfile) Normalize() RouteProfile {
 	cloned := RouteProfile{
 		Platform:  p.Platform,

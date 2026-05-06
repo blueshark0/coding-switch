@@ -88,6 +88,15 @@
       "pinToTop": "Pin to top",
       "pinnedToTop": "Pinned to top",
       "providerSaveFailed": "Failed to save providers. Your changes were reverted.",
+      "providerConfig": {
+        "export": "Export provider config",
+        "import": "Import provider config",
+        "importConfirm": "Importing will replace all Claude, Codex, and Gemini provider configurations in this app. Continue?",
+        "exportSuccess": "Provider config exported.",
+        "exportFailed": "Failed to export provider config.",
+        "importSuccess": "Provider config imported.",
+        "importFailed": "Failed to import provider config."
+      },
       "saveFailed": "Failed to save settings, please try again.",
       "viewSessions": "View session bindings",
       "sessionDialogTitle": "Session Bindings - {provider}",

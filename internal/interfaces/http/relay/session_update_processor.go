@@ -16,7 +16,7 @@ func newSessionUpdateProcessor(cache *sessioninfra.Cache) *sessionUpdateProcesso
 
 func (p *sessionUpdateProcessor) Process(batch []sessionUpdateRequest) error {
 	for _, req := range batch {
-		if err := p.cache.UpdateSessionSuccess(req.platform, req.sessionID); err != nil {
+		if err := p.cache.UpdateSessionSuccessGeneration(req.platform, req.sessionID, req.generation); err != nil {
 			log.Printf("[WARN] 异步更新会话时间失败: %v\n", err)
 		}
 	}
@@ -24,7 +24,7 @@ func (p *sessionUpdateProcessor) Process(batch []sessionUpdateRequest) error {
 }
 
 func (p *sessionUpdateProcessor) ProcessSingle(item sessionUpdateRequest) error {
-	if err := p.cache.UpdateSessionSuccess(item.platform, item.sessionID); err != nil {
+	if err := p.cache.UpdateSessionSuccessGeneration(item.platform, item.sessionID, item.generation); err != nil {
 		log.Printf("[WARN] 异步更新会话时间失败: %v\n", err)
 		return err
 	}

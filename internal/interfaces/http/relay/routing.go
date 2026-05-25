@@ -26,12 +26,12 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	sessionID := ctx.RequestMeta.SessionID
 	relayDebugf("session=%s platform=%s", sessionID, kind)
 
-	if provider, sessionAlreadyBound, ok := s.resolveBoundProvider(ctx, kind, sessionID); ok {
+	if provider, sessionAlreadyBound, sessionGeneration, ok := s.resolveBoundProvider(ctx, kind, sessionID); ok {
 		fwdCtx, err := s.prepareForwardContext(ctx, provider)
 		if err != nil {
 			return false, err
 		}
-		return s.executeAndHandleSession(fwdCtx, sessionID, sessionAlreadyBound)
+		return s.executeAndHandleSession(fwdCtx, sessionID, sessionAlreadyBound, sessionGeneration)
 	}
 
 	provider, err := s.resolveDefaultProvider(ctx.Profile, ctx.RequestMeta.RequestedModel)
@@ -42,7 +42,7 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return s.executeAndHandleSession(fwdCtx, sessionID, false)
+	return s.executeAndHandleSession(fwdCtx, sessionID, false, s.sessionGeneration(kind, sessionID))
 }
 
 func (s *Server) findProvider(providers []routingdomain.Provider, name string) *routingdomain.Provider {
@@ -65,29 +65,36 @@ func (s *Server) resolveBoundProvider(
 	ctx *RelayContext,
 	kind string,
 	sessionID string,
-) (*routingdomain.Provider, bool, bool) {
+) (*routingdomain.Provider, bool, uint64, bool) {
 	if sessionID == "" || s.sessionCache == nil {
-		return nil, false, false
+		return nil, false, 0, false
 	}
 
-	boundProviderName, err := s.sessionCache.GetSessionProvider(kind, sessionID)
+	boundProviderName, generation, err := s.sessionCache.GetSessionProviderSnapshot(kind, sessionID)
 	if err != nil {
 		relayWarnf("查询会话绑定失败: %v", err)
-		return nil, false, false
+		return nil, false, generation, false
 	}
 	if boundProviderName == "" {
-		return nil, false, false
+		return nil, false, generation, false
 	}
 
 	relayDebugf("session already bound: %s", boundProviderName)
 	provider, err := s.resolveProviderForRequest(ctx.Profile, boundProviderName, ctx.RequestMeta.RequestedModel)
 	if err == nil {
-		return provider, true, true
+		return provider, true, generation, true
 	}
 
 	relayWarnf("检测到失效会话绑定，session=%s provider=%s error=%v", sessionID, boundProviderName, err)
 	s.clearInvalidSessionBinding(kind, sessionID)
-	return nil, false, false
+	return nil, false, generation, false
+}
+
+func (s *Server) sessionGeneration(kind, sessionID string) uint64 {
+	if sessionID == "" || s.sessionCache == nil {
+		return 0
+	}
+	return s.sessionCache.SessionGeneration(kind, sessionID)
 }
 
 func (s *Server) clearInvalidSessionBinding(kind, sessionID string) {
@@ -194,6 +201,7 @@ func (s *Server) executeAndHandleSession(
 	fwdCtx *ForwardContext,
 	sessionID string,
 	sessionAlreadyBound bool,
+	sessionGeneration uint64,
 ) (bool, error) {
 	kind := fwdCtx.Platform.String()
 	relayDebugf("forwarding provider=%s model=%s", fwdCtx.Provider.Name, fwdCtx.Model)
@@ -211,7 +219,7 @@ func (s *Server) executeAndHandleSession(
 	)
 	duration := time.Since(startTime)
 	if ok {
-		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound)
+		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound, sessionGeneration)
 		relayDebugf("request succeeded provider=%s duration=%.2fs", fwdCtx.Provider.Name, duration.Seconds())
 		return true, nil
 	}
@@ -223,24 +231,24 @@ func (s *Server) executeAndHandleSession(
 	return false, err
 }
 
-func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, alreadyBound bool) {
+func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, alreadyBound bool, generation uint64) {
 	if sessionID == "" {
 		return
 	}
 	if !alreadyBound {
-		if err := s.sessionCache.BindSessionToProvider(kind, sessionID, providerName); err != nil {
+		if err := s.sessionCache.BindSessionToProviderGeneration(kind, sessionID, providerName, generation); err != nil {
 			relayWarnf("绑定会话失败: %v", err)
 		}
 		return
 	}
-	if !s.sessionCache.RecordSessionSuccess(kind, sessionID, providerName) {
+	if !s.sessionCache.RecordSessionSuccessGeneration(kind, sessionID, providerName, generation) {
 		return
 	}
 	if s.sessionUpdateWorker != nil {
-		s.sessionUpdateWorker.Enqueue(sessionUpdateRequest{platform: kind, sessionID: sessionID})
+		s.sessionUpdateWorker.Enqueue(sessionUpdateRequest{platform: kind, sessionID: sessionID, generation: generation})
 		return
 	}
-	if err := s.sessionCache.UpdateSessionSuccess(kind, sessionID); err != nil {
+	if err := s.sessionCache.UpdateSessionSuccessGeneration(kind, sessionID, generation); err != nil {
 		relayWarnf("更新会话时间失败: %v", err)
 	}
 }

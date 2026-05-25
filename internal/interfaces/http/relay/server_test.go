@@ -49,6 +49,7 @@ func (r *relayRoutingRepoStub) SaveAppPreferences(_ context.Context, preferences
 type relaySessionRepoStub struct {
 	bindings    map[string]string
 	bindCalls   int
+	updateCalls int
 	unbindCalls int
 }
 
@@ -69,6 +70,7 @@ func (r *relaySessionRepoStub) BindSessionToProvider(platform, sessionID, provid
 }
 
 func (r *relaySessionRepoStub) UpdateSessionSuccess(platform, sessionID string) error {
+	r.updateCalls++
 	return nil
 }
 
@@ -184,11 +186,11 @@ func TestRouteToManualProviderClearsInvalidBoundSessionAndFallsBackToDefault(t *
 			DefaultProviderID: intPtr(1),
 			Providers: []routingdomain.Provider{
 				{
-					ID:       1,
-					Name:     "default-provider",
-					APIURL:   upstream.URL,
-					APIKey:   "test-key",
-					
+					ID:     1,
+					Name:   "default-provider",
+					APIURL: upstream.URL,
+					APIKey: "test-key",
+
 					Position: 1,
 				},
 			},
@@ -220,6 +222,117 @@ func TestRouteToManualProviderClearsInvalidBoundSessionAndFallsBackToDefault(t *
 	}
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected proxy response code 200, got %d", recorder.Code)
+	}
+}
+
+func TestRouteToManualProviderIgnoresStaleSuccessAfterUnbindAndRebindsNextRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	releaseFirst := make(chan struct{})
+	firstStarted := make(chan struct{})
+	requestCount := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		if requestCount == 1 {
+			close(firstStarted)
+			<-releaseFirst
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer upstream.Close()
+
+	sessionRepo := &relaySessionRepoStub{
+		bindings: map[string]string{
+			"claude:session-race": "provider-a",
+		},
+	}
+	sessionService := sessionapp.NewService(sessionRepo)
+	requestLogWorker := worker.New[*observabilitydomain.RequestLog](worker.Config{
+		Name:          "request_log_test",
+		BufferSize:    2,
+		BatchSize:     1,
+		FlushInterval: 5 * time.Millisecond,
+	}, &requestLogNoopProcessor{})
+	requestLogWorker.Start()
+	defer requestLogWorker.Stop()
+
+	server := &Server{
+		sessionService:   sessionService,
+		sessionCache:     sessioninfra.NewCache(sessionService),
+		requestLogWorker: requestLogWorker,
+	}
+	profile := routingdomain.RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: intPtr(2),
+		Providers: []routingdomain.Provider{
+			{
+				ID:       1,
+				Name:     "provider-a",
+				APIURL:   upstream.URL,
+				APIKey:   "test-key-a",
+				Position: 1,
+			},
+			{
+				ID:       2,
+				Name:     "provider-b",
+				APIURL:   upstream.URL,
+				APIKey:   "test-key-b",
+				Position: 2,
+			},
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := server.routeToManualProvider(newClaudeRelayContext(profile, "session-race"))
+		done <- err
+	}()
+
+	<-firstStarted
+	if err := sessionService.Unbind("claude", "session-race"); err != nil {
+		t.Fatalf("unbind session: %v", err)
+	}
+	close(releaseFirst)
+	if err := <-done; err != nil {
+		t.Fatalf("first route: %v", err)
+	}
+	if got := sessionRepo.bindings[sessionRepo.key("claude", "session-race")]; got != "" {
+		t.Fatalf("expected stale in-flight success not to restore binding, got %q", got)
+	}
+	if sessionRepo.updateCalls != 0 {
+		t.Fatalf("expected stale in-flight success not to update DB, got %d calls", sessionRepo.updateCalls)
+	}
+
+	ok, err := server.routeToManualProvider(newClaudeRelayContext(profile, "session-race"))
+	if err != nil {
+		t.Fatalf("second route: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected second route to succeed")
+	}
+	if got := sessionRepo.bindings[sessionRepo.key("claude", "session-race")]; got != "provider-b" {
+		t.Fatalf("expected next request to rebind default provider, got %q", got)
+	}
+}
+
+func newClaudeRelayContext(profile routingdomain.RouteProfile, sessionID string) *RelayContext {
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+	return &RelayContext{
+		GinCtx:    ginCtx,
+		Platform:  kernel.PlatformClaude,
+		BodyBytes: []byte(`{"model":"claude-sonnet-4"}`),
+		Query:     map[string]string{},
+		Headers:   map[string]string{"Accept": "application/json"},
+		Profile:   profile,
+		RequestMeta: RequestMeta{
+			Endpoint:          "/v1/messages",
+			RequestedModel:    "claude-sonnet-4",
+			SessionID:         sessionID,
+			BodyHasModelField: true,
+		},
 	}
 }
 

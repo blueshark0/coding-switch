@@ -30,8 +30,9 @@ const (
 )
 
 type sessionUpdateRequest struct {
-	platform  string
-	sessionID string
+	platform   string
+	sessionID  string
+	generation uint64
 }
 
 type Server struct {

@@ -110,7 +110,11 @@ func (s *Server) forwardRequest(
 		SetTimeout(900 * time.Second)
 	req = req.SetBody(bytes.NewReader(bodyBytes))
 	if proxyURL := s.getProxyURLForProvider(&provider); proxyURL != "" {
-		req = req.SetProxy(proxyURL)
+		client, err := newInsecureProxyClient(proxyURL)
+		if err != nil {
+			return false, fmt.Errorf("invalid proxy URL %q: %w", proxyURL, err)
+		}
+		req = req.SetClient(client)
 	}
 	resp, err := req.Post(targetURL)
 	if err != nil {

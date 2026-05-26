@@ -39,21 +39,31 @@ func (s *Service) GetProfile(ctx context.Context, platform string) (domain.Route
 }
 
 func (s *Service) SaveProfile(ctx context.Context, profile domain.RouteProfile) (domain.RouteProfile, error) {
+	return s.saveProfile(ctx, profile, true)
+}
+
+func (s *Service) ReplaceProfile(ctx context.Context, profile domain.RouteProfile) (domain.RouteProfile, error) {
+	return s.saveProfile(ctx, profile, false)
+}
+
+func (s *Service) saveProfile(ctx context.Context, profile domain.RouteProfile, enforceStableNames bool) (domain.RouteProfile, error) {
 	profile = profile.Normalize()
 	if err := profile.Validate(); err != nil {
 		return domain.RouteProfile{}, err
 	}
-	current, err := s.getProfile(ctx, profile.Platform)
-	if err != nil {
-		return domain.RouteProfile{}, err
-	}
-	originalNames := make(map[int]string, len(current.Providers))
-	for _, provider := range current.Providers {
-		originalNames[provider.ID] = provider.Name
-	}
-	for _, provider := range profile.Providers {
-		if oldName, ok := originalNames[provider.ID]; ok && oldName != provider.Name {
-			return domain.RouteProfile{}, fmt.Errorf("provider id %d 的 name 不可修改", provider.ID)
+	if enforceStableNames {
+		current, err := s.getProfile(ctx, profile.Platform)
+		if err != nil {
+			return domain.RouteProfile{}, err
+		}
+		originalNames := make(map[int]string, len(current.Providers))
+		for _, provider := range current.Providers {
+			originalNames[provider.ID] = provider.Name
+		}
+		for _, provider := range profile.Providers {
+			if oldName, ok := originalNames[provider.ID]; ok && oldName != provider.Name {
+				return domain.RouteProfile{}, fmt.Errorf("provider id %d 的 name 不可修改", provider.ID)
+			}
 		}
 	}
 	saved, err := s.repo.SaveProfile(ctx, profile)

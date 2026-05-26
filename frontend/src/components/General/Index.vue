@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import ListItem from '../Setting/ListRow.vue'
 import LanguageSwitcher from '../Setting/LanguageSwitcher.vue'
 import ThemeSetting from '../Setting/ThemeSetting.vue'
+import WebDavSyncSection from './WebDavSyncSection.vue'
 import { useAppSettingsStore } from '../../composables/useAppSettingsStore'
 import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
@@ -96,6 +97,13 @@ const onProxyClear = async () => {
     console.error('failed to clear proxy URL', error)
     showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
   }
+}
+
+const reloadApplicationSettings = () => {
+  void loadSettings(true).catch((error) => {
+    console.error('failed to reload app settings', error)
+    showToast(getErrorMessage(error, t('components.general.messages.loadFailed')), 'error')
+  })
 }
 
 onMounted(() => {
@@ -205,6 +213,8 @@ onMounted(() => {
           </ListItem>
         </div>
       </section>
+
+      <WebDavSyncSection @restored="reloadApplicationSettings" />
     </div>
   </div>
 </template>

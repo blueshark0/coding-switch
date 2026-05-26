@@ -8,6 +8,7 @@ import (
 	"os"
 	"sync"
 
+	configsyncinfra "codeswitch/internal/configsync/infrastructure"
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	routinginfra "codeswitch/internal/routing/infrastructure"
 	sessionsinfra "codeswitch/internal/sessions/infrastructure"
@@ -53,6 +54,9 @@ func (i *Initializer) Initialize() error {
 func (i *Initializer) ensureSchemas() error {
 	if err := routinginfra.NewSQLiteStore().EnsureSchema(); err != nil {
 		return fmt.Errorf("初始化 app 配置表失败: %w", err)
+	}
+	if err := configsyncinfra.NewSQLiteStore().EnsureSchema(); err != nil {
+		return fmt.Errorf("初始化同步配置表失败: %w", err)
 	}
 	if err := ensureRequestLogSchema(storage.RequestLogDBName); err != nil {
 		return fmt.Errorf("初始化 request_log 表失败: %w", err)

@@ -233,7 +233,8 @@
         "network": "Network",
         "exterior": "Appearance settings",
         "power": "Permission settings",
-        "update": "Application update"
+        "update": "Application update",
+        "sync": "Config sync (WebDAV)"
       },
       "label": {
         "assistant_access": "Accessibility permissions",
@@ -263,6 +264,52 @@
       "messages": {
         "loadFailed": "Failed to load settings",
         "saveFailed": "Failed to save settings, please try again."
+      },
+      "sync": {
+        "hint": "Sync provider configuration and appearance preferences to a WebDAV server. Data is end-to-end encrypted with your sync passphrase before upload.",
+        "fields": {
+          "endpoint": "WebDAV server URL",
+          "username": "Username",
+          "remotePath": "Remote path",
+          "appPassword": "WebDAV / app password",
+          "syncPassphrase": "Sync passphrase (encryption)"
+        },
+        "actions": {
+          "save": "Save",
+          "saving": "Saving…",
+          "test": "Test connection",
+          "testing": "Testing…",
+          "viewMeta": "View remote snapshot",
+          "loadingMeta": "Fetching…",
+          "upload": "Upload to cloud",
+          "uploading": "Uploading…",
+          "restore": "Restore from cloud",
+          "restoring": "Restoring…",
+          "show": "Show",
+          "hide": "Hide"
+        },
+        "meta": {
+          "title": "Remote snapshot",
+          "summary": "{updatedAt} · {deviceName} · {appVersion}",
+          "empty": "Not queried yet, or remote has no snapshot.",
+          "unknown": "Unknown"
+        },
+        "messages": {
+          "loadFailed": "Failed to load sync settings",
+          "saveSuccess": "Sync settings saved",
+          "saveFailed": "Failed to save sync settings",
+          "saveBeforeAction": "Please save your settings before running this action",
+          "connectionSuccess": "WebDAV connection succeeded",
+          "connectionFailed": "WebDAV connection failed",
+          "remoteEmpty": "No configuration snapshot on the remote yet",
+          "inspectFailed": "Failed to fetch remote snapshot",
+          "uploadSuccess": "Uploaded to cloud",
+          "uploadFailed": "Failed to upload to cloud",
+          "restoreConfirm": "Overwrite local configuration with the cloud snapshot? A local rollback snapshot will be created automatically.",
+          "restoreSuccess": "Restored from cloud. Rollback snapshot: {rollback}",
+          "restoreFailed": "Failed to restore from cloud",
+          "restoreFailedWithRollback": "Failed to restore from cloud. Rollback snapshot saved: {rollback}"
+        }
       }
     },
     "themesetting": {

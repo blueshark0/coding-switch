@@ -17,7 +17,7 @@ var assets embed.FS
 var trayIcons embed.FS
 
 func main() {
-	container, err := appbootstrap.Initialize()
+	container, err := appbootstrap.Initialize(AppVersion)
 	if err != nil {
 		log.Fatalf("初始化应用失败: %v", err)
 	}

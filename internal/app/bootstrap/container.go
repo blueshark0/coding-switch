@@ -6,6 +6,8 @@ import (
 	"time"
 
 	appdesktop "codeswitch/internal/app/desktop"
+	configsyncapp "codeswitch/internal/configsync/application"
+	configsyncinfra "codeswitch/internal/configsync/infrastructure"
 	hotkeyapp "codeswitch/internal/hotkeys/application"
 	hotkeyinfra "codeswitch/internal/hotkeys/infrastructure"
 	relayhttp "codeswitch/internal/interfaces/http/relay"
@@ -35,6 +37,7 @@ type Container struct {
 	hotkeyService *facades.HotkeyFacade
 	logsWindow    *appdesktop.LogsWindowService
 	routingFacade *facades.RoutingFacade
+	syncFacade    *facades.ConfigSyncFacade
 	sessionFacade *facades.SessionFacade
 	obsFacade     *facades.ObservabilityFacade
 	proxyFacade   *facades.PlatformProxyFacade
@@ -42,7 +45,7 @@ type Container struct {
 	shutdownOnce  sync.Once
 }
 
-func Initialize() (*Container, error) {
+func Initialize(appVersion string) (*Container, error) {
 	logFile := logging.Setup()
 	if err := storagebootstrap.NewInitializer().Initialize(); err != nil {
 		if logFile != nil {
@@ -69,6 +72,12 @@ func Initialize() (*Container, error) {
 		kernel.PlatformCodex:  platformproxyinfra.NewCodexManager(relayServer.Addr()),
 		kernel.PlatformGemini: platformproxyinfra.NewGeminiManager(relayServer.Addr()),
 	})
+	configSyncService := configsyncapp.NewService(
+		configsyncinfra.NewSQLiteStore(),
+		configsyncinfra.NewWebDAVClient(),
+		routingService,
+		appVersion,
+	)
 
 	return &Container{
 		logFile:       logFile,
@@ -77,6 +86,7 @@ func Initialize() (*Container, error) {
 		hotkeyService: facades.NewHotkeyFacade(hotkeyapp.NewService(hotkeyStore)),
 		logsWindow:    logsWindow,
 		routingFacade: facades.NewRoutingFacade(routingService, relayServer),
+		syncFacade:    facades.NewConfigSyncFacade(configSyncService),
 		sessionFacade: facades.NewSessionFacade(sessionService),
 		obsFacade:     facades.NewObservabilityFacade(observabilityapp.NewService(observabilityinfra.NewSQLiteQueries())),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),
@@ -89,6 +99,7 @@ func (c *Container) ApplicationServices(extra ...application.Service) []applicat
 		application.NewService(c.logsWindow),
 		application.NewService(c.hotkeyService),
 		application.NewService(c.routingFacade),
+		application.NewService(c.syncFacade),
 		application.NewService(c.sessionFacade),
 		application.NewService(c.obsFacade),
 		application.NewService(c.proxyFacade),

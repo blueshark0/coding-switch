@@ -234,7 +234,8 @@
         "application": "应用设置",
         "network": "网络设置",
         "exterior": "外观设置",
-        "update": "应用更新"
+        "update": "应用更新",
+        "sync": "配置同步（WebDAV）"
       },
       "label": {
         "assistant_access": "辅助功能访问权限",
@@ -264,6 +265,52 @@
       "messages": {
         "loadFailed": "加载设置失败",
         "saveFailed": "保存设置失败，请重试。"
+      },
+      "sync": {
+        "hint": "通过 WebDAV 将供应商配置与外观偏好同步到云端。配置在本地通过同步口令端到端加密，云端服务商无法读取明文。",
+        "fields": {
+          "endpoint": "WebDAV 服务器地址",
+          "username": "用户名",
+          "remotePath": "远端路径",
+          "appPassword": "WebDAV 密码 / 应用密码",
+          "syncPassphrase": "同步口令（用于加密）"
+        },
+        "actions": {
+          "save": "保存",
+          "saving": "保存中…",
+          "test": "测试连接",
+          "testing": "测试中…",
+          "viewMeta": "查看云端版本",
+          "loadingMeta": "查询中…",
+          "upload": "上传到云端",
+          "uploading": "上传中…",
+          "restore": "从云端恢复",
+          "restoring": "恢复中…",
+          "show": "显示",
+          "hide": "隐藏"
+        },
+        "meta": {
+          "title": "云端快照",
+          "summary": "{updatedAt} · {deviceName} · {appVersion}",
+          "empty": "尚未查询，或云端暂无快照。",
+          "unknown": "未知"
+        },
+        "messages": {
+          "loadFailed": "加载同步设置失败",
+          "saveSuccess": "已保存同步设置",
+          "saveFailed": "保存同步设置失败",
+          "saveBeforeAction": "请先点击保存按钮再执行该操作",
+          "connectionSuccess": "WebDAV 连接成功",
+          "connectionFailed": "WebDAV 连接失败",
+          "remoteEmpty": "云端暂未上传过配置快照",
+          "inspectFailed": "查询云端快照失败",
+          "uploadSuccess": "已上传到云端",
+          "uploadFailed": "上传到云端失败",
+          "restoreConfirm": "确认用云端配置覆盖本地配置吗？本地将自动生成回滚快照。",
+          "restoreSuccess": "已从云端恢复，回滚快照：{rollback}",
+          "restoreFailed": "从云端恢复失败",
+          "restoreFailedWithRollback": "从云端恢复失败，已生成回滚快照：{rollback}"
+        }
       }
     },
     "themesetting": {

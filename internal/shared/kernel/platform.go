@@ -57,6 +57,9 @@ func (p Platform) ExtractSessionID(headers map[string]string, bodyBytes []byte) 
 	case PlatformClaude:
 		return gjson.GetBytes(bodyBytes, "metadata.user_id").String()
 	case PlatformCodex:
+		if sessionID := headerValue(headers, "session-id"); sessionID != "" {
+			return sessionID
+		}
 		return headerValue(headers, "session_id")
 	case PlatformGemini:
 		if sessionID := headerValue(headers, "x-gemini-api-privileged-user-id"); sessionID != "" {

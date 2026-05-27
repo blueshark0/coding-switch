@@ -24,7 +24,7 @@ func TestClaudeHandlerExtractRequestMeta(t *testing.T) {
 func TestCodexHandlerExtractRequestMeta(t *testing.T) {
 	handler := NewCodexHandler("/responses")
 	meta := handler.ExtractRequestMeta("/responses", []byte(`{"model":"gpt-5","stream":false}`), nil, map[string]string{
-		"session_id": "session-1",
+		"session-id": "session-1",
 	})
 
 	if meta.Endpoint != "/responses" {
@@ -32,6 +32,17 @@ func TestCodexHandlerExtractRequestMeta(t *testing.T) {
 	}
 	if meta.RequestedModel != "gpt-5" || meta.IsStream || meta.SessionID != "session-1" {
 		t.Fatalf("unexpected meta: %+v", meta)
+	}
+}
+
+func TestCodexHandlerExtractRequestMetaFallsBackToLegacySessionHeader(t *testing.T) {
+	handler := NewCodexHandler("/responses")
+	meta := handler.ExtractRequestMeta("/responses", []byte(`{"model":"gpt-5","stream":false}`), nil, map[string]string{
+		"session_id": "legacy-session-1",
+	})
+
+	if meta.SessionID != "legacy-session-1" {
+		t.Fatalf("unexpected session id: %s", meta.SessionID)
 	}
 }
 

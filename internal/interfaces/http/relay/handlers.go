@@ -40,10 +40,17 @@ func (h *CodexHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, 
 	return RequestMeta{
 		Endpoint:          h.defaultEndpoint,
 		RequestedModel:    modelResult.String(),
-		SessionID:         headerValue(headers, "session_id"),
+		SessionID:         codexSessionID(headers),
 		IsStream:          gjson.GetBytes(bodyBytes, "stream").Bool(),
 		BodyHasModelField: modelResult.Exists(),
 	}
+}
+
+func codexSessionID(headers map[string]string) string {
+	if sessionID := headerValue(headers, "session-id"); sessionID != "" {
+		return sessionID
+	}
+	return headerValue(headers, "session_id")
 }
 
 type GeminiHandler struct{}

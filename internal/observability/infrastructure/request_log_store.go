@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
@@ -16,6 +17,8 @@ import (
 const RequestLogRetentionDays = 60
 
 const requestLogCheckpointThreshold = 1000
+
+var requestLogWriteMu sync.Mutex
 
 func requestLogModel() xdb.Model {
 	return xdb.New("request_log", xdb.WithConn(storage.RequestLogDBName))
@@ -60,6 +63,10 @@ func CleanupOldRequestLogs(retentionDays int) error {
 	if err != nil {
 		return err
 	}
+
+	requestLogWriteMu.Lock()
+	defer requestLogWriteMu.Unlock()
+
 	cutoff := fmt.Sprintf("-%d day", retentionDays)
 	res, err := db.Exec("DELETE FROM request_log WHERE created_at < datetime('now', ?)", cutoff)
 	if err != nil {
@@ -87,6 +94,17 @@ func isNoSuchTableErr(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "no such table")
+}
+
+func isSQLiteBusyErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "database is locked") ||
+		strings.Contains(msg, "sqlite_busy") ||
+		strings.Contains(msg, "database table is locked") ||
+		strings.Contains(msg, "sqlite_locked")
 }
 
 func EnsureRequestLogTableWithDB(db *sql.DB) error {

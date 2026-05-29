@@ -68,6 +68,7 @@ func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Se
 		BufferSize:    requestLogBufferSize,
 		BatchSize:     requestLogBatchSize,
 		FlushInterval: requestLogFlushInterval,
+		DropWhenFull:  true,
 	}, &observabilityinfra.RequestLogWriter{})
 	server.requestLogWorker.Start()
 	server.sessionUpdateWorker = worker.New[sessionUpdateRequest](worker.Config{

@@ -12,6 +12,8 @@ type Config struct {
 	BufferSize    int
 	BatchSize     int
 	FlushInterval time.Duration
+	DropWhenFull  bool
+	DropLogEvery  time.Duration
 }
 
 type BatchProcessor[T any] interface {
@@ -28,6 +30,9 @@ type BackgroundWorker[T any] struct {
 	shutOnce  sync.Once
 	stateMu   sync.RWMutex
 	stopped   bool
+	dropMu    sync.Mutex
+	dropped   int
+	lastDrop  time.Time
 }
 
 func New[T any](config Config, processor BatchProcessor[T]) *BackgroundWorker[T] {
@@ -54,7 +59,7 @@ func (w *BackgroundWorker[T]) Stop() {
 	w.wg.Wait()
 }
 
-// Enqueue returns true when the item is queued and false when it is processed synchronously.
+// Enqueue returns true when the item is queued and false when it is processed synchronously or dropped.
 func (w *BackgroundWorker[T]) Enqueue(item T) bool {
 	w.stateMu.RLock()
 	if w.stopped {
@@ -68,10 +73,35 @@ func (w *BackgroundWorker[T]) Enqueue(item T) bool {
 		return true
 	default:
 		w.stateMu.RUnlock()
+		if w.config.DropWhenFull {
+			w.logDrop()
+			return false
+		}
 		log.Printf("%s 缓冲已满，回退为同步处理\n", w.config.Name)
 		_ = w.processor.ProcessSingle(item)
 		return false
 	}
+}
+
+func (w *BackgroundWorker[T]) logDrop() {
+	interval := w.config.DropLogEvery
+	if interval <= 0 {
+		interval = 5 * time.Second
+	}
+	now := time.Now()
+
+	w.dropMu.Lock()
+	w.dropped++
+	if !w.lastDrop.IsZero() && now.Sub(w.lastDrop) < interval {
+		w.dropMu.Unlock()
+		return
+	}
+	dropped := w.dropped
+	w.dropped = 0
+	w.lastDrop = now
+	w.dropMu.Unlock()
+
+	log.Printf("%s 缓冲已满，已丢弃 %d 条记录\n", w.config.Name, dropped)
 }
 
 func (w *BackgroundWorker[T]) run() {

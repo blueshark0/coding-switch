@@ -34,8 +34,8 @@ func (i *Initializer) initConnections() error {
 			Name:        storage.RequestLogDBName,
 			Driver:      "sqlite",
 			DSN:         sqliteDSN(requestLogDBPath),
-			MaxOpenConn: 4,
-			MaxIdleConn: 4,
+			MaxOpenConn: 1,
+			MaxIdleConn: 1,
 		},
 		{
 			Name:        storage.SessionDBName,
@@ -48,5 +48,5 @@ func (i *Initializer) initConnections() error {
 }
 
 func sqliteDSN(path string) string {
-	return fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=5000", path)
+	return fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=15000", path)
 }

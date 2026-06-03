@@ -25,7 +25,7 @@ func relayWarnf(format string, args ...any) {
 }
 
 func (s *Server) startRequestLogRetentionTask() {
-	if s == nil || requestLogRetentionDays <= 0 {
+	if s == nil || observabilityinfra.RequestLogRetentionDays <= 0 {
 		return
 	}
 	s.backgroundWG.Add(1)
@@ -36,7 +36,7 @@ func (s *Server) startRequestLogRetentionTask() {
 		for {
 			select {
 			case <-ticker.C:
-				if err := observabilityinfra.CleanupOldRequestLogs(requestLogRetentionDays); err != nil {
+				if err := observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays); err != nil {
 					log.Printf("定时清理 request_log 失败: %v\n", err)
 				}
 			case <-s.shutdownCh:

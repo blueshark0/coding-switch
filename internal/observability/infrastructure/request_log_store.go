@@ -14,7 +14,7 @@ import (
 	"github.com/daodao97/xgo/xdb"
 )
 
-const RequestLogRetentionDays = 60
+const RequestLogRetentionDays = 30
 
 const requestLogCheckpointThreshold = 1000
 

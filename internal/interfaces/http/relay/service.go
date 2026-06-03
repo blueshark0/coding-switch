@@ -22,7 +22,6 @@ const (
 	requestLogBatchSize       = 100
 	requestLogFlushInterval   = 250 * time.Millisecond
 	requestLogCleanupInterval = 6 * time.Hour
-	requestLogRetentionDays   = 60
 
 	sessionUpdateBufferSize    = 512
 	sessionUpdateBatchSize     = 50

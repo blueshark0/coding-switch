@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	"codeswitch/internal/shared/storage"
 	observabilitydomain "codeswitch/internal/observability/domain"
+	"codeswitch/internal/shared/storage"
 	modelpricing "codeswitch/resources/model-pricing"
 )
 
@@ -40,6 +40,7 @@ func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
 		OutputTokens:      logEntry.OutputTokens,
 		CacheCreateTokens: logEntry.CacheCreateTokens,
 		CacheReadTokens:   logEntry.CacheReadTokens,
+		IsFast:            logEntry.IsFast,
 	}
 	cost := q.pricing.CalculateCost(logEntry.Model, usage)
 	logEntry.HasPricing = cost.HasPricing

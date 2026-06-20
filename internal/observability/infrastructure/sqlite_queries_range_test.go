@@ -132,6 +132,49 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 	}
 }
 
+func TestListRequestLogs_FastCostDoublesBaseCost(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
+	db := setupRangeQueryTestDB(t)
+	setRangeTestClock(t, now)
+
+	createdAt := time.Date(2026, time.March, 16, 9, 0, 0, 0, loc)
+	seedRequestLogWithUsage(t, db, createdAt, "codex", "alpha", "gpt-5", 100, 50, 0)
+	seedFastRequestLogWithUsage(t, db, createdAt.Add(time.Minute), "codex", "alpha", "gpt-5", 100, 50, 0)
+
+	queries := newRangeTestQueriesWithPricing(t)
+	page, err := queries.ListRequestLogs("codex", "alpha", "today", "all", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs: %v", err)
+	}
+	if len(page.Items) != 2 {
+		t.Fatalf("expected 2 logs, got %d", len(page.Items))
+	}
+
+	var normalCost, fastCost float64
+	for _, item := range page.Items {
+		if item.IsFast {
+			fastCost = item.TotalCost
+			continue
+		}
+		normalCost = item.TotalCost
+	}
+	if normalCost <= 0 || fastCost <= 0 {
+		t.Fatalf("expected positive costs, normal=%.8f fast=%.8f", normalCost, fastCost)
+	}
+	if fastCost != normalCost*2 {
+		t.Fatalf("expected fast cost to double normal cost, normal=%.8f fast=%.8f", normalCost, fastCost)
+	}
+
+	stats, err := queries.StatsSince("codex", "alpha", "today", "all")
+	if err != nil {
+		t.Fatalf("StatsSince: %v", err)
+	}
+	if stats.CostTotal != normalCost+fastCost {
+		t.Fatalf("expected stats cost %.8f, got %.8f", normalCost+fastCost, stats.CostTotal)
+	}
+}
+
 func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 	loc := time.FixedZone("UTC+8", 8*60*60)
 	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
@@ -259,6 +302,35 @@ func seedRequestLogWithUsage(
 	outputTokens int,
 	reasoningTokens int,
 ) {
+	seedRequestLogWithUsageAndFast(t, db, createdAt, platform, provider, model, inputTokens, outputTokens, reasoningTokens, false)
+}
+
+func seedFastRequestLogWithUsage(
+	t *testing.T,
+	db *sql.DB,
+	createdAt time.Time,
+	platform string,
+	provider string,
+	model string,
+	inputTokens int,
+	outputTokens int,
+	reasoningTokens int,
+) {
+	seedRequestLogWithUsageAndFast(t, db, createdAt, platform, provider, model, inputTokens, outputTokens, reasoningTokens, true)
+}
+
+func seedRequestLogWithUsageAndFast(
+	t *testing.T,
+	db *sql.DB,
+	createdAt time.Time,
+	platform string,
+	provider string,
+	model string,
+	inputTokens int,
+	outputTokens int,
+	reasoningTokens int,
+	isFast bool,
+) {
 	t.Helper()
 
 	_, err := db.Exec(
@@ -273,9 +345,10 @@ func seedRequestLogWithUsage(
 			cache_read_tokens,
 			reasoning_tokens,
 			is_stream,
+			is_fast,
 			duration_sec,
 			created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		platform,
 		model,
 		provider,
@@ -286,6 +359,7 @@ func seedRequestLogWithUsage(
 		0,
 		reasoningTokens,
 		0,
+		boolToInt(isFast),
 		0.5,
 		createdAt.UTC().Format(timeLayout),
 	)

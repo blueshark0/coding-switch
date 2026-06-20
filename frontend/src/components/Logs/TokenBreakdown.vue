@@ -23,7 +23,7 @@
     <div class="token-cost-row">
       <span class="token-label">{{ t('components.logs.tokenLabels.cost') }}</span>
       <span :class="['token-value', getCostValueClass(log)]">
-        {{ log.has_pricing ? formatCurrency(log.total_cost) : '—' }}
+        {{ log.has_pricing ? formatCost(log) : '—' }}
       </span>
     </div>
   </td>
@@ -34,11 +34,16 @@ import { useI18n } from 'vue-i18n'
 import type { RequestLog } from '../../services/logs'
 import { getCostValueClass } from './costTier'
 
-defineProps<{
+const props = defineProps<{
   log: RequestLog
   formatCurrency: (value?: number) => string
   formatNumber: (value?: number) => string
 }>()
 
 const { t } = useI18n()
+
+const formatCost = (log: RequestLog) => {
+  const value = props.formatCurrency(log.total_cost)
+  return log.is_fast ? `${value} · fast` : value
+}
 </script>

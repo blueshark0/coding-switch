@@ -193,6 +193,7 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		Headers:   targetHeaders,
 		BodyBytes: currentBodyBytes,
 		IsStream:  ctx.RequestMeta.IsStream,
+		IsFast:    ctx.RequestMeta.IsFast,
 		Model:     effectiveModel,
 	}, nil
 }
@@ -215,6 +216,7 @@ func (s *Server) executeAndHandleSession(
 		fwdCtx.Headers,
 		fwdCtx.BodyBytes,
 		fwdCtx.IsStream,
+		fwdCtx.IsFast,
 		fwdCtx.Model,
 	)
 	duration := time.Since(startTime)

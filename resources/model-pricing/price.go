@@ -48,6 +48,7 @@ type UsageSnapshot struct {
 	CacheCreateTokens int
 	CacheReadTokens   int
 	CacheCreation     *CacheCreationDetail
+	IsFast            bool
 }
 
 // CacheCreationDetail 细分缓存创建 tokens。
@@ -138,10 +139,26 @@ func (s *Service) CalculateCost(model string, usage UsageSnapshot) CostBreakdown
 	breakdown.CacheCreateCost = cache5mCost + cache1hCost
 	breakdown.CacheReadCost = float64(usage.CacheReadTokens) * entry.CacheReadInputTokenCost
 	breakdown.TotalCost = breakdown.InputCost + breakdown.OutputCost + breakdown.CacheCreateCost + breakdown.CacheReadCost
+	if usage.IsFast {
+		applyCostMultiplier(&breakdown, 2)
+	}
 	if breakdown.TotalCost > 0 {
 		breakdown.HasPricing = true
 	}
 	return breakdown
+}
+
+func applyCostMultiplier(breakdown *CostBreakdown, multiplier float64) {
+	if breakdown == nil || multiplier == 1 {
+		return
+	}
+	breakdown.InputCost *= multiplier
+	breakdown.OutputCost *= multiplier
+	breakdown.CacheCreateCost *= multiplier
+	breakdown.CacheReadCost *= multiplier
+	breakdown.Ephemeral5mCost *= multiplier
+	breakdown.Ephemeral1hCost *= multiplier
+	breakdown.TotalCost *= multiplier
 }
 
 func (s *Service) getPricing(model string) (*PricingEntry, bool) {

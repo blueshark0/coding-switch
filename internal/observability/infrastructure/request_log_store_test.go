@@ -51,7 +51,7 @@ func TestEnsureRequestLogTableWithDB_MigratesLegacySchema(t *testing.T) {
 		t.Fatalf("ensure request_log schema: %v", err)
 	}
 
-	for _, column := range []string{"created_at", "is_stream", "duration_sec"} {
+	for _, column := range []string{"created_at", "is_stream", "is_fast", "duration_sec"} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('request_log') WHERE name = ?", column).Scan(&count); err != nil {
 			t.Fatalf("query column %s: %v", column, err)
@@ -63,10 +63,11 @@ func TestEnsureRequestLogTableWithDB_MigratesLegacySchema(t *testing.T) {
 
 	var createdAt sql.NullString
 	var isStream sql.NullInt64
+	var isFast sql.NullInt64
 	var durationSec sql.NullFloat64
 	if err := db.QueryRow(
-		"SELECT strftime('%Y-%m-%d %H:%M:%S', created_at), is_stream, duration_sec FROM request_log WHERE id = 1",
-	).Scan(&createdAt, &isStream, &durationSec); err != nil {
+		"SELECT strftime('%Y-%m-%d %H:%M:%S', created_at), is_stream, is_fast, duration_sec FROM request_log WHERE id = 1",
+	).Scan(&createdAt, &isStream, &isFast, &durationSec); err != nil {
 		t.Fatalf("query migrated row: %v", err)
 	}
 	if !createdAt.Valid || createdAt.String == "" {
@@ -77,6 +78,9 @@ func TestEnsureRequestLogTableWithDB_MigratesLegacySchema(t *testing.T) {
 	}
 	if !isStream.Valid || isStream.Int64 != 0 {
 		t.Fatalf("expected is_stream to default to 0, got %+v", isStream)
+	}
+	if !isFast.Valid || isFast.Int64 != 0 {
+		t.Fatalf("expected is_fast to default to 0, got %+v", isFast)
 	}
 	if !durationSec.Valid || durationSec.Float64 != 0 {
 		t.Fatalf("expected duration_sec to default to 0, got %+v", durationSec)

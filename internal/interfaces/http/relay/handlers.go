@@ -42,6 +42,7 @@ func (h *CodexHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, 
 		RequestedModel:    modelResult.String(),
 		SessionID:         codexSessionID(headers),
 		IsStream:          gjson.GetBytes(bodyBytes, "stream").Bool(),
+		IsFast:            isCodexFastRequest(bodyBytes),
 		BodyHasModelField: modelResult.Exists(),
 	}
 }
@@ -51,6 +52,15 @@ func codexSessionID(headers map[string]string) string {
 		return sessionID
 	}
 	return headerValue(headers, "session_id")
+}
+
+func isCodexFastRequest(bodyBytes []byte) bool {
+	switch strings.ToLower(strings.TrimSpace(gjson.GetBytes(bodyBytes, "service_tier").String())) {
+	case "fast", "priority":
+		return true
+	default:
+		return false
+	}
 }
 
 type GeminiHandler struct{}

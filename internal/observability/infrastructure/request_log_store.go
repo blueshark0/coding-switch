@@ -43,6 +43,7 @@ func recordFromRequestLog(logEntry *observabilitydomain.RequestLog) xdb.Record {
 		"cache_read_tokens":   logEntry.CacheReadTokens,
 		"reasoning_tokens":    logEntry.ReasoningTokens,
 		"is_stream":           boolToInt(logEntry.IsStream),
+		"is_fast":             boolToInt(logEntry.IsFast),
 		"duration_sec":        logEntry.DurationSec,
 		"created_at":          requestLogCreatedAt(logEntry.CreatedAt),
 	}
@@ -120,6 +121,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		cache_read_tokens INTEGER,
 		reasoning_tokens INTEGER,
 		is_stream INTEGER DEFAULT 0,
+		is_fast INTEGER DEFAULT 0,
 		duration_sec REAL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`
@@ -134,6 +136,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 	}{
 		{name: "created_at", definition: "DATETIME"},
 		{name: "is_stream", definition: "INTEGER DEFAULT 0"},
+		{name: "is_fast", definition: "INTEGER DEFAULT 0"},
 		{name: "duration_sec", definition: "REAL DEFAULT 0"},
 	}
 	for _, column := range columns {

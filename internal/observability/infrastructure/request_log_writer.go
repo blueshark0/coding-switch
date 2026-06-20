@@ -94,9 +94,10 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 		cache_read_tokens,
 		reasoning_tokens,
 		is_stream,
+		is_fast,
 		duration_sec,
 		created_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, insertSQL)
 	if err != nil {
 		return err
@@ -119,6 +120,7 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 			logEntry.CacheReadTokens,
 			logEntry.ReasoningTokens,
 			boolToInt(logEntry.IsStream),
+			boolToInt(logEntry.IsFast),
 			logEntry.DurationSec,
 			requestLogCreatedAt(logEntry.CreatedAt),
 		); err != nil {

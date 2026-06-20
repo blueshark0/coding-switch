@@ -23,7 +23,7 @@ func TestClaudeHandlerExtractRequestMeta(t *testing.T) {
 
 func TestCodexHandlerExtractRequestMeta(t *testing.T) {
 	handler := NewCodexHandler("/responses")
-	meta := handler.ExtractRequestMeta("/responses", []byte(`{"model":"gpt-5","stream":false}`), nil, map[string]string{
+	meta := handler.ExtractRequestMeta("/responses", []byte(`{"model":"gpt-5","stream":false,"service_tier":"fast"}`), nil, map[string]string{
 		"session-id": "session-1",
 	})
 
@@ -32,6 +32,18 @@ func TestCodexHandlerExtractRequestMeta(t *testing.T) {
 	}
 	if meta.RequestedModel != "gpt-5" || meta.IsStream || meta.SessionID != "session-1" {
 		t.Fatalf("unexpected meta: %+v", meta)
+	}
+	if !meta.IsFast {
+		t.Fatalf("expected fast request, got %+v", meta)
+	}
+}
+
+func TestCodexHandlerExtractRequestMetaTreatsPriorityAsFast(t *testing.T) {
+	handler := NewCodexHandler("/responses")
+	meta := handler.ExtractRequestMeta("/responses", []byte(`{"model":"gpt-5","service_tier":"priority"}`), nil, nil)
+
+	if !meta.IsFast {
+		t.Fatalf("expected priority request to be fast, got %+v", meta)
 	}
 }
 

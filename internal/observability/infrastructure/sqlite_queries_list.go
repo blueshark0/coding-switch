@@ -81,6 +81,7 @@ func (q *SQLiteQueries) requestLogsFromRecords(records []xdb.Record) []observabi
 			ReasoningTokens:   record.GetInt("reasoning_tokens"),
 			CreatedAt:         record.GetString("created_at"),
 			IsStream:          record.GetBool("is_stream"),
+			IsFast:            record.GetBool("is_fast"),
 			DurationSec:       record.GetFloat64("duration_sec"),
 		}
 		q.decorateCost(&logEntry)

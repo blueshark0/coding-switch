@@ -42,10 +42,11 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 		SUM(output_tokens) AS output_tokens,
 		SUM(reasoning_tokens) AS reasoning_tokens,
 		SUM(cache_create_tokens) AS cache_create_tokens,
-		SUM(cache_read_tokens) AS cache_read_tokens
+		SUM(cache_read_tokens) AS cache_read_tokens,
+		is_fast
 		FROM request_log
 		WHERE created_at >= ?
-		GROUP BY bucket, model
+		GROUP BY bucket, model, is_fast
 		ORDER BY bucket DESC`, rangeStart.Format(timeLayout))
 	if err != nil {
 		if isNoSuchTableErr(err) {
@@ -61,7 +62,8 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 		var modelName sql.NullString
 		var totalRequests sql.NullInt64
 		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead); err != nil {
+		var isFast sql.NullInt64
+		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
 			return nil, err
 		}
 		if !bucketStr.Valid {
@@ -86,6 +88,7 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 			OutputTokens:      int(nullInt64(output)),
 			CacheCreateTokens: int(nullInt64(cacheCreate)),
 			CacheReadTokens:   int(nullInt64(cacheRead)),
+			IsFast:            nullInt64(isFast) != 0,
 		})
 		bucket.TotalCost += cost.TotalCost
 	}
@@ -153,10 +156,11 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 		SUM(output_tokens) AS output_tokens,
 			SUM(reasoning_tokens) AS reasoning_tokens,
 			SUM(cache_create_tokens) AS cache_create_tokens,
-			SUM(cache_read_tokens) AS cache_read_tokens
+			SUM(cache_read_tokens) AS cache_read_tokens,
+			is_fast
 			FROM request_log
 			WHERE created_at >= ? AND created_at < ?%s
-			GROUP BY bucket, model
+			GROUP BY bucket, model, is_fast
 			ORDER BY bucket ASC`, rangeSpec.bucketSQLFormat(), filterClause), args...)
 	if err != nil {
 		if isNoSuchTableErr(err) {
@@ -172,7 +176,8 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 		var modelName sql.NullString
 		var totalRequests sql.NullInt64
 		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead); err != nil {
+		var isFast sql.NullInt64
+		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
 			return stats, err
 		}
 		if !bucketStr.Valid {
@@ -200,6 +205,7 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 			OutputTokens:      int(nullInt64(output)),
 			CacheCreateTokens: int(nullInt64(cacheCreate)),
 			CacheReadTokens:   int(nullInt64(cacheRead)),
+			IsFast:            nullInt64(isFast) != 0,
 		})
 		bucket.TotalCost += cost.TotalCost
 		stats.TotalRequests += nullInt64(totalRequests)
@@ -379,10 +385,11 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 		SUM(output_tokens) AS output_tokens,
 		SUM(reasoning_tokens) AS reasoning_tokens,
 		SUM(cache_create_tokens) AS cache_create_tokens,
-		SUM(cache_read_tokens) AS cache_read_tokens
+		SUM(cache_read_tokens) AS cache_read_tokens,
+		is_fast
 		FROM request_log
 		WHERE created_at >= ? AND created_at < ?%s
-		GROUP BY provider, model`, platformFilter), args...)
+		GROUP BY provider, model, is_fast`, platformFilter), args...)
 	if err != nil {
 		if isNoSuchTableErr(err) {
 			return []observabilitydomain.ProviderDailyStat{}, nil
@@ -398,7 +405,8 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 		var totalRequests sql.NullInt64
 		var successfulRequests sql.NullInt64
 		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		if err := rows.Scan(&provider, &modelName, &totalRequests, &successfulRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead); err != nil {
+		var isFast sql.NullInt64
+		if err := rows.Scan(&provider, &modelName, &totalRequests, &successfulRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
 			return nil, err
 		}
 		stat := statMap[provider]
@@ -421,6 +429,7 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 			OutputTokens:      int(nullInt64(output)),
 			CacheCreateTokens: int(nullInt64(cacheCreate)),
 			CacheReadTokens:   int(nullInt64(cacheRead)),
+			IsFast:            nullInt64(isFast) != 0,
 		}).TotalCost
 	}
 	if err := rows.Err(); err != nil {

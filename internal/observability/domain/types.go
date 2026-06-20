@@ -12,6 +12,7 @@ type RequestLog struct {
 	CacheReadTokens   int     `json:"cache_read_tokens"`
 	ReasoningTokens   int     `json:"reasoning_tokens"`
 	IsStream          bool    `json:"is_stream"`
+	IsFast            bool    `json:"is_fast"`
 	DurationSec       float64 `json:"duration_sec"`
 	CreatedAt         string  `json:"created_at"`
 	InputCost         float64 `json:"input_cost"`

@@ -22,6 +22,7 @@ type RequestMeta struct {
 	RequestedModel    string
 	SessionID         string
 	IsStream          bool
+	IsFast            bool
 	BodyHasModelField bool
 	RouteOptions      *relayRouteOptions
 }
@@ -45,6 +46,7 @@ type ForwardContext struct {
 	Headers   map[string]string
 	BodyBytes []byte
 	IsStream  bool
+	IsFast    bool
 	Model     string
 }
 

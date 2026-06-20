@@ -82,6 +82,7 @@ func (s *Server) forwardRequest(
 	clientHeaders map[string]string,
 	bodyBytes []byte,
 	isStream bool,
+	isFast bool,
 	model string,
 ) (bool, error) {
 	targetURL := joinURL(provider.APIURL, endpoint)
@@ -97,6 +98,7 @@ func (s *Server) forwardRequest(
 		Provider: provider.Name,
 		Model:    model,
 		IsStream: isStream,
+		IsFast:   isFast,
 	}
 	start := time.Now()
 	defer func() {

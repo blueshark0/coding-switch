@@ -49,19 +49,20 @@ const (
 )
 
 type Provider struct {
-	ID              int               `json:"id"`
-	Name            string            `json:"name"`
-	APIURL          string            `json:"apiUrl"`
-	APIKey          string            `json:"apiKey"`
-	OfficialSite    string            `json:"officialSite"`
-	Icon            string            `json:"icon"`
-	Tint            string            `json:"tint"`
-	Accent          string            `json:"accent"`
-	Position        int               `json:"position"`
-	SupportedModels map[string]bool   `json:"supportedModels,omitempty"`
-	ModelMapping    map[string]string `json:"modelMapping,omitempty"`
-	ProxyMode       string            `json:"proxyMode,omitempty"`
-	ProxyURL        string            `json:"proxyUrl,omitempty"`
+	ID                      int                      `json:"id"`
+	Name                    string                   `json:"name"`
+	APIURL                  string                   `json:"apiUrl"`
+	APIKey                  string                   `json:"apiKey"`
+	OfficialSite            string                   `json:"officialSite"`
+	Icon                    string                   `json:"icon"`
+	Tint                    string                   `json:"tint"`
+	Accent                  string                   `json:"accent"`
+	Position                int                      `json:"position"`
+	SupportedModels         map[string]bool          `json:"supportedModels,omitempty"`
+	ModelMapping            map[string]string        `json:"modelMapping,omitempty"`
+	RequestBodyReplacements []RequestBodyReplacement `json:"requestBodyReplacements,omitempty"`
+	ProxyMode               string                   `json:"proxyMode,omitempty"`
+	ProxyURL                string                   `json:"proxyUrl,omitempty"`
 }
 
 func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string {
@@ -76,6 +77,11 @@ func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string 
 		}
 		return ""
 	}
+}
+
+type RequestBodyReplacement struct {
+	Path  string `json:"path"`
+	Value string `json:"value"`
 }
 
 type RouteProfile struct {
@@ -105,6 +111,7 @@ func (p RouteProfile) Normalize() RouteProfile {
 		if next.ModelMapping == nil {
 			next.ModelMapping = map[string]string{}
 		}
+		next.RequestBodyReplacements = normalizeRequestBodyReplacements(next.RequestBodyReplacements)
 		cloned.Providers = append(cloned.Providers, next)
 	}
 	slices.SortFunc(cloned.Providers, func(a, b Provider) int {
@@ -121,6 +128,25 @@ func (p RouteProfile) Normalize() RouteProfile {
 		cloned.Providers[idx].Position = idx + 1
 	}
 	return cloned
+}
+
+func normalizeRequestBodyReplacements(input []RequestBodyReplacement) []RequestBodyReplacement {
+	if input == nil {
+		return []RequestBodyReplacement{}
+	}
+	normalized := make([]RequestBodyReplacement, 0, len(input))
+	for _, replacement := range input {
+		replacement.Path = strings.TrimSpace(replacement.Path)
+		if replacement.Path == "" {
+			continue
+		}
+		replacement.Value = strings.TrimSpace(replacement.Value)
+		if replacement.Value == "" {
+			continue
+		}
+		normalized = append(normalized, replacement)
+	}
+	return normalized
 }
 
 func (p RouteProfile) Validate() error {

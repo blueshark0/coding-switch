@@ -5,6 +5,7 @@ import (
 	"time"
 
 	routingdomain "codeswitch/internal/routing/domain"
+	"codeswitch/internal/shared/kernel"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -143,20 +144,31 @@ func (s *Server) resolveProviderForRequest(
 }
 
 func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomain.Provider) (*ForwardContext, error) {
-	effectiveModel := provider.GetEffectiveModel(ctx.RequestMeta.RequestedModel)
 	currentBodyBytes := ctx.BodyBytes
+	requestedModel := ctx.RequestMeta.RequestedModel
+	bodyHasModelField := ctx.RequestMeta.BodyHasModelField
+	if ctx.Platform == kernel.PlatformClaude && len(provider.RequestBodyReplacements) > 0 {
+		modifiedBody, err := applyRequestBodyReplacements(currentBodyBytes, provider.RequestBodyReplacements)
+		if err != nil {
+			return nil, err
+		}
+		currentBodyBytes = modifiedBody
+		if bodyHasModelField {
+			requestedModel = gjson.GetBytes(currentBodyBytes, "model").String()
+		}
+	}
+	effectiveModel := provider.GetEffectiveModel(requestedModel)
 	bodyModelValue := effectiveModel
 	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.bodyModelFormatter != nil {
 		bodyModelValue = ctx.RequestMeta.RouteOptions.bodyModelFormatter(effectiveModel)
 	}
-	bodyHasModelField := ctx.RequestMeta.BodyHasModelField
-	shouldRewriteBody := effectiveModel != ctx.RequestMeta.RequestedModel && ctx.RequestMeta.RequestedModel != ""
+	shouldRewriteBody := effectiveModel != requestedModel && requestedModel != ""
 	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.forceBodyRewrite {
-		shouldRewriteBody = shouldRewriteBody || (bodyHasModelField && ctx.RequestMeta.RequestedModel != "")
+		shouldRewriteBody = shouldRewriteBody || (bodyHasModelField && requestedModel != "")
 	}
 	if shouldRewriteBody && bodyHasModelField {
-		relayDebugf("remap model: %s -> %s", ctx.RequestMeta.RequestedModel, bodyModelValue)
-		modifiedBody, err := ReplaceModelInRequestBody(ctx.BodyBytes, bodyModelValue)
+		relayDebugf("remap model: %s -> %s", requestedModel, bodyModelValue)
+		modifiedBody, err := ReplaceModelInRequestBody(currentBodyBytes, bodyModelValue)
 		if err != nil {
 			return nil, fmt.Errorf("替换模型名失败: %w", err)
 		}
@@ -164,7 +176,7 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 	}
 	targetEndpoint := ctx.RequestMeta.Endpoint
 	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.endpointMutator != nil {
-		newEndpoint, err := ctx.RequestMeta.RouteOptions.endpointMutator(targetEndpoint, ctx.RequestMeta.RequestedModel, effectiveModel)
+		newEndpoint, err := ctx.RequestMeta.RouteOptions.endpointMutator(targetEndpoint, requestedModel, effectiveModel)
 		if err != nil {
 			return nil, err
 		}

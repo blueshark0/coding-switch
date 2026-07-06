@@ -54,6 +54,7 @@ func (s *SQLiteStore) EnsureSchema() error {
 				position INTEGER NOT NULL,
 				supported_models_json TEXT NOT NULL DEFAULT '{}',
 				model_mapping_json TEXT NOT NULL DEFAULT '{}',
+				request_body_replacements_json TEXT NOT NULL DEFAULT '[]',
 				PRIMARY KEY(platform, id),
 				UNIQUE(platform, name)
 			)`,
@@ -134,6 +135,7 @@ func ensureProviderColumns(db *sql.DB) error {
 	}{
 		{name: "proxy_mode", definition: "TEXT NOT NULL DEFAULT ''"},
 		{name: "proxy_url", definition: "TEXT NOT NULL DEFAULT ''"},
+		{name: "request_body_replacements_json", definition: "TEXT NOT NULL DEFAULT '[]'"},
 	}
 	for _, column := range columns {
 		var count int

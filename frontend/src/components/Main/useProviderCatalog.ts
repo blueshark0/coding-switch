@@ -52,6 +52,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     icon: defaultIconKey,
     supportedModels: {},
     modelMapping: {},
+    requestBodyReplacements: [],
     proxyMode: '',
     proxyUrl: '',
   })
@@ -121,6 +122,10 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     icon: normalizeIconKey(form.icon || defaultIconKey),
     modelMapping: { ...(form.modelMapping ?? {}) },
     officialSite: form.officialSite.trim(),
+    requestBodyReplacements: (form.requestBodyReplacements ?? []).map((replacement) => ({
+      path: replacement.path.trim(),
+      value: replacement.value.trim(),
+    })).filter((replacement) => replacement.path && replacement.value),
     supportedModels: { ...(form.supportedModels ?? {}) },
     proxyMode: form.proxyMode ?? '',
     proxyUrl: (form.proxyUrl ?? '').trim(),

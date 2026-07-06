@@ -37,6 +37,20 @@
           "wildcard": "通配符映射，自动展开 claude-sonnet-4 → anthropic/claude-sonnet-4",
           "prefix": "前缀映射"
         }
+      },
+      "requestBodyReplacements": {
+        "label": "请求体替换",
+        "tooltip": "在其他请求体改写前替换已有 JSON 字段。路径不存在时会跳过。",
+        "pathPlaceholder": "JSON 路径，如 metadata.user_id",
+        "valuePlaceholder": "JSON 值，如 \"fixed-user\"、0.2、true、null、{'{\"x\":1}'}",
+        "add": "添加",
+        "remove": "删除替换规则",
+        "examples": {
+          "title": "示例：",
+          "string": "替换已有字符串字段",
+          "number": "写入数字 JSON 值",
+          "object": "写入对象 JSON 值"
+        }
       }
     },
     "main": {

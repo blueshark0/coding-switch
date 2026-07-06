@@ -124,6 +124,7 @@ func cloneRouteProfile(profile domain.RouteProfile) domain.RouteProfile {
 		next := provider
 		next.SupportedModels = cloneBoolMap(provider.SupportedModels)
 		next.ModelMapping = cloneStringMap(provider.ModelMapping)
+		next.RequestBodyReplacements = cloneRequestBodyReplacements(provider.RequestBodyReplacements)
 		cloned.Providers = append(cloned.Providers, next)
 	}
 	return cloned
@@ -149,4 +150,11 @@ func cloneStringMap(input map[string]string) map[string]string {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func cloneRequestBodyReplacements(input []domain.RequestBodyReplacement) []domain.RequestBodyReplacement {
+	if input == nil {
+		return []domain.RequestBodyReplacement{}
+	}
+	return append([]domain.RequestBodyReplacement(nil), input...)
 }

@@ -137,3 +137,64 @@ func TestSQLiteStoreEnsureSchema_CreatesDefaultAppPreferencesRow(t *testing.T) {
 		t.Fatalf("unexpected default row: %s", got)
 	}
 }
+
+func TestSQLiteStoreEnsureSchema_MigratesLegacyProviderRequestBodyReplacementsColumn(t *testing.T) {
+	dbName := "routing_test_" + t.Name()
+	dbPath := filepath.Join(t.TempDir(), "app.db")
+
+	if err := xdb.Init(map[string]*xdb.Config{
+		dbName: {
+			Name:   dbName,
+			Driver: "sqlite",
+			DSN:    dbPath,
+		},
+	}); err != nil {
+		t.Fatalf("xdb.Init: %v", err)
+	}
+
+	db, err := xdb.DB(dbName)
+	if err != nil {
+		t.Fatalf("xdb.DB: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	if _, err := db.Exec(`
+		CREATE TABLE providers (
+			platform TEXT NOT NULL,
+			id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			api_url TEXT NOT NULL DEFAULT '',
+			api_key TEXT NOT NULL DEFAULT '',
+			official_site TEXT NOT NULL DEFAULT '',
+			icon TEXT NOT NULL DEFAULT '',
+			tint TEXT NOT NULL DEFAULT '',
+			accent TEXT NOT NULL DEFAULT '',
+			enabled INTEGER NOT NULL DEFAULT 0,
+			position INTEGER NOT NULL,
+			supported_models_json TEXT NOT NULL DEFAULT '{}',
+			model_mapping_json TEXT NOT NULL DEFAULT '{}',
+			PRIMARY KEY(platform, id),
+			UNIQUE(platform, name)
+		);
+	`); err != nil {
+		t.Fatalf("seed legacy providers: %v", err)
+	}
+
+	store := NewSQLiteStoreWithDBName(dbName)
+	if err := store.EnsureSchema(); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = ?",
+		"request_body_replacements_json",
+	).Scan(&count); err != nil {
+		t.Fatalf("query request_body_replacements_json column: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected request_body_replacements_json column to exist once, got %d", count)
+	}
+}

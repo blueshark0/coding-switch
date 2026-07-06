@@ -36,6 +36,20 @@
           "wildcard": "Wildcard mapping, auto expands claude-sonnet-4 → anthropic/claude-sonnet-4",
           "prefix": "Prefix mapping"
         }
+      },
+      "requestBodyReplacements": {
+        "label": "Request Body Replacements",
+        "tooltip": "Replace existing JSON fields before other request body rewrites. Missing paths are skipped.",
+        "pathPlaceholder": "JSON path, e.g. metadata.user_id",
+        "valuePlaceholder": "JSON value, e.g. \"fixed-user\", 0.2, true, null, {'{\"x\":1}'}",
+        "add": "Add",
+        "remove": "Remove replacement",
+        "examples": {
+          "title": "Examples:",
+          "string": "Replace an existing string field",
+          "number": "Write a numeric JSON value",
+          "object": "Write an object JSON value"
+        }
       }
     },
     "main": {

@@ -131,6 +131,10 @@
         <ModelMappingEditor v-model="form.modelMapping" />
       </div>
 
+      <div v-if="platform === 'claude'" class="form-field">
+        <RequestBodyReplacementEditor v-model="form.requestBodyReplacements" />
+      </div>
+
       <footer class="form-actions">
         <BaseButton variant="outline" type="button" @click="$emit('close')">
           {{ t('components.main.form.actions.cancel') }}
@@ -154,6 +158,8 @@ import BaseInput from '../common/BaseInput.vue'
 import BaseModal from '../common/BaseModal.vue'
 import ModelMappingEditor from '../common/ModelMappingEditor.vue'
 import ModelWhitelistEditor from '../common/ModelWhitelistEditor.vue'
+import RequestBodyReplacementEditor from '../common/RequestBodyReplacementEditor.vue'
+import type { ProviderTab } from '../../constants/platforms'
 import type { VendorForm } from './types'
 
 defineProps<{
@@ -162,6 +168,7 @@ defineProps<{
   form: VendorForm
   nameError: string
   open: boolean
+  platform: ProviderTab
   proxyUrlError: string
 }>()
 

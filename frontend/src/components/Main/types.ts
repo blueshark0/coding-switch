@@ -9,8 +9,14 @@ export type VendorForm = {
   icon: string
   supportedModels?: Record<string, boolean>
   modelMapping?: Record<string, string>
+  requestBodyReplacements?: RequestBodyReplacement[]
   proxyMode?: string
   proxyUrl?: string
+}
+
+export type RequestBodyReplacement = {
+  path: string
+  value: string
 }
 
 export type ProviderStatDisplay =

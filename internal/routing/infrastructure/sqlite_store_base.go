@@ -92,33 +92,10 @@ func (s *SQLiteStore) EnsureSchema() error {
 }
 
 func ensureAppPreferencesColumns(db *sql.DB) error {
-	columns := []struct {
-		name       string
-		definition string
-	}{
-		{name: "proxy_enabled", definition: "INTEGER NOT NULL DEFAULT 0"},
-		{name: "proxy_url", definition: "TEXT NOT NULL DEFAULT ''"},
-	}
-	for _, column := range columns {
-		var count int
-		if err := db.QueryRow(
-			"SELECT COUNT(*) FROM pragma_table_info('app_preferences') WHERE name = ?",
-			column.name,
-		).Scan(&count); err != nil {
-			return fmt.Errorf("query app_preferences.%s: %w", column.name, err)
-		}
-		if count > 0 {
-			continue
-		}
-		if _, err := db.Exec(fmt.Sprintf(
-			"ALTER TABLE app_preferences ADD COLUMN %s %s",
-			column.name,
-			column.definition,
-		)); err != nil {
-			return fmt.Errorf("add app_preferences.%s: %w", column.name, err)
-		}
-	}
-	return nil
+	return storage.EnsureColumns(db, "app_preferences", []storage.ColumnDef{
+		{Name: "proxy_enabled", Definition: "INTEGER NOT NULL DEFAULT 0"},
+		{Name: "proxy_url", Definition: "TEXT NOT NULL DEFAULT ''"},
+	})
 }
 
 func boolToInt(value bool) int {
@@ -129,34 +106,12 @@ func boolToInt(value bool) int {
 }
 
 func ensureProviderColumns(db *sql.DB) error {
-	columns := []struct {
-		name       string
-		definition string
-	}{
-		{name: "proxy_mode", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "proxy_url", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "request_body_replacements_json", definition: "TEXT NOT NULL DEFAULT '[]'"},
-	}
-	for _, column := range columns {
-		var count int
-		if err := db.QueryRow(
-			"SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = ?",
-			column.name,
-		).Scan(&count); err != nil {
-			return fmt.Errorf("query providers.%s: %w", column.name, err)
-		}
-		if count > 0 {
-			continue
-		}
-		if _, err := db.Exec(fmt.Sprintf(
-			"ALTER TABLE providers ADD COLUMN %s %s",
-			column.name,
-			column.definition,
-		)); err != nil {
-			return fmt.Errorf("add providers.%s: %w", column.name, err)
-		}
-	}
-	return nil
+	return storage.EnsureColumns(db, "providers", []storage.ColumnDef{
+		{Name: "proxy_mode", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "proxy_url", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "request_body_replacements_json", Definition: "TEXT NOT NULL DEFAULT '[]'"},
+		{Name: "insecure_skip_verify", Definition: "INTEGER NOT NULL DEFAULT 0"},
+	})
 }
 
 func encodeJSONMap[T any](value T) (string, error) {

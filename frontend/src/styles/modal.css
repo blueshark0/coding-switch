@@ -268,3 +268,26 @@
   height: 16px;
   margin: 0;
 }
+
+.insecure-tls-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--mac-text-secondary);
+}
+
+.insecure-tls-option input[type="checkbox"] {
+  accent-color: #ef4444;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.insecure-tls-warning {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #ef4444;
+}

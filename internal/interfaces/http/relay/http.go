@@ -28,6 +28,7 @@ func (s *Server) readRequestBody(c *gin.Context) ([]byte, error) {
 }
 
 func (s *Server) registerRoutes(router gin.IRouter) {
+	router.Use(s.inboundAuthMiddleware())
 	router.POST("/v1/messages", s.proxyHandler(kernel.PlatformClaude, "/v1/messages"))
 	router.POST("/responses", s.proxyHandler(kernel.PlatformCodex, "/responses"))
 	router.POST("/responses/compact", s.proxyHandler(kernel.PlatformCodex, "/responses/compact"))
@@ -64,6 +65,12 @@ func (s *Server) proxyHandler(platform kernel.Platform, defaultEndpoint string) 
 			RequestMeta: requestMeta,
 		}
 		if ok, err := s.routeToManualProvider(ctx); !ok {
+			// 响应已开始写出（SSE 中途失败，或上游错误已原样透传）时不能
+			// 再追加 JSON——那会往已发出的字节流里插入非法内容。
+			if c.Writer.Written() {
+				c.Abort()
+				return
+			}
 			errorMsg := "路由失败"
 			if err != nil {
 				errorMsg = err.Error()
@@ -73,51 +80,78 @@ func (s *Server) proxyHandler(platform kernel.Platform, defaultEndpoint string) 
 	}
 }
 
-func (s *Server) forwardRequest(
-	c *gin.Context,
-	platform kernel.Platform,
-	provider routingdomain.Provider,
-	endpoint string,
-	query map[string]string,
-	clientHeaders map[string]string,
-	bodyBytes []byte,
-	isStream bool,
-	isFast bool,
-	model string,
-) (bool, error) {
-	targetURL := joinURL(provider.APIURL, endpoint)
-	headers := cloneMap(clientHeaders)
-	if _, ok := headers["Authorization"]; ok && provider.APIKey != "" {
-		headers["Authorization"] = fmt.Sprintf("Bearer %s", provider.APIKey)
+// inboundCredentialHeaderNames 是客户端可能携带的认证/敏感头：其中要么是
+// 本地占位 token，要么是用户环境里的真实密钥，任何一种都不能转发给上游。
+var inboundCredentialHeaderNames = []string{"Authorization", "X-Api-Key", "X-Goog-Api-Key", "Cookie"}
+
+func stripInboundCredentialHeaders(headers map[string]string) {
+	for key := range headers {
+		for _, name := range inboundCredentialHeaderNames {
+			if strings.EqualFold(key, name) {
+				delete(headers, key)
+				break
+			}
+		}
 	}
+}
+
+// applyProviderCredentials 先剥离客户端凭证再无条件注入供应商凭证。
+// 旧行为（仅当客户端带 Authorization 才替换）在客户端改发 x-api-key 时
+// 会既不注入供应商 key、又把用户真实 key 原样发给第三方。
+func applyProviderCredentials(headers map[string]string, platform kernel.Platform, provider *routingdomain.Provider) {
+	stripInboundCredentialHeaders(headers)
+	if provider.APIKey == "" {
+		return
+	}
+	switch platform {
+	case kernel.PlatformGemini:
+		headers["X-Goog-Api-Key"] = provider.APIKey
+	case kernel.PlatformClaude:
+		// Anthropic 官方 API 认 x-api-key，多数中转商认 Authorization：同时提供。
+		headers["Authorization"] = "Bearer " + provider.APIKey
+		headers["X-Api-Key"] = provider.APIKey
+	default:
+		headers["Authorization"] = "Bearer " + provider.APIKey
+	}
+}
+
+func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
+	c := fwdCtx.GinCtx
+	provider := fwdCtx.Provider
+	targetURL := joinURL(provider.APIURL, fwdCtx.Endpoint)
+	headers := cloneMap(fwdCtx.Headers)
+	applyProviderCredentials(headers, fwdCtx.Platform, provider)
 	if _, ok := headers["Accept"]; !ok {
 		headers["Accept"] = "application/json"
 	}
 	requestLog := &observabilitydomain.RequestLog{
-		Platform: platform.String(),
+		Platform: fwdCtx.Platform.String(),
 		Provider: provider.Name,
-		Model:    model,
-		IsStream: isStream,
-		IsFast:   isFast,
+		Model:    fwdCtx.Model,
+		IsStream: fwdCtx.IsStream,
+		IsFast:   fwdCtx.IsFast,
 	}
 	start := time.Now()
 	defer func() {
 		requestLog.DurationSec = time.Since(start).Seconds()
 		s.enqueueRequestLog(requestLog)
 	}()
-	req := xrequest.New().
-		SetHeaders(headers).
-		SetQueryParams(query).
-		SetRetry(1, 500*time.Millisecond).
-		SetTimeout(900 * time.Second)
-	req = req.SetBody(bytes.NewReader(bodyBytes))
-	if proxyURL := s.getProxyURLForProvider(&provider); proxyURL != "" {
-		client, err := newInsecureProxyClient(proxyURL)
-		if err != nil {
-			return false, fmt.Errorf("invalid proxy URL %q: %w", proxyURL, err)
-		}
-		req = req.SetClient(client)
+	client, err := s.upstreamClientFor(upstreamClientOptions{
+		proxyURL:           s.getProxyURLForProvider(provider),
+		insecureSkipVerify: provider.InsecureSkipVerify,
+	})
+	if err != nil {
+		return false, fmt.Errorf("invalid proxy URL: %w", err)
 	}
+	// WithContext 让客户端断开/取消立即取消上游请求；不再设置 SetTimeout，
+	// 一是 xrequest 会把超时写到共享 client 上（并发数据竞态），二是整体
+	// 超时会掐断超长 SSE 流——期限由共享 Transport 的各阶段超时控制。
+	req := xrequest.New().
+		WithContext(c.Request.Context()).
+		SetHeaders(headers).
+		SetQueryParams(fwdCtx.Query).
+		SetClient(client).
+		SetBody(bytes.NewReader(fwdCtx.BodyBytes))
 	resp, err := req.Post(targetURL)
 	if err != nil {
 		return false, err
@@ -125,14 +159,17 @@ func (s *Server) forwardRequest(
 	if resp == nil {
 		return false, fmt.Errorf("empty response")
 	}
-	if resp.Error() != nil {
-		return false, resp.Error()
-	}
 	status := resp.StatusCode()
 	requestLog.HttpCode = status
 	if status >= http.StatusOK && status < http.StatusMultipleChoices {
-		_, copyErr := resp.ToHttpResponseWriter(c.Writer, RequestLogHook(platform, requestLog))
+		_, copyErr := resp.ToHttpResponseWriter(c.Writer, s.requestLogHook(fwdCtx.Platform, requestLog))
 		return copyErr == nil, copyErr
+	}
+	// 非 2xx：把上游状态码、响应头与错误体原样透传给客户端（400 的参数
+	// 错误详情、429 的限流原因与 Retry-After 都不能丢），同时返回失败，
+	// 让会话粘滞不绑定该供应商。
+	if _, copyErr := resp.ToHttpResponseWriter(c.Writer); copyErr != nil {
+		relayWarnf("透传上游错误响应失败: %v", copyErr)
 	}
 	return false, fmt.Errorf("upstream status %d", status)
 }

@@ -7,21 +7,36 @@ import (
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
+	modelpricing "codeswitch/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 )
 
-type RequestLogWriter struct{}
+// RequestLogWriter 在写入前按当时定价物化 total_cost/has_pricing，
+// 让费用档位过滤与统计可以下推到 SQL。pricing 为 nil 时使用共享定价服务
+//（测试可注入固定价格表）。
+type RequestLogWriter struct {
+	pricing *modelpricing.Service
+}
 
 const (
 	requestLogWriteAttempts    = 3
 	requestLogWriteBaseBackoff = 200 * time.Millisecond
 )
 
+func (w *RequestLogWriter) pricingService() *modelpricing.Service {
+	if w != nil && w.pricing != nil {
+		return w.pricing
+	}
+	return sharedPricingService()
+}
+
 func (w *RequestLogWriter) Process(batch []*observabilitydomain.RequestLog) error {
+	pricing := w.pricingService()
 	logs := make([]*observabilitydomain.RequestLog, 0, len(batch))
 	for _, logEntry := range batch {
 		if logEntry != nil {
+			decorateRequestLogCost(pricing, logEntry)
 			logs = append(logs, logEntry)
 		}
 	}
@@ -32,6 +47,7 @@ func (w *RequestLogWriter) ProcessSingle(item *observabilitydomain.RequestLog) e
 	if item == nil {
 		return nil
 	}
+	decorateRequestLogCost(w.pricingService(), item)
 	err := insertRequestLogsWithRetry([]*observabilitydomain.RequestLog{item})
 	if err != nil {
 		log.Printf("写入 request_log 失败: %v\n", err)
@@ -96,8 +112,10 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 		is_stream,
 		is_fast,
 		duration_sec,
-		created_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		created_at,
+		total_cost,
+		has_pricing
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, insertSQL)
 	if err != nil {
 		return err
@@ -123,6 +141,8 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 			boolToInt(logEntry.IsFast),
 			logEntry.DurationSec,
 			requestLogCreatedAt(logEntry.CreatedAt),
+			logEntry.TotalCost,
+			boolToInt(logEntry.HasPricing),
 		); err != nil {
 			return err
 		}

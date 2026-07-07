@@ -10,6 +10,7 @@ import (
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
+	modelpricing "codeswitch/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 )
@@ -123,36 +124,31 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		is_stream INTEGER DEFAULT 0,
 		is_fast INTEGER DEFAULT 0,
 		duration_sec REAL DEFAULT 0,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		total_cost REAL,
+		has_pricing INTEGER
 	)`
 
 	if _, err := db.Exec(createTableSQL); err != nil {
 		return err
 	}
 
-	columns := []struct {
-		name       string
-		definition string
-	}{
-		{name: "created_at", definition: "DATETIME"},
-		{name: "is_stream", definition: "INTEGER DEFAULT 0"},
-		{name: "is_fast", definition: "INTEGER DEFAULT 0"},
-		{name: "duration_sec", definition: "REAL DEFAULT 0"},
-	}
-	for _, column := range columns {
-		query := fmt.Sprintf("SELECT COUNT(*) FROM pragma_table_info('request_log') WHERE name = '%s'", column.name)
-		var count int
-		if err := db.QueryRow(query).Scan(&count); err != nil {
-			return err
-		}
-		if count == 0 {
-			alter := fmt.Sprintf("ALTER TABLE request_log ADD COLUMN %s %s", column.name, column.definition)
-			if _, err := db.Exec(alter); err != nil {
-				return err
-			}
-		}
+	// total_cost/has_pricing 不带 DEFAULT：NULL 表示"尚未计算"，由
+	// backfillRequestLogCosts 回填；新写入总是带值。
+	if err := storage.EnsureColumns(db, "request_log", []storage.ColumnDef{
+		{Name: "created_at", Definition: "DATETIME"},
+		{Name: "is_stream", Definition: "INTEGER DEFAULT 0"},
+		{Name: "is_fast", Definition: "INTEGER DEFAULT 0"},
+		{Name: "duration_sec", Definition: "REAL DEFAULT 0"},
+		{Name: "total_cost", Definition: "REAL"},
+		{Name: "has_pricing", Definition: "INTEGER"},
+	}); err != nil {
+		return err
 	}
 	if _, err := db.Exec("UPDATE request_log SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL OR created_at = ''"); err != nil {
+		return err
+	}
+	if err := backfillRequestLogCosts(db, sharedPricingService()); err != nil {
 		return err
 	}
 
@@ -167,5 +163,80 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 			return err
 		}
 	}
+	return nil
+}
+
+// backfillRequestLogCosts 为补列前写入的历史行（total_cost IS NULL）按当前
+// 定价一次性计算并回填 total_cost/has_pricing，让费用档位过滤对旧数据
+// 依然生效。之后的启动扫不到 NULL 行，本函数近似免费。
+func backfillRequestLogCosts(db *sql.DB, pricing *modelpricing.Service) error {
+	if pricing == nil {
+		// 定价服务不可用时保留 NULL 标记，下次启动重试；
+		// 这些行仅在费用档位过滤下暂时不可见。
+		return nil
+	}
+	rows, err := db.Query(`SELECT id, model, input_tokens, output_tokens, cache_create_tokens, cache_read_tokens, is_fast
+		FROM request_log WHERE total_cost IS NULL`)
+	if err != nil {
+		return err
+	}
+
+	type costUpdate struct {
+		id         int64
+		totalCost  float64
+		hasPricing bool
+	}
+	updates := make([]costUpdate, 0)
+	for rows.Next() {
+		var id int64
+		var model sql.NullString
+		var input, output, cacheCreate, cacheRead, isFast sql.NullInt64
+		if err := rows.Scan(&id, &model, &input, &output, &cacheCreate, &cacheRead, &isFast); err != nil {
+			rows.Close()
+			return err
+		}
+		cost := pricing.CalculateCost(model.String, modelpricing.UsageSnapshot{
+			InputTokens:       int(input.Int64),
+			OutputTokens:      int(output.Int64),
+			CacheCreateTokens: int(cacheCreate.Int64),
+			CacheReadTokens:   int(cacheRead.Int64),
+			IsFast:            isFast.Int64 != 0,
+		})
+		updates = append(updates, costUpdate{id: id, totalCost: cost.TotalCost, hasPricing: cost.HasPricing})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	if len(updates) == 0 {
+		return nil
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+	stmt, err := tx.Prepare("UPDATE request_log SET total_cost = ?, has_pricing = ? WHERE id = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, update := range updates {
+		if _, err := stmt.Exec(update.totalCost, boolToInt(update.hasPricing), update.id); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	log.Printf("已为 %d 条历史 request_log 记录回填费用列\n", len(updates))
 	return nil
 }

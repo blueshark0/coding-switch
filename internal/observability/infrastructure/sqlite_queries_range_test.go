@@ -112,6 +112,11 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 	seedRequestLogWithUsage(t, db, time.Date(2026, time.March, 16, 10, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 100000, 0)
 
 	queries := newRangeTestQueriesWithPricing(t)
+	// seed 直接 INSERT 模拟补列前的历史行（total_cost 为 NULL）：
+	// tier 过滤已下推到落库列，必须先经回填才可见。
+	if err := backfillRequestLogCosts(db, queries.pricing); err != nil {
+		t.Fatalf("backfillRequestLogCosts: %v", err)
+	}
 	highLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "high", 1, 15)
 	if err != nil {
 		t.Fatalf("ListRequestLogs high: %v", err)
@@ -121,6 +126,17 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 	}
 	if highLogs.Items[0].TotalCost <= 0.5 {
 		t.Fatalf("expected high-cost log above 0.5, got %.4f", highLogs.Items[0].TotalCost)
+	}
+	if highLogs.Items[0].CostTier != "high" {
+		t.Fatalf("expected cost_tier high, got %q", highLogs.Items[0].CostTier)
+	}
+
+	lowLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "low", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs low: %v", err)
+	}
+	if lowLogs.Total != 1 || len(lowLogs.Items) != 1 || lowLogs.Items[0].CostTier != "low" {
+		t.Fatalf("expected one low-cost log, got total=%d items=%d", lowLogs.Total, len(lowLogs.Items))
 	}
 
 	highStats, err := queries.StatsSince("claude", "alpha", "today", "high")

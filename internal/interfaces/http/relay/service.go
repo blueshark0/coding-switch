@@ -9,10 +9,9 @@ import (
 	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
-	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	routingapp "codeswitch/internal/routing/application"
 	sessionapp "codeswitch/internal/sessions/application"
-	sessioninfra "codeswitch/internal/sessions/infrastructure"
+	"codeswitch/internal/shared/kernel"
 	"codeswitch/internal/shared/worker"
 	"github.com/gin-gonic/gin"
 )
@@ -34,10 +33,43 @@ type sessionUpdateRequest struct {
 	generation uint64
 }
 
+// SessionBinder 是 relay 对会话粘滞缓存的窄依赖（由 sessions/infrastructure.Cache
+// 实现、组合根装配注入）：relay 不再直接 import 其他上下文的 infrastructure。
+type SessionBinder interface {
+	GetSessionProviderSnapshot(platform, sessionID string) (string, uint64, error)
+	SessionGeneration(platform, sessionID string) uint64
+	InvalidateSession(platform, sessionID string)
+	BindSessionToProviderGeneration(platform, sessionID, providerName string, generation uint64) error
+	RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) bool
+	UpdateSessionSuccessGeneration(platform, sessionID string, generation uint64) error
+	ClearPendingSessionSuccess(platform, sessionID string)
+}
+
+// TokenUsageParser 与 observability 解析器签名一致（消费端定义接口，
+// observability 的实现结构性满足）。
+type TokenUsageParser interface {
+	Parse(data string, usage *observabilitydomain.RequestLog)
+}
+
+// Options 汇集 relay 的出上下文依赖，由 app/bootstrap 组合根装配。
+type Options struct {
+	// SessionCache 提供会话-供应商粘滞绑定。
+	SessionCache SessionBinder
+	// RequestLogSink 承接请求日志落盘（observability 写路径实现）；nil 时日志被丢弃。
+	RequestLogSink worker.BatchProcessor[*observabilitydomain.RequestLog]
+	// TokenParserFor 返回平台对应的 token 用量解析器；nil 时不统计用量。
+	TokenParserFor func(platform kernel.Platform) TokenUsageParser
+	// RetentionCleanup 执行请求日志保留期清理；nil 时不启动定时任务。
+	RetentionCleanup func() error
+}
+
 type Server struct {
 	routingService      *routingapp.Service
 	sessionService      *sessionapp.Service
-	sessionCache        *sessioninfra.Cache
+	sessionCache        SessionBinder
+	tokenParserFor      func(platform kernel.Platform) TokenUsageParser
+	retentionCleanup    func() error
+	requestLogSink      worker.BatchProcessor[*observabilitydomain.RequestLog]
 	listener            net.Listener
 	server              *http.Server
 	addr                string
@@ -49,34 +81,43 @@ type Server struct {
 	proxyMu             sync.RWMutex
 	proxyEnabled        bool
 	proxyURL            string
+	upstreamMu          sync.Mutex
+	upstreamClients     map[upstreamClientOptions]*http.Client
 }
 
-func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Service, addr string) *Server {
+func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Service, addr string, opts Options) *Server {
 	if addr == "" {
-		addr = ":18100"
+		addr = "127.0.0.1:18100"
 	}
 	server := &Server{
-		routingService: routingService,
-		sessionService: sessionService,
-		sessionCache:   sessioninfra.NewCache(sessionService),
-		addr:           addr,
-		shutdownCh:     make(chan struct{}),
+		routingService:   routingService,
+		sessionService:   sessionService,
+		sessionCache:     opts.SessionCache,
+		tokenParserFor:   opts.TokenParserFor,
+		retentionCleanup: opts.RetentionCleanup,
+		requestLogSink:   opts.RequestLogSink,
+		addr:             addr,
+		shutdownCh:       make(chan struct{}),
 	}
-	server.requestLogWorker = worker.New[*observabilitydomain.RequestLog](worker.Config{
-		Name:          "request_log",
-		BufferSize:    requestLogBufferSize,
-		BatchSize:     requestLogBatchSize,
-		FlushInterval: requestLogFlushInterval,
-		DropWhenFull:  true,
-	}, &observabilityinfra.RequestLogWriter{})
-	server.requestLogWorker.Start()
-	server.sessionUpdateWorker = worker.New[sessionUpdateRequest](worker.Config{
-		Name:          "session_update",
-		BufferSize:    sessionUpdateBufferSize,
-		BatchSize:     sessionUpdateBatchSize,
-		FlushInterval: sessionUpdateFlushInterval,
-	}, newSessionUpdateProcessor(server.sessionCache))
-	server.sessionUpdateWorker.Start()
+	if server.requestLogSink != nil {
+		server.requestLogWorker = worker.New[*observabilitydomain.RequestLog](worker.Config{
+			Name:          "request_log",
+			BufferSize:    requestLogBufferSize,
+			BatchSize:     requestLogBatchSize,
+			FlushInterval: requestLogFlushInterval,
+			DropWhenFull:  true,
+		}, server.requestLogSink)
+		server.requestLogWorker.Start()
+	}
+	if server.sessionCache != nil {
+		server.sessionUpdateWorker = worker.New[sessionUpdateRequest](worker.Config{
+			Name:          "session_update",
+			BufferSize:    sessionUpdateBufferSize,
+			BatchSize:     sessionUpdateBatchSize,
+			FlushInterval: sessionUpdateFlushInterval,
+		}, newSessionUpdateProcessor(server.sessionCache))
+		server.sessionUpdateWorker.Start()
+	}
 	server.startRequestLogRetentionTask()
 	server.initProxyConfig()
 	return server

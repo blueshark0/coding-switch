@@ -1,17 +1,16 @@
 import { computed, onMounted, ref } from 'vue'
 import { fetchCurrentVersion } from '../../services/version'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
-import type { LocaleRef, TranslateFn } from './types'
+import type { TranslateFn } from './types'
 import { useProviderCatalog } from './useProviderCatalog'
 import { useProviderPreferences } from './useProviderPreferences'
 import { useProviderStats } from './useProviderStats'
 
 type UseProviderWorkbenchOptions = {
-  locale: LocaleRef
   t: TranslateFn
 }
 
-export const useProviderWorkbench = ({ locale, t }: UseProviderWorkbenchOptions) => {
+export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
   const tabs = providerTabs
   const appVersion = ref('')
   const selectedIndex = ref(0)
@@ -52,7 +51,6 @@ export const useProviderWorkbench = ({ locale, t }: UseProviderWorkbenchOptions)
     usageHeatmap,
   } = useProviderStats({
     activeTab,
-    locale,
     t,
   })
   const {

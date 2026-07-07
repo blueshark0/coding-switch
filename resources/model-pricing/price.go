@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -313,12 +314,21 @@ func NewServiceWithFile(path string) (*Service, error) {
 		return nil, err
 	}
 
-	if data, err := os.ReadFile(path); err == nil {
-		var external map[string]PricingEntry
-		if json.Unmarshal(data, &external) == nil {
-			svc.mergeExternal(external)
+	data, readErr := os.ReadFile(path)
+	if readErr != nil {
+		// 外部定价文件是可选的：不存在时静默用内置价；但权限等其他
+		// 读取错误必须告警，否则用户自定义价格无声失效、极难排查。
+		if !os.IsNotExist(readErr) {
+			log.Printf("[model-pricing] 读取外部定价文件失败 (%s): %v\n", path, readErr)
 		}
+		return svc, nil
 	}
+	var external map[string]PricingEntry
+	if err := json.Unmarshal(data, &external); err != nil {
+		log.Printf("[model-pricing] 解析外部定价文件失败 (%s)，已回退内置价格: %v\n", path, err)
+		return svc, nil
+	}
+	svc.mergeExternal(external)
 	return svc, nil
 }
 

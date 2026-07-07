@@ -10,9 +10,9 @@ import {
   type SessionBinding,
 } from '../../services/sessions'
 import { parseDateTime } from '../../utils/dateTime'
-
-type TranslateFn = (key: string, named?: Record<string, unknown>) => string
-type LocaleRef = { value: string }
+import { getErrorMessage } from '../../utils/errors'
+import { showToast } from '../../utils/toast'
+import type { LocaleRef, TranslateFn } from '../../types/i18n'
 
 type UsePlatformSessionsOptions = {
   locale: LocaleRef
@@ -126,7 +126,7 @@ export const usePlatformSessions = ({
       await loadSessions()
     } catch (error) {
       console.error('Failed to unbind session', error)
-      window.alert(t('components.sessions.unbindSessionFailed'))
+      showToast(getErrorMessage(error, t('components.sessions.unbindSessionFailed')), 'error')
     }
   }
 

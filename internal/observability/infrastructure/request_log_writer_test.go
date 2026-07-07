@@ -6,6 +6,7 @@ import (
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
+	modelpricing "codeswitch/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 )
@@ -35,7 +36,11 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 		t.Fatalf("EnsureRequestLogTableWithDB: %v", err)
 	}
 
-	writer := &RequestLogWriter{}
+	pricing, err := modelpricing.NewService()
+	if err != nil {
+		t.Fatalf("modelpricing.NewService: %v", err)
+	}
+	writer := &RequestLogWriter{pricing: pricing}
 	err = writer.Process([]*observabilitydomain.RequestLog{
 		{
 			Platform:          "claude",
@@ -80,11 +85,13 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 	var isFast int
 	var durationSec float64
 	var createdAt string
+	var totalCost float64
+	var hasPricing int
 	if err := db.QueryRow(`
-		SELECT provider, http_code, input_tokens, is_stream, is_fast, duration_sec, strftime('%Y-%m-%d %H:%M:%S', created_at)
+		SELECT provider, http_code, input_tokens, is_stream, is_fast, duration_sec, strftime('%Y-%m-%d %H:%M:%S', created_at), total_cost, has_pricing
 		FROM request_log
 		WHERE platform = 'claude'
-	`).Scan(&provider, &httpCode, &inputTokens, &isStream, &isFast, &durationSec, &createdAt); err != nil {
+	`).Scan(&provider, &httpCode, &inputTokens, &isStream, &isFast, &durationSec, &createdAt, &totalCost, &hasPricing); err != nil {
 		t.Fatalf("query written row: %v", err)
 	}
 	if provider != "alpha-temp" {
@@ -107,5 +114,9 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 	}
 	if createdAt != "2026-05-29 06:30:15" {
 		t.Fatalf("expected created_at to be preserved, got %q", createdAt)
+	}
+	// 写入侧按当时定价物化费用列，tier 过滤/统计依赖它下推 SQL。
+	if hasPricing != 1 || totalCost <= 0 {
+		t.Fatalf("expected materialized cost columns, got total_cost=%f has_pricing=%d", totalCost, hasPricing)
 	}
 }

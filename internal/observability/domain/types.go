@@ -23,6 +23,9 @@ type RequestLog struct {
 	Ephemeral1hCost   float64 `json:"ephemeral_1h_cost"`
 	TotalCost         float64 `json:"total_cost"`
 	HasPricing        bool    `json:"has_pricing"`
+	// CostTier 是后端统一计算的费用档位（""/low/medium/high），前端只消费
+	// 该字段做着色，不再复写 0.1/0.5 阈值。
+	CostTier string `json:"cost_tier"`
 }
 
 type RequestLogPage struct {

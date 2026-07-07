@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -36,6 +37,15 @@ type BackgroundWorker[T any] struct {
 }
 
 func New[T any](config Config, processor BatchProcessor[T]) *BackgroundWorker[T] {
+	if config.BufferSize <= 0 {
+		config.BufferSize = 1024
+	}
+	if config.BatchSize <= 0 {
+		config.BatchSize = 50
+	}
+	if config.FlushInterval <= 0 {
+		config.FlushInterval = time.Second
+	}
 	return &BackgroundWorker[T]{
 		config:    config,
 		inputCh:   make(chan T, config.BufferSize),
@@ -64,7 +74,7 @@ func (w *BackgroundWorker[T]) Enqueue(item T) bool {
 	w.stateMu.RLock()
 	if w.stopped {
 		w.stateMu.RUnlock()
-		_ = w.processor.ProcessSingle(item)
+		w.safeProcessSingle(item)
 		return false
 	}
 	select {
@@ -78,9 +88,30 @@ func (w *BackgroundWorker[T]) Enqueue(item T) bool {
 			return false
 		}
 		log.Printf("%s 缓冲已满，回退为同步处理\n", w.config.Name)
-		_ = w.processor.ProcessSingle(item)
+		w.safeProcessSingle(item)
 		return false
 	}
+}
+
+// safeProcess 与 safeProcessSingle 吸收处理器 panic，避免后台 goroutine
+// 或调用方（桌面应用主流程）被单条坏数据击穿。
+func (w *BackgroundWorker[T]) safeProcess(batch []T) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("%s 批量处理 panic 已恢复: %v\n", w.config.Name, r)
+			err = fmt.Errorf("%s: batch processor panic: %v", w.config.Name, r)
+		}
+	}()
+	return w.processor.Process(batch)
+}
+
+func (w *BackgroundWorker[T]) safeProcessSingle(item T) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("%s 单条处理 panic 已恢复: %v\n", w.config.Name, r)
+		}
+	}()
+	_ = w.processor.ProcessSingle(item)
 }
 
 func (w *BackgroundWorker[T]) logDrop() {
@@ -114,10 +145,10 @@ func (w *BackgroundWorker[T]) run() {
 		if len(batch) == 0 {
 			return
 		}
-		if err := w.processor.Process(batch); err != nil {
+		if err := w.safeProcess(batch); err != nil {
 			log.Printf("%s 批量处理失败: %v，尝试逐条处理\n", w.config.Name, err)
 			for _, item := range batch {
-				_ = w.processor.ProcessSingle(item)
+				w.safeProcessSingle(item)
 			}
 		}
 		batch = batch[:0]

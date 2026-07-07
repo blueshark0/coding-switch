@@ -8,8 +8,7 @@ import LanguageSwitcher from '../Setting/LanguageSwitcher.vue'
 import ThemeSetting from '../Setting/ThemeSetting.vue'
 import WebDavSyncSection from './WebDavSyncSection.vue'
 import { useAppSettingsStore } from '../../composables/useAppSettingsStore'
-import { getErrorMessage } from '../../utils/errors'
-import { showToast } from '../../utils/toast'
+import { runWithToast } from '../../utils/runWithToast'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -40,12 +39,9 @@ const updateVisibilitySetting = async (
   value: boolean,
 ) => {
   if (settingsLoading.value || saveBusy.value) return
-  try {
-    await updateSettings({ [key]: value })
-  } catch (error) {
-    console.error('failed to save app settings', error)
-    showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
-  }
+  await runWithToast(() => updateSettings({ [key]: value }), {
+    fallback: t('components.general.messages.saveFailed'),
+  })
 }
 
 const onHeatmapChange = (event: Event) => {
@@ -61,12 +57,9 @@ const onHomeTitleChange = (event: Event) => {
 const onProxyToggle = async (event: Event) => {
   const target = event.target as HTMLInputElement | null
   if (settingsLoading.value || saveBusy.value) return
-  try {
-    await updateSettings({ proxy_enabled: Boolean(target?.checked) })
-  } catch (error) {
-    console.error('failed to save proxy settings', error)
-    showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
-  }
+  await runWithToast(() => updateSettings({ proxy_enabled: Boolean(target?.checked) }), {
+    fallback: t('components.general.messages.saveFailed'),
+  })
 }
 
 const PROXY_PREFIXES = ['http://', 'https://', 'socks5://', 'socks5h://']
@@ -74,42 +67,34 @@ const PROXY_PREFIXES = ['http://', 'https://', 'socks5://', 'socks5h://']
 const onProxySave = async () => {
   const raw = proxyInput.value.trim()
   if (raw && !PROXY_PREFIXES.some(p => raw.startsWith(p))) {
-    proxyError.value = 'URL must start with http://, https://, socks5://, or socks5h://'
+    proxyError.value = t('components.general.messages.invalidProxyUrl')
     return
   }
   proxyError.value = ''
   if (settingsLoading.value || saveBusy.value) return
-  try {
-    await updateSettings({ proxy_url: raw })
-  } catch (error) {
-    console.error('failed to save proxy URL', error)
-    showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
-  }
+  await runWithToast(() => updateSettings({ proxy_url: raw }), {
+    fallback: t('components.general.messages.saveFailed'),
+  })
 }
 
 const onProxyClear = async () => {
   proxyInput.value = ''
   proxyError.value = ''
   if (settingsLoading.value || saveBusy.value) return
-  try {
-    await updateSettings({ proxy_url: '' })
-  } catch (error) {
-    console.error('failed to clear proxy URL', error)
-    showToast(getErrorMessage(error, t('components.general.messages.saveFailed')), 'error')
-  }
+  await runWithToast(() => updateSettings({ proxy_url: '' }), {
+    fallback: t('components.general.messages.saveFailed'),
+  })
 }
 
 const reloadApplicationSettings = () => {
-  void loadSettings(true).catch((error) => {
-    console.error('failed to reload app settings', error)
-    showToast(getErrorMessage(error, t('components.general.messages.loadFailed')), 'error')
+  void runWithToast(() => loadSettings(true), {
+    fallback: t('components.general.messages.loadFailed'),
   })
 }
 
 onMounted(() => {
-  void loadSettings().catch((error) => {
-    console.error('failed to load app settings', error)
-    showToast(getErrorMessage(error, t('components.general.messages.loadFailed')), 'error')
+  void runWithToast(() => loadSettings(), {
+    fallback: t('components.general.messages.loadFailed'),
   })
 })
 </script>

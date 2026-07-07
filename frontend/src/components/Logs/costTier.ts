@@ -1,33 +1,18 @@
 import type { LogCostTier, RequestLog } from '../../services/logs'
 
-export const COST_TIER_OPTIONS = ['all', 'low', 'medium', 'high'] as const
-
 export type CostTier = LogCostTier
-type PricedCostTier = Exclude<CostTier, 'all'>
 
-const classifyPricedCostTier = (
-  log: Pick<RequestLog, 'has_pricing' | 'total_cost'>,
-): PricedCostTier | '' => {
-  if (!log.has_pricing) return ''
-  if (log.total_cost < 0.1) return 'low'
-  if (log.total_cost > 0.5) return 'high'
-  return 'medium'
-}
-
-export const matchesCostTier = (
-  log: Pick<RequestLog, 'has_pricing' | 'total_cost'>,
-  selectedTier: CostTier,
-): boolean => {
-  if (selectedTier === 'all') return true
-  return classifyPricedCostTier(log) === selectedTier
-}
-
-export const getCostValueClass = (
-  log: Pick<RequestLog, 'has_pricing' | 'total_cost'>,
-): string => {
-  const tier = classifyPricedCostTier(log)
-  if (tier === 'low') return 'token-cost-low'
-  if (tier === 'high') return 'token-cost-high'
-  if (tier === 'medium') return 'token-cost-medium'
-  return ''
+// 费用档位（0.1/0.5 阈值）只在后端计算一份，随日志的 cost_tier 字段下发；
+// 前端仅把档位映射为着色 class，不再复写阈值。
+export const getCostValueClass = (log: Pick<RequestLog, 'cost_tier'>): string => {
+  switch (log.cost_tier) {
+    case 'low':
+      return 'token-cost-low'
+    case 'medium':
+      return 'token-cost-medium'
+    case 'high':
+      return 'token-cost-high'
+    default:
+      return ''
+  }
 }

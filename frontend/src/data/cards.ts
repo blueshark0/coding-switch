@@ -1,18 +1,8 @@
-export type AutomationCard = {
-  id: number
-  name: string
-  apiUrl: string
-  apiKey: string
-  officialSite: string
-  icon: string
-  tint: string
-  accent: string
-  supportedModels?: Record<string, boolean>
-  modelMapping?: Record<string, string>
-  requestBodyReplacements?: RequestBodyReplacement[]
-  proxyMode?: string
-  proxyUrl?: string
-}
+import type { ProviderRecord } from '../services/providers'
+
+// 以 bindings 生成的 ProviderRecord 为单一事实来源派生，后端 Provider
+// 新增字段时这里自动跟进，不再手写第二份字段清单。
+export type AutomationCard = Omit<ProviderRecord, 'position'>
 
 export type RequestBodyReplacement = {
   path: string
@@ -105,5 +95,6 @@ export function createAutomationCards(data: AutomationCard[] = []): AutomationCa
     supportedModels: { ...(item.supportedModels ?? {}) },
     proxyMode: item.proxyMode ?? '',
     proxyUrl: item.proxyUrl ?? '',
+    insecureSkipVerify: item.insecureSkipVerify ?? false,
   }))
 }

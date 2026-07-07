@@ -8,11 +8,9 @@ import (
 	appdesktop "codeswitch/internal/app/desktop"
 	configsyncapp "codeswitch/internal/configsync/application"
 	configsyncinfra "codeswitch/internal/configsync/infrastructure"
-	hotkeyapp "codeswitch/internal/hotkeys/application"
 	hotkeyinfra "codeswitch/internal/hotkeys/infrastructure"
 	relayhttp "codeswitch/internal/interfaces/http/relay"
 	facades "codeswitch/internal/interfaces/wails"
-	observabilityapp "codeswitch/internal/observability/application"
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	platformproxyapp "codeswitch/internal/platformproxy/application"
 	platformproxyinfra "codeswitch/internal/platformproxy/infrastructure"
@@ -22,7 +20,6 @@ import (
 	sessioninfra "codeswitch/internal/sessions/infrastructure"
 	"codeswitch/internal/shared/kernel"
 	"codeswitch/internal/shared/logging"
-	storagebootstrap "codeswitch/internal/shared/storage/bootstrap"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/dock"
@@ -47,7 +44,7 @@ type Container struct {
 
 func Initialize(appVersion string) (*Container, error) {
 	logFile := logging.Setup()
-	if err := storagebootstrap.NewInitializer().Initialize(); err != nil {
+	if err := NewInitializer().Initialize(); err != nil {
 		if logFile != nil {
 			_ = logFile.Close()
 		}
@@ -66,7 +63,19 @@ func Initialize(appVersion string) (*Container, error) {
 	sessionRepo := sessioninfra.NewSQLiteRepository("")
 	sessionService := sessionapp.NewService(sessionRepo)
 	routingService := routingapp.NewService(routinginfra.NewSQLiteStore())
-	relayServer := relayhttp.NewServer(routingService, sessionService, ":18100")
+	// 仅监听回环地址：绑定 0.0.0.0 会让同一局域网任意主机免费使用已配置的付费 API key。
+	relayServer := relayhttp.NewServer(routingService, sessionService, "127.0.0.1:18100", relayhttp.Options{
+		SessionCache:   sessioninfra.NewCache(sessionService),
+		RequestLogSink: &observabilityinfra.RequestLogWriter{},
+		TokenParserFor: func(platform kernel.Platform) relayhttp.TokenUsageParser {
+			return observabilityinfra.GetTokenParser(platform)
+		},
+		RetentionCleanup: func() error {
+			return observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays)
+		},
+	})
+	// 偏好保存（含 configsync 快照恢复）后由 application 层统一推送代理配置到 relay。
+	routingService.RegisterProxyConfigSink(relayServer)
 	platformProxyService := platformproxyapp.NewService(map[kernel.Platform]platformproxyapp.Manager{
 		kernel.PlatformClaude: platformproxyinfra.NewClaudeManager(relayServer.Addr()),
 		kernel.PlatformCodex:  platformproxyinfra.NewCodexManager(relayServer.Addr()),
@@ -83,12 +92,12 @@ func Initialize(appVersion string) (*Container, error) {
 		logFile:       logFile,
 		relayServer:   relayServer,
 		cleanupRunner: sessionapp.NewCleanupRunner(sessionService, defaultSessionCleanupInterval),
-		hotkeyService: facades.NewHotkeyFacade(hotkeyapp.NewService(hotkeyStore)),
+		hotkeyService: facades.NewHotkeyFacade(hotkeyStore),
 		logsWindow:    logsWindow,
-		routingFacade: facades.NewRoutingFacade(routingService, relayServer),
+		routingFacade: facades.NewRoutingFacade(routingService),
 		syncFacade:    facades.NewConfigSyncFacade(configSyncService),
 		sessionFacade: facades.NewSessionFacade(sessionService),
-		obsFacade:     facades.NewObservabilityFacade(observabilityapp.NewService(observabilityinfra.NewSQLiteQueries())),
+		obsFacade:     facades.NewObservabilityFacade(observabilityinfra.NewSQLiteQueries()),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),
 		dockService:   dock.New(),
 	}, nil

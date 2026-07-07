@@ -27,41 +27,17 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeK
 		options = append(options, xdb.WhereEq("provider", provider))
 	}
 
-	normalizedCostTier := normalizeRequestLogCostTier(costTier)
-	if normalizedCostTier == requestLogCostTierAll {
-		total, records, err := requestLogModel().Page(page, pageSize, append(options, xdb.OrderByDesc("id"))...)
-		if err != nil {
-			if isNoSuchTableErr(err) {
-				return result, nil
-			}
-			return result, err
-		}
-		result.Total = total
-		result.Items = q.requestLogsFromRecords(records)
-		return result, nil
-	}
+	options = append(options, costTierWhereOptions(normalizeRequestLogCostTier(costTier))...)
 
-	records, err := requestLogModel().Selects(append(options, xdb.OrderByDesc("id"))...)
+	total, records, err := requestLogModel().Page(page, pageSize, append(options, xdb.OrderByDesc("id"))...)
 	if err != nil {
 		if isNoSuchTableErr(err) {
 			return result, nil
 		}
 		return result, err
 	}
-
-	filteredLogs := make([]observabilitydomain.RequestLog, 0, len(records))
-	for _, logEntry := range q.requestLogsFromRecords(records) {
-		if matchesRequestLogCostTier(logEntry, normalizedCostTier) {
-			filteredLogs = append(filteredLogs, logEntry)
-		}
-	}
-	result.Total = int64(len(filteredLogs))
-	start := (page - 1) * pageSize
-	if start >= len(filteredLogs) {
-		return result, nil
-	}
-	end := min(start+pageSize, len(filteredLogs))
-	result.Items = filteredLogs[start:end]
+	result.Total = total
+	result.Items = q.requestLogsFromRecords(records)
 	return result, nil
 }
 

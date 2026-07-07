@@ -2,10 +2,7 @@ package kernel
 
 import (
 	"fmt"
-	"strings"
 	"time"
-
-	"github.com/tidwall/gjson"
 )
 
 type Platform string
@@ -50,39 +47,4 @@ func (p Platform) SessionTimeout() time.Duration {
 	default:
 		return 5 * time.Minute
 	}
-}
-
-func (p Platform) ExtractSessionID(headers map[string]string, bodyBytes []byte) string {
-	switch p {
-	case PlatformClaude:
-		return gjson.GetBytes(bodyBytes, "metadata.user_id").String()
-	case PlatformCodex:
-		if sessionID := headerValue(headers, "session-id"); sessionID != "" {
-			return sessionID
-		}
-		return headerValue(headers, "session_id")
-	case PlatformGemini:
-		if sessionID := headerValue(headers, "x-gemini-api-privileged-user-id"); sessionID != "" {
-			return sessionID
-		}
-		return headerValue(headers, "x-session-id")
-	default:
-		return ""
-	}
-}
-
-func headerValue(headers map[string]string, name string) string {
-	if headers == nil {
-		return ""
-	}
-	if value, ok := headers[name]; ok {
-		return value
-	}
-	target := strings.ToLower(name)
-	for key, value := range headers {
-		if strings.ToLower(key) == target {
-			return value
-		}
-	}
-	return ""
 }

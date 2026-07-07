@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -178,20 +177,9 @@ func (s *Service) ApplySnapshot(ctx context.Context, snapshot configsyncdomain.B
 	if err := validateBackendSnapshot(snapshot); err != nil {
 		return err
 	}
-
-	if _, err := s.routing.SaveAppPreferences(ctx, snapshot.AppPreferences); err != nil {
-		return err
-	}
-	if _, err := s.routing.ReplaceProfile(ctx, snapshot.ClaudeProfile); err != nil {
-		return err
-	}
-	if _, err := s.routing.ReplaceProfile(ctx, snapshot.CodexProfile); err != nil {
-		return err
-	}
-	if _, err := s.routing.ReplaceProfile(ctx, snapshot.GeminiProfile); err != nil {
-		return err
-	}
-	return nil
+	// 单事务替换：任一平台失败都不能留下半应用的混合配置。
+	return s.routing.ReplaceAll(ctx, snapshot.AppPreferences,
+		snapshot.ClaudeProfile, snapshot.CodexProfile, snapshot.GeminiProfile)
 }
 
 func (s *Service) buildSnapshot(ctx context.Context, ui configsyncdomain.UIPreferences) (configsyncdomain.ConfigSnapshot, error) {
@@ -329,9 +317,6 @@ func validateBackendSnapshot(snapshot configsyncdomain.BackendSnapshot) error {
 	for platform, profile := range expected {
 		if profile.Platform != platform {
 			return fmt.Errorf("云端配置缺少 %s 平台数据", platform.String())
-		}
-		if _, err := json.Marshal(profile); err != nil {
-			return fmt.Errorf("云端 %s 配置损坏: %w", platform.String(), err)
 		}
 	}
 	return nil

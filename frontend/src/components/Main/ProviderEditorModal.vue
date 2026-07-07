@@ -90,6 +90,16 @@
       </label>
 
       <div class="form-field">
+        <label class="insecure-tls-option">
+          <input type="checkbox" v-model="form.insecureSkipVerify" />
+          <span>{{ t('components.main.form.labels.insecureSkipVerify') }}</span>
+        </label>
+        <p v-if="form.insecureSkipVerify" class="insecure-tls-warning">
+          {{ t('components.main.form.insecureSkipVerifyWarning') }}
+        </p>
+      </div>
+
+      <div class="form-field">
         <span>{{ t('components.main.form.labels.icon') }}</span>
         <Listbox v-model="form.icon" v-slot="{ open: optionsOpen }">
           <div class="icon-select">

@@ -1,24 +1,33 @@
 package kernel
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
-func TestPlatformExtractSessionIDCodexPrefersHyphenatedHeader(t *testing.T) {
-	headers := map[string]string{
-		"session-id": "session-new",
-		"session_id": "session-old",
+func TestParsePlatform(t *testing.T) {
+	for _, valid := range []string{"claude", "codex", "gemini"} {
+		platform, err := ParsePlatform(valid)
+		if err != nil {
+			t.Fatalf("ParsePlatform(%q): %v", valid, err)
+		}
+		if platform.String() != valid {
+			t.Fatalf("ParsePlatform(%q) = %q", valid, platform)
+		}
 	}
-
-	if got := PlatformCodex.ExtractSessionID(headers, nil); got != "session-new" {
-		t.Fatalf("unexpected session id: %s", got)
+	if _, err := ParsePlatform("openai"); err == nil {
+		t.Fatal("expected unknown platform to be rejected")
 	}
 }
 
-func TestPlatformExtractSessionIDCodexFallsBackToLegacyHeader(t *testing.T) {
-	headers := map[string]string{
-		"session_id": "session-old",
+func TestSessionTimeoutPerPlatform(t *testing.T) {
+	if got := PlatformClaude.SessionTimeout(); got != 5*time.Minute {
+		t.Fatalf("claude timeout = %v", got)
 	}
-
-	if got := PlatformCodex.ExtractSessionID(headers, nil); got != "session-old" {
-		t.Fatalf("unexpected session id: %s", got)
+	if got := PlatformCodex.SessionTimeout(); got != 15*time.Minute {
+		t.Fatalf("codex timeout = %v", got)
+	}
+	if got := PlatformGemini.SessionTimeout(); got != 60*time.Minute {
+		t.Fatalf("gemini timeout = %v", got)
 	}
 }

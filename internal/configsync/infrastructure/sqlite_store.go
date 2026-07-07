@@ -3,7 +3,6 @@ package infrastructure
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	configsyncdomain "codeswitch/internal/configsync/domain"
 	"codeswitch/internal/shared/storage"
@@ -52,37 +51,14 @@ func (s *SQLiteStore) EnsureSchema() error {
 }
 
 func ensureSyncSettingsColumns(db *sql.DB) error {
-	columns := []struct {
-		name       string
-		definition string
-	}{
-		{name: "endpoint", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "username", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "app_password", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "remote_path", definition: "TEXT NOT NULL DEFAULT '/CodeSwitch'"},
-		{name: "sync_passphrase", definition: "TEXT NOT NULL DEFAULT ''"},
-		{name: "updated_at", definition: "DATETIME"},
-	}
-	for _, column := range columns {
-		var count int
-		if err := db.QueryRow(
-			"SELECT COUNT(*) FROM pragma_table_info('sync_settings') WHERE name = ?",
-			column.name,
-		).Scan(&count); err != nil {
-			return fmt.Errorf("query sync_settings.%s: %w", column.name, err)
-		}
-		if count > 0 {
-			continue
-		}
-		if _, err := db.Exec(fmt.Sprintf(
-			"ALTER TABLE sync_settings ADD COLUMN %s %s",
-			column.name,
-			column.definition,
-		)); err != nil {
-			return fmt.Errorf("add sync_settings.%s: %w", column.name, err)
-		}
-	}
-	return nil
+	return storage.EnsureColumns(db, "sync_settings", []storage.ColumnDef{
+		{Name: "endpoint", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "username", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "app_password", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "remote_path", Definition: "TEXT NOT NULL DEFAULT '/CodeSwitch'"},
+		{Name: "sync_passphrase", Definition: "TEXT NOT NULL DEFAULT ''"},
+		{Name: "updated_at", Definition: "DATETIME"},
+	})
 }
 
 func (s *SQLiteStore) GetSettings(ctx context.Context) (configsyncdomain.SyncSettings, error) {

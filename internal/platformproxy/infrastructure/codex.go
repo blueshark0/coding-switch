@@ -59,14 +59,22 @@ func (m *CodexManager) EnableProxy() error {
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		return err
 	}
+	// 已处于代理状态时跳过备份：重复 Enable 会用已代理内容覆盖唯一备份，
+	// 导致用户原始配置永久丢失。
+	alreadyProxied := false
+	if status, statusErr := m.ProxyStatus(); statusErr == nil {
+		alreadyProxied = status.Enabled
+	}
 	var raw map[string]any
 	if _, err := os.Stat(settingsPath); err == nil {
 		content, readErr := os.ReadFile(settingsPath)
 		if readErr != nil {
 			return readErr
 		}
-		if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-			return err
+		if !alreadyProxied {
+			if err := os.WriteFile(backupPath, content, 0o600); err != nil {
+				return err
+			}
 		}
 		if err := toml.Unmarshal(content, &raw); err != nil {
 			return err
@@ -78,13 +86,17 @@ func (m *CodexManager) EnableProxy() error {
 		raw = make(map[string]any)
 	}
 	raw["model_provider"] = codexProviderKey
-	modelProviders := make(map[string]map[string]any)
-	provider := make(map[string]any)
-	provider["name"] = codexProviderKey
-	provider["base_url"] = m.baseURL()
-	provider["wire_api"] = codexWireAPI
-	provider["requires_openai_auth"] = false
-	modelProviders[codexProviderKey] = provider
+	// 合并而非整表覆盖 model_providers，保留用户自定义的其他 provider。
+	modelProviders := make(map[string]any)
+	if existing, ok := raw["model_providers"].(map[string]any); ok {
+		modelProviders = existing
+	}
+	modelProviders[codexProviderKey] = map[string]any{
+		"name":                 codexProviderKey,
+		"base_url":             m.baseURL(),
+		"wire_api":             codexWireAPI,
+		"requires_openai_auth": false,
+	}
 	raw["model_providers"] = modelProviders
 	data, err := toml.Marshal(raw)
 	if err != nil {
@@ -93,7 +105,7 @@ func (m *CodexManager) EnableProxy() error {
 	if err := os.WriteFile(settingsPath, stripModelProvidersHeader(data), 0o600); err != nil {
 		return err
 	}
-	return m.writeAuthFile()
+	return m.writeAuthFile(alreadyProxied)
 }
 
 func (m *CodexManager) DisableProxy() error {
@@ -174,7 +186,7 @@ func stripModelProvidersHeader(data []byte) []byte {
 	return []byte(strings.Join(result, "\n"))
 }
 
-func (m *CodexManager) writeAuthFile() error {
+func (m *CodexManager) writeAuthFile(alreadyProxied bool) error {
 	authPath, backupPath, err := m.authPaths()
 	if err != nil {
 		return err
@@ -182,7 +194,7 @@ func (m *CodexManager) writeAuthFile() error {
 	if err := os.MkdirAll(filepath.Dir(authPath), 0o755); err != nil {
 		return err
 	}
-	if _, err := os.Stat(authPath); err == nil {
+	if _, err := os.Stat(authPath); err == nil && !alreadyProxied {
 		content, readErr := os.ReadFile(authPath)
 		if readErr != nil {
 			return readErr

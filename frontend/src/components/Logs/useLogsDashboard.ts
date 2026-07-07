@@ -15,8 +15,7 @@ import {
 } from '../../services/logs'
 import { useLogsPresentation } from './useLogsPresentation'
 import type { CostTier } from './costTier'
-
-type TranslateFn = (key: string, named?: Record<string, unknown>) => string
+import type { TranslateFn } from '../../types/i18n'
 
 type UseLogsDashboardOptions = {
   getCssVarValue: (name: string, fallback: string) => string

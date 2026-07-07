@@ -28,10 +28,13 @@ func NewSQLiteStore() (*SQLiteStore, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := sql.Open("sqlite", storage.SQLiteDSN(dbPath))
 	if err != nil {
 		return nil, err
 	}
+	// 与其他库保持一致的单写者模型：无连接上限时并发写同一 SQLite 文件
+	// 会直接得到 database is locked。
+	db.SetMaxOpenConns(1)
 	store := &SQLiteStore{db: db}
 	if err := store.ensureSchema(); err != nil {
 		_ = db.Close()

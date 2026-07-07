@@ -5,7 +5,7 @@ import {
   DEFAULT_HEATMAP_DAYS,
   generateFallbackUsageHeatmap,
   type UsageHeatmapWeek,
-} from '../../data/usageHeatmap'
+} from '../../utils/usageHeatmap'
 import { providerTabIds, type ProviderTab } from '../../constants/platforms'
 import { disableProxy, enableProxy, fetchProxyStatus } from '../../services/claudeSettings'
 import {
@@ -13,11 +13,12 @@ import {
   fetchProviderDailyStats,
   type ProviderDailyStat,
 } from '../../services/logs'
-import type { LocaleRef, ProviderStatDisplay, TranslateFn } from './types'
+import { formatUsd } from '../../utils/currency'
+import { runWithToast } from '../../utils/runWithToast'
+import type { ProviderStatDisplay, TranslateFn } from './types'
 
 type UseProviderStatsOptions = {
   activeTab: ComputedRef<ProviderTab>
-  locale: LocaleRef
   t: TranslateFn
 }
 
@@ -41,7 +42,7 @@ const clamp = (value: number, min: number, max: number) => {
 const formatMetric = (value: number) => value.toLocaleString()
 const normalizeProviderKey = (value: string) => value?.trim().toLowerCase() ?? ''
 
-export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptions) => {
+export const useProviderStats = ({ activeTab, t }: UseProviderStatsOptions) => {
   const usageHeatmap = ref<UsageHeatmapWeek[]>(generateFallbackUsageHeatmap(HEATMAP_DAYS))
 
   const proxyStates = reactive(createTabRecord(false))
@@ -56,16 +57,6 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
   let providerStatsTimer: number | undefined
   const providerStatsRequests = createTabRecord<Promise<void> | null>(null)
 
-  const currencyFormatter = computed(
-    () =>
-      new Intl.NumberFormat(locale.value || 'en', {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-  )
-
   const activeProxyState = computed(() => proxyStates[activeTab.value])
   const activeProxyBusy = computed(() => proxyBusy[activeTab.value])
   const currentProxyLabel = computed(() => {
@@ -78,15 +69,15 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
     return t('components.main.relayToggle.hostGemini')
   })
 
-  const loadUsageHeatmap = async () => {
-    try {
-      const rangeDays = calculateHeatmapDayRange(HEATMAP_DAYS)
-      const stats = await fetchHeatmapStats(rangeDays)
-      usageHeatmap.value = buildUsageHeatmapMatrix(stats, HEATMAP_DAYS)
-    } catch (error) {
-      console.error('Failed to load usage heatmap stats', error)
-    }
-  }
+  const loadUsageHeatmap = () =>
+    runWithToast(
+      async () => {
+        const rangeDays = calculateHeatmapDayRange(HEATMAP_DAYS)
+        const stats = await fetchHeatmapStats(rangeDays)
+        usageHeatmap.value = buildUsageHeatmapMatrix(stats, HEATMAP_DAYS)
+      },
+      { fallback: t('components.main.heatmap.loadFailed') },
+    )
 
   const refreshProxyState = async (tab: ProviderTab) => {
     try {
@@ -193,7 +184,7 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
       state: 'ready',
       requests: `${t('components.main.providers.requests')}: ${formatMetric(stat.total_requests)}`,
       tokens: `${t('components.main.providers.tokens')}: ${formatMetric(totalTokens)}`,
-      cost: `${t('components.main.providers.cost')}: ${currencyFormatter.value.format(Math.max(stat.cost_total, 0))}`,
+      cost: `${t('components.main.providers.cost')}: ${formatUsd(Math.max(stat.cost_total, 0))}`,
       successRateLabel:
         successRateValue !== null ? formatSuccessRateLabel(successRateValue) : '',
       successRateClass:
@@ -207,18 +198,19 @@ export const useProviderStats = ({ activeTab, locale, t }: UseProviderStatsOptio
 
     proxyBusy[tab] = true
     const nextState = !proxyStates[tab]
-    try {
-      if (nextState) {
-        await enableProxy(tab)
-      } else {
-        await disableProxy(tab)
-      }
-      proxyStates[tab] = nextState
-    } catch (error) {
-      console.error(`Failed to toggle proxy for ${tab}`, error)
-    } finally {
-      proxyBusy[tab] = false
-    }
+    // 失败必须给出可见反馈：静默失败时开关弹回但用户不知道原因。
+    await runWithToast(
+      async () => {
+        if (nextState) {
+          await enableProxy(tab)
+        } else {
+          await disableProxy(tab)
+        }
+        proxyStates[tab] = nextState
+      },
+      { fallback: t('components.main.relayToggle.toggleFailed') },
+    )
+    proxyBusy[tab] = false
   }
 
   onUnmounted(() => {

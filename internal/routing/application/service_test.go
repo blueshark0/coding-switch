@@ -33,6 +33,13 @@ func (r *routingRepoStub) SaveAppPreferences(_ context.Context, preferences doma
 	return preferences, nil
 }
 
+func (r *routingRepoStub) ReplaceAll(_ context.Context, _ domain.AppPreferences, profiles []domain.RouteProfile) error {
+	for _, profile := range profiles {
+		r.profiles[profile.Platform] = profile.Normalize()
+	}
+	return nil
+}
+
 func TestServiceGetProfileUsesCache(t *testing.T) {
 	repo := &routingRepoStub{
 		profiles: map[kernel.Platform]domain.RouteProfile{

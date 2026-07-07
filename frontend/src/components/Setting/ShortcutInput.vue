@@ -163,7 +163,7 @@ const placeholderText = computed(() => t('components.shortcut.placeholder'))
       type="button"
       class="mac-shortcut-clear"
       @click.stop="clearAll"
-      aria-label="Clear shortcut"
+      :aria-label="$t('components.shortcut.clearAriaLabel')"
     >
       ✕
     </button>

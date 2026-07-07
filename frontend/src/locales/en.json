@@ -9,6 +9,9 @@
     "shortcut": "Shortcut key"
   },
   "components": {
+    "common": {
+      "close": "Close"
+    },
     "provider": {
       "modelWhitelist": {
         "label": "Supported Models",
@@ -60,6 +63,7 @@
       },
       "heatmap": {
         "ariaLabel": "Daily compute consumption heatmap",
+        "loadFailed": "Failed to load heatmap data",
         "legendLow": "Low",
         "legendHigh": "High",
         "cellTitle": "{label}: {count} requests",
@@ -82,7 +86,8 @@
         "hostGemini": "Host Gemini",
         "tooltip": "Route traffic through the local relay to manage API keys centrally.",
         "statusOn": "Managed",
-        "statusOff": "Not managed"
+        "statusOff": "Not managed",
+        "toggleFailed": "Failed to toggle relay"
       },
       "logs": {
         "view": "View logs",
@@ -134,13 +139,15 @@
           "officialSite": "Official site",
           "icon": "Icon",
           "proxyMode": "Proxy mode",
-          "proxyUrl": "Proxy URL"
+          "proxyUrl": "Proxy URL",
+          "insecureSkipVerify": "Skip TLS certificate verification (insecure)"
         },
         "proxyMode": {
           "inherit": "Follow global",
           "custom": "Custom proxy",
           "direct": "No proxy"
         },
+        "insecureSkipVerifyWarning": "For local intercepting-proxy debugging only: requests to this provider will no longer verify server certificates, letting a man-in-the-middle steal your API key and all conversation content",
         "placeholders": {
           "name": "e.g. AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
@@ -277,7 +284,8 @@
       },
       "messages": {
         "loadFailed": "Failed to load settings",
-        "saveFailed": "Failed to save settings, please try again."
+        "saveFailed": "Failed to save settings, please try again.",
+        "invalidProxyUrl": "Proxy URL must start with http://, https://, socks5://, or socks5h://"
       },
       "sync": {
         "hint": "Sync provider configuration and appearance preferences to a WebDAV server. Data is end-to-end encrypted with your sync passphrase before upload.",
@@ -349,7 +357,8 @@
         "failed": "Failed to save shortcut",
         "invalid": "Invalid combination, include a modifier"
       },
-      "placeholder": "Press keys to record"
+      "placeholder": "Press keys to record",
+      "clearAriaLabel": "Clear shortcut"
     },
     "sessions": {
       "hero": {

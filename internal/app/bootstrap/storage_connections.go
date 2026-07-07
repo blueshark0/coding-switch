@@ -1,8 +1,6 @@
 package bootstrap
 
 import (
-	"fmt"
-
 	"codeswitch/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
@@ -48,5 +46,5 @@ func (i *Initializer) initConnections() error {
 }
 
 func sqliteDSN(path string) string {
-	return fmt.Sprintf("%s?cache=shared&mode=rwc&_journal_mode=WAL&_busy_timeout=15000", path)
+	return storage.SQLiteDSN(path)
 }

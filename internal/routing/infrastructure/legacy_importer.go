@@ -17,10 +17,17 @@ import (
 
 type LegacyImporter struct {
 	store *SQLiteStore
+	// appDir 为旧配置目录；为空时回退到 storage.AppDataDir()（默认行为）。
+	appDir string
 }
 
 func NewLegacyImporter(store *SQLiteStore) *LegacyImporter {
 	return &LegacyImporter{store: store}
+}
+
+// NewLegacyImporterWithDir 允许注入旧配置目录，便于测试。
+func NewLegacyImporterWithDir(store *SQLiteStore, appDir string) *LegacyImporter {
+	return &LegacyImporter{store: store, appDir: appDir}
 }
 
 func (i *LegacyImporter) EnsureImported(ctx context.Context) error {
@@ -35,7 +42,7 @@ func (i *LegacyImporter) EnsureImported(ctx context.Context) error {
 		return nil
 	}
 
-	appDir, err := legacyAppDir()
+	appDir, err := i.legacyAppDir()
 	if err != nil {
 		return err
 	}
@@ -148,7 +155,10 @@ func (s legacyAppSettings) DefaultProviderName(platform kernel.Platform) string 
 	}
 }
 
-func legacyAppDir() (string, error) {
+func (i *LegacyImporter) legacyAppDir() (string, error) {
+	if i.appDir != "" {
+		return i.appDir, nil
+	}
 	return storage.AppDataDir()
 }
 

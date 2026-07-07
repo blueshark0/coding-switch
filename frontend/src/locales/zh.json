@@ -9,6 +9,9 @@
     "about": "关于"
   },
   "components": {
+    "common": {
+      "close": "关闭"
+    },
     "home": {},
     "provider": {
       "modelWhitelist": {
@@ -61,6 +64,7 @@
       },
       "heatmap": {
         "ariaLabel": "每日算力消耗热力图",
+        "loadFailed": "热力图数据加载失败",
         "legendLow": "低",
         "legendHigh": "高",
         "cellTitle": "{label}：{count} 次请求",
@@ -83,7 +87,8 @@
         "hostGemini": "托管 Gemini",
         "tooltip": "通过本地转发托管 API 访问，统一管理密钥与配额。",
         "statusOn": "已托管",
-        "statusOff": "未托管"
+        "statusOff": "未托管",
+        "toggleFailed": "切换托管状态失败"
       },
       "logs": {
         "view": "查看日志",
@@ -135,13 +140,15 @@
           "officialSite": "官网地址",
           "icon": "图标",
           "proxyMode": "代理模式",
-          "proxyUrl": "代理地址"
+          "proxyUrl": "代理地址",
+          "insecureSkipVerify": "跳过 TLS 证书校验（不安全）"
         },
         "proxyMode": {
           "inherit": "跟随全局",
           "custom": "自定义代理",
           "direct": "禁用代理"
         },
+        "insecureSkipVerifyWarning": "仅用于本地抓包代理调试：开启后该供应商的请求不再校验服务器证书，中间人可窃取 API 密钥与全部对话内容",
         "placeholders": {
           "name": "例如：AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
@@ -278,7 +285,8 @@
       },
       "messages": {
         "loadFailed": "加载设置失败",
-        "saveFailed": "保存设置失败，请重试。"
+        "saveFailed": "保存设置失败，请重试。",
+        "invalidProxyUrl": "代理地址必须以 http://、https://、socks5:// 或 socks5h:// 开头"
       },
       "sync": {
         "hint": "通过 WebDAV 将供应商配置与外观偏好同步到云端。配置在本地通过同步口令端到端加密，云端服务商无法读取明文。",
@@ -350,7 +358,8 @@
         "failed": "快捷键保存失败",
         "invalid": "组合无效，请包含修饰键"
       },
-      "placeholder": "点击并按下组合键"
+      "placeholder": "点击并按下组合键",
+      "clearAriaLabel": "清除快捷键"
     },
     "sessions": {
       "hero": {

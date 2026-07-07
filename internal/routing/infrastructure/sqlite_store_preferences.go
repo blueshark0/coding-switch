@@ -40,7 +40,20 @@ func (s *SQLiteStore) SaveAppPreferences(ctx context.Context, preferences domain
 	if err != nil {
 		return domain.AppPreferences{}, err
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO app_preferences(id, show_heatmap, show_home_title, proxy_enabled, proxy_url, updated_at)
+	if err := saveAppPreferencesIn(ctx, db, preferences); err != nil {
+		return domain.AppPreferences{}, err
+	}
+	return s.GetAppPreferences(ctx)
+}
+
+// execer 抽象 *sql.DB 与 *sql.Tx 的公共执行面，让偏好写入既可独立执行
+// 也可参与 ReplaceAll 的单事务。
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func saveAppPreferencesIn(ctx context.Context, db execer, preferences domain.AppPreferences) error {
+	_, err := db.ExecContext(ctx, `INSERT INTO app_preferences(id, show_heatmap, show_home_title, proxy_enabled, proxy_url, updated_at)
 			VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
 			ON CONFLICT(id) DO UPDATE SET
 				show_heatmap = excluded.show_heatmap,
@@ -52,8 +65,6 @@ func (s *SQLiteStore) SaveAppPreferences(ctx context.Context, preferences domain
 		boolToInt(preferences.ShowHomeTitle),
 		boolToInt(preferences.ProxyEnabled),
 		preferences.ProxyURL,
-	); err != nil {
-		return domain.AppPreferences{}, err
-	}
-	return s.GetAppPreferences(ctx)
+	)
+	return err
 }

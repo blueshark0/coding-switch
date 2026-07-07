@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	sessionapp "codeswitch/internal/sessions/application"
@@ -24,7 +25,12 @@ type sessionCacheEntry struct {
 	generation       uint64
 }
 
+// Cache 的 entry 会被 gin 请求 goroutine、sessionUpdateWorker 后台 goroutine
+// 与 Wails UI goroutine（Unbind→InvalidateSession）并发读写；lru.Cache 只保证
+// 自身 Get/Add 线程安全，entry 字段的读改写必须由 mu 统一串行化。
+// 公开方法负责加锁，内部一律走 *Locked 无锁版本（sync.Mutex 不可重入）。
 type Cache struct {
+	mu      sync.Mutex
 	cache   *lru.Cache[string, *sessionCacheEntry]
 	service *sessionapp.Service
 }
@@ -58,6 +64,9 @@ func (sc *Cache) GetSessionProviderSnapshot(platform, sessionID string) (string,
 	if sessionID == "" {
 		return "", 0, nil
 	}
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
 	key := sc.cacheKey(platform, sessionID)
 	generation := uint64(0)
 	if sc.cache != nil {
@@ -97,14 +106,19 @@ func (sc *Cache) GetSessionProviderSnapshot(platform, sessionID string) (string,
 }
 
 func (sc *Cache) BindSessionToProvider(platform, sessionID, providerName string) error {
-	return sc.BindSessionToProviderGeneration(platform, sessionID, providerName, sc.SessionGeneration(platform, sessionID))
+	sc.mu.Lock()
+	generation := sc.sessionGenerationLocked(platform, sessionID)
+	sc.mu.Unlock()
+	return sc.BindSessionToProviderGeneration(platform, sessionID, providerName, generation)
 }
 
 func (sc *Cache) BindSessionToProviderGeneration(platform, sessionID, providerName string, generation uint64) error {
 	if sessionID == "" || providerName == "" {
 		return nil
 	}
-	if !sc.isCurrentGeneration(platform, sessionID, generation) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
 		return nil
 	}
 	if sc.service != nil {
@@ -126,20 +140,25 @@ func (sc *Cache) BindSessionToProviderGeneration(platform, sessionID, providerNa
 }
 
 func (sc *Cache) UpdateSessionSuccess(platform, sessionID string) error {
-	return sc.UpdateSessionSuccessGeneration(platform, sessionID, sc.SessionGeneration(platform, sessionID))
+	sc.mu.Lock()
+	generation := sc.sessionGenerationLocked(platform, sessionID)
+	sc.mu.Unlock()
+	return sc.UpdateSessionSuccessGeneration(platform, sessionID, generation)
 }
 
 func (sc *Cache) UpdateSessionSuccessGeneration(platform, sessionID string, generation uint64) error {
 	if sessionID == "" {
 		return nil
 	}
-	if !sc.isCurrentGeneration(platform, sessionID, generation) {
-		sc.ClearPendingSessionSuccess(platform, sessionID)
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
+		sc.clearPendingSessionSuccessLocked(platform, sessionID)
 		return nil
 	}
 	if sc.service != nil {
 		if err := sc.service.UpdateSessionSuccess(platform, sessionID); err != nil {
-			sc.ClearPendingSessionSuccess(platform, sessionID)
+			sc.clearPendingSessionSuccessLocked(platform, sessionID)
 			return err
 		}
 	}
@@ -156,17 +175,22 @@ func (sc *Cache) UpdateSessionSuccessGeneration(platform, sessionID string, gene
 }
 
 func (sc *Cache) RecordSessionSuccess(platform, sessionID, providerName string) bool {
-	return sc.RecordSessionSuccessGeneration(platform, sessionID, providerName, sc.SessionGeneration(platform, sessionID))
+	sc.mu.Lock()
+	generation := sc.sessionGenerationLocked(platform, sessionID)
+	sc.mu.Unlock()
+	return sc.RecordSessionSuccessGeneration(platform, sessionID, providerName, generation)
 }
 
 func (sc *Cache) RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) bool {
 	if sessionID == "" {
 		return false
 	}
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 	if sc.cache == nil {
 		return true
 	}
-	if !sc.isCurrentGeneration(platform, sessionID, generation) {
+	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
 		return false
 	}
 	now := time.Now()
@@ -193,19 +217,22 @@ func (sc *Cache) RecordSessionSuccessGeneration(platform, sessionID, providerNam
 }
 
 func (sc *Cache) InvalidateSession(platform, sessionID string) {
-	if sc.cache != nil {
-		key := sc.cacheKey(platform, sessionID)
-		entry, ok := sc.cache.Get(key)
-		if !ok || entry == nil {
-			sc.cache.Add(key, &sessionCacheEntry{generation: 1})
-			return
-		}
-		entry.generation++
-		entry.providerName = ""
-		entry.lastSuccessAt = time.Time{}
-		entry.lastPersistedAt = time.Time{}
-		entry.pendingPersistAt = time.Time{}
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	if sc.cache == nil {
+		return
 	}
+	key := sc.cacheKey(platform, sessionID)
+	entry, ok := sc.cache.Get(key)
+	if !ok || entry == nil {
+		sc.cache.Add(key, &sessionCacheEntry{generation: 1})
+		return
+	}
+	entry.generation++
+	entry.providerName = ""
+	entry.lastSuccessAt = time.Time{}
+	entry.lastPersistedAt = time.Time{}
+	entry.pendingPersistAt = time.Time{}
 }
 
 func (sc *Cache) isExpired(platform string, lastSuccessAt time.Time) bool {
@@ -214,6 +241,12 @@ func (sc *Cache) isExpired(platform string, lastSuccessAt time.Time) bool {
 }
 
 func (sc *Cache) ClearPendingSessionSuccess(platform, sessionID string) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	sc.clearPendingSessionSuccessLocked(platform, sessionID)
+}
+
+func (sc *Cache) clearPendingSessionSuccessLocked(platform, sessionID string) {
 	if sc.cache == nil || sessionID == "" {
 		return
 	}
@@ -226,6 +259,12 @@ func (sc *Cache) ClearPendingSessionSuccess(platform, sessionID string) {
 }
 
 func (sc *Cache) SessionGeneration(platform, sessionID string) uint64 {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	return sc.sessionGenerationLocked(platform, sessionID)
+}
+
+func (sc *Cache) sessionGenerationLocked(platform, sessionID string) uint64 {
 	if sc.cache == nil || sessionID == "" {
 		return 0
 	}
@@ -237,17 +276,21 @@ func (sc *Cache) SessionGeneration(platform, sessionID string) uint64 {
 }
 
 func (sc *Cache) IsCurrentGeneration(platform, sessionID string, generation uint64) bool {
-	return sc.isCurrentGeneration(platform, sessionID, generation)
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+	return sc.isCurrentGenerationLocked(platform, sessionID, generation)
 }
 
-func (sc *Cache) isCurrentGeneration(platform, sessionID string, generation uint64) bool {
+func (sc *Cache) isCurrentGenerationLocked(platform, sessionID string, generation uint64) bool {
 	if sc.cache == nil || sessionID == "" {
 		return true
 	}
-	return sc.SessionGeneration(platform, sessionID) == generation
+	return sc.sessionGenerationLocked(platform, sessionID) == generation
 }
 
 func (sc *Cache) Stats() (size int, capacity int) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
 	if sc.cache == nil {
 		return 0, 0
 	}

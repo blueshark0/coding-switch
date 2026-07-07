@@ -14,6 +14,16 @@ type Repository interface {
 	SaveProfile(ctx context.Context, profile domain.RouteProfile) (domain.RouteProfile, error)
 	GetAppPreferences(ctx context.Context) (domain.AppPreferences, error)
 	SaveAppPreferences(ctx context.Context, preferences domain.AppPreferences) (domain.AppPreferences, error)
+	// ReplaceAll 在单个事务里替换偏好与全部 profile（云端快照恢复用）。
+	ReplaceAll(ctx context.Context, preferences domain.AppPreferences, profiles []domain.RouteProfile) error
+}
+
+// ProxyConfigSink 在偏好保存成功后接收最新代理配置（由 relay server 实现）。
+// 通知必须发生在 application 层："偏好持久化 ⇒ 中继立即生效"这一不变式
+// 对所有调用入口（UI facade、configsync 快照恢复）都要成立，不能只在
+// 某个 facade 里维护。
+type ProxyConfigSink interface {
+	SetProxyConfig(enabled bool, url string)
 }
 
 type Service struct {
@@ -21,6 +31,9 @@ type Service struct {
 
 	profileCacheMu sync.RWMutex
 	profileCache   map[kernel.Platform]domain.RouteProfile
+
+	proxySinkMu sync.RWMutex
+	proxySink   ProxyConfigSink
 }
 
 func NewService(repo Repository) *Service {
@@ -79,7 +92,51 @@ func (s *Service) GetAppPreferences(ctx context.Context) (domain.AppPreferences,
 }
 
 func (s *Service) SaveAppPreferences(ctx context.Context, preferences domain.AppPreferences) (domain.AppPreferences, error) {
-	return s.repo.SaveAppPreferences(ctx, preferences)
+	saved, err := s.repo.SaveAppPreferences(ctx, preferences)
+	if err != nil {
+		return domain.AppPreferences{}, err
+	}
+	s.notifyProxyConfig(saved)
+	return saved, nil
+}
+
+// ReplaceAll 原子替换应用偏好与全部平台 profile（云端快照恢复入口）：
+// 全部校验通过后单事务落库，避免恢复到一半失败留下混合状态；
+// 成功后刷新缓存并推送代理配置到 relay。
+func (s *Service) ReplaceAll(ctx context.Context, preferences domain.AppPreferences, profiles ...domain.RouteProfile) error {
+	normalized := make([]domain.RouteProfile, 0, len(profiles))
+	for _, profile := range profiles {
+		next := profile.Normalize()
+		if err := next.Validate(); err != nil {
+			return err
+		}
+		normalized = append(normalized, next)
+	}
+	if err := s.repo.ReplaceAll(ctx, preferences, normalized); err != nil {
+		return err
+	}
+	for _, profile := range normalized {
+		s.storeProfileCache(profile)
+	}
+	s.notifyProxyConfig(preferences)
+	return nil
+}
+
+// RegisterProxyConfigSink 由组合根在装配期调用（relay server 构造依赖本
+// Service，无法在构造函数里互相注入）。
+func (s *Service) RegisterProxyConfigSink(sink ProxyConfigSink) {
+	s.proxySinkMu.Lock()
+	s.proxySink = sink
+	s.proxySinkMu.Unlock()
+}
+
+func (s *Service) notifyProxyConfig(preferences domain.AppPreferences) {
+	s.proxySinkMu.RLock()
+	sink := s.proxySink
+	s.proxySinkMu.RUnlock()
+	if sink != nil {
+		sink.SetProxyConfig(preferences.ProxyEnabled, preferences.ProxyURL)
+	}
 }
 
 func (s *Service) getProfile(ctx context.Context, platform kernel.Platform) (domain.RouteProfile, error) {

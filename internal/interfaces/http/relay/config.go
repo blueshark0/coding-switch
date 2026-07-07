@@ -57,6 +57,7 @@ func (s *Server) SetProxyConfig(enabled bool, url string) {
 	s.proxyEnabled = enabled
 	s.proxyURL = url
 	s.proxyMu.Unlock()
+	s.resetUpstreamClients()
 }
 
 func (s *Server) getProxyURL() string {

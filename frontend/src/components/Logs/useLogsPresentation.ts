@@ -14,8 +14,8 @@ import {
   parseDateTime,
   startOfTodayLocal,
 } from '../../utils/dateTime'
-
-type TranslateFn = (key: string, named?: Record<string, unknown>) => string
+import { formatUsd } from '../../utils/currency'
+import type { TranslateFn } from '../../types/i18n'
 
 type UseLogsPresentationOptions = {
   getCssVarValue: (name: string, fallback: string) => string
@@ -146,9 +146,7 @@ export const useLogsPresentation = ({
             color: axisStrongColor,
             callback: (value: string | number) => {
               const numeric = typeof value === 'number' ? value : Number(value)
-              if (Number.isNaN(numeric)) return '$0'
-              if (numeric >= 1) return `$${numeric.toFixed(2)}`
-              return `$${numeric.toFixed(4)}`
+              return formatUsd(numeric)
             },
           },
         },
@@ -192,18 +190,7 @@ export const useLogsPresentation = ({
     return value.toLocaleString()
   }
 
-  const formatCurrency = (value?: number) => {
-    if (value === undefined || value === null || Number.isNaN(value)) {
-      return '$0.0000'
-    }
-    if (value >= 1) {
-      return `$${value.toFixed(2)}`
-    }
-    if (value >= 0.01) {
-      return `$${value.toFixed(3)}`
-    }
-    return `$${value.toFixed(4)}`
-  }
+  const formatCurrency = (value?: number) => formatUsd(value)
 
   const summaryScopeHint = computed(() => {
     if (rangeKey.value === 'last3days') {

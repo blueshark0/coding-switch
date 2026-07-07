@@ -3,7 +3,7 @@ package infrastructure
 import (
 	"strings"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	"github.com/daodao97/xgo/xdb"
 )
 
 const (
@@ -11,6 +11,11 @@ const (
 	requestLogCostTierLow    = "low"
 	requestLogCostTierMedium = "medium"
 	requestLogCostTierHigh   = "high"
+
+	// 费用档位阈值（单位美元）：low < 0.1 <= medium <= 0.5 < high。
+	// 前端着色只消费后端算好的 cost_tier 字段，阈值仅此一份。
+	costTierLowMax    = 0.1
+	costTierMediumMax = 0.5
 
 	defaultRequestLogPageSize = 15
 )
@@ -40,15 +45,47 @@ func normalizeRequestLogCostTier(costTier string) string {
 	}
 }
 
-func matchesRequestLogCostTier(logEntry observabilitydomain.RequestLog, costTier string) bool {
-	switch normalizeRequestLogCostTier(costTier) {
-	case requestLogCostTierLow:
-		return logEntry.HasPricing && logEntry.TotalCost < 0.1
-	case requestLogCostTierMedium:
-		return logEntry.HasPricing && logEntry.TotalCost >= 0.1 && logEntry.TotalCost <= 0.5
-	case requestLogCostTierHigh:
-		return logEntry.HasPricing && logEntry.TotalCost > 0.5
+func classifyRequestLogCostTier(hasPricing bool, totalCost float64) string {
+	if !hasPricing {
+		return ""
+	}
+	switch {
+	case totalCost < costTierLowMax:
+		return requestLogCostTierLow
+	case totalCost > costTierMediumMax:
+		return requestLogCostTierHigh
 	default:
-		return true
+		return requestLogCostTierMedium
+	}
+}
+
+// costTierWhereOptions 把费用档位过滤下推为落库 total_cost 列上的 SQL 条件
+// （xdb 查询用）。tier 过滤依赖写入时物化的 total_cost/has_pricing，
+// 不再把时间范围内全量日志载入内存逐行算费。
+func costTierWhereOptions(costTier string) []xdb.Option {
+	switch costTier {
+	case requestLogCostTierLow:
+		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereLt("total_cost", costTierLowMax)}
+	case requestLogCostTierMedium:
+		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereGte("total_cost", costTierLowMax), xdb.WhereLte("total_cost", costTierMediumMax)}
+	case requestLogCostTierHigh:
+		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereGt("total_cost", costTierMediumMax)}
+	default:
+		return nil
+	}
+}
+
+// costTierSQLClause 是 costTierWhereOptions 的原生 SQL 版本（统计聚合查询用），
+// 返回追加到 WHERE 的子句与对应参数。
+func costTierSQLClause(costTier string) (string, []any) {
+	switch costTier {
+	case requestLogCostTierLow:
+		return " AND has_pricing = 1 AND total_cost < ?", []any{costTierLowMax}
+	case requestLogCostTierMedium:
+		return " AND has_pricing = 1 AND total_cost >= ? AND total_cost <= ?", []any{costTierLowMax, costTierMediumMax}
+	case requestLogCostTierHigh:
+		return " AND has_pricing = 1 AND total_cost > ?", []any{costTierMediumMax}
+	default:
+		return "", nil
 	}
 }

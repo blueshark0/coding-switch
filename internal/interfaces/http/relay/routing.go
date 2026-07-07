@@ -22,6 +22,9 @@ func ReplaceModelInRequestBody(bodyBytes []byte, newModel string) ([]byte, error
 	return modified, nil
 }
 
+// routeToManualProvider 编排一次请求的路由：会话绑定优先，其次默认供应商。
+// 供应商解析与模型改写的决策本身在 routing/domain（RouteProfile.ResolveProvider
+// 与 Provider.PlanModelRewrite），relay 只负责 HTTP 编排与转发。
 func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 	kind := ctx.Platform.String()
 	sessionID := ctx.RequestMeta.SessionID
@@ -35,31 +38,16 @@ func (s *Server) routeToManualProvider(ctx *RelayContext) (bool, error) {
 		return s.executeAndHandleSession(fwdCtx, sessionID, sessionAlreadyBound, sessionGeneration)
 	}
 
-	provider, err := s.resolveDefaultProvider(ctx.Profile, ctx.RequestMeta.RequestedModel)
+	provider, err := ctx.Profile.ResolveProvider("", ctx.RequestMeta.RequestedModel)
 	if err != nil {
 		return false, err
 	}
+	relayDebugf("using default provider: %s", provider.Name)
 	fwdCtx, err := s.prepareForwardContext(ctx, provider)
 	if err != nil {
 		return false, err
 	}
 	return s.executeAndHandleSession(fwdCtx, sessionID, false, s.sessionGeneration(kind, sessionID))
-}
-
-func (s *Server) findProvider(providers []routingdomain.Provider, name string) *routingdomain.Provider {
-	for i := range providers {
-		if providers[i].Name == name {
-			return &providers[i]
-		}
-	}
-	return nil
-}
-
-func (s *Server) validateProvider(provider *routingdomain.Provider) error {
-	if provider.APIURL == "" || provider.APIKey == "" {
-		return fmt.Errorf("供应商 %s 配置不完整", provider.Name)
-	}
-	return nil
 }
 
 func (s *Server) resolveBoundProvider(
@@ -81,7 +69,7 @@ func (s *Server) resolveBoundProvider(
 	}
 
 	relayDebugf("session already bound: %s", boundProviderName)
-	provider, err := s.resolveProviderForRequest(ctx.Profile, boundProviderName, ctx.RequestMeta.RequestedModel)
+	provider, err := ctx.Profile.ResolveProvider(boundProviderName, ctx.RequestMeta.RequestedModel)
 	if err == nil {
 		return provider, true, generation, true
 	}
@@ -113,40 +101,14 @@ func (s *Server) clearInvalidSessionBinding(kind, sessionID string) {
 	}
 }
 
-func (s *Server) resolveDefaultProvider(
-	profile routingdomain.RouteProfile,
-	requestedModel string,
-) (*routingdomain.Provider, error) {
-	defaultProvider := profile.DefaultProvider()
-	if defaultProvider == nil {
-		return nil, fmt.Errorf("未配置默认供应商")
-	}
-	relayDebugf("using default provider: %s", defaultProvider.Name)
-	return s.resolveProviderForRequest(profile, defaultProvider.Name, requestedModel)
-}
-
-func (s *Server) resolveProviderForRequest(
-	profile routingdomain.RouteProfile,
-	providerName string,
-	requestedModel string,
-) (*routingdomain.Provider, error) {
-	provider := s.findProvider(profile.Providers, providerName)
-	if provider == nil {
-		return nil, fmt.Errorf("供应商 %s 不存在", providerName)
-	}
-	if err := s.validateProvider(provider); err != nil {
-		return nil, err
-	}
-	if requestedModel != "" && !provider.IsModelSupported(requestedModel) {
-		return nil, fmt.Errorf("供应商 %s 不支持模型 %s", provider.Name, requestedModel)
-	}
-	return provider, nil
-}
-
 func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomain.Provider) (*ForwardContext, error) {
 	currentBodyBytes := ctx.BodyBytes
 	requestedModel := ctx.RequestMeta.RequestedModel
 	bodyHasModelField := ctx.RequestMeta.BodyHasModelField
+	opts := ctx.RequestMeta.RouteOptions
+	if opts == nil {
+		opts = &relayRouteOptions{}
+	}
 	if ctx.Platform == kernel.PlatformClaude && len(provider.RequestBodyReplacements) > 0 {
 		modifiedBody, err := applyRequestBodyReplacements(currentBodyBytes, provider.RequestBodyReplacements)
 		if err != nil {
@@ -157,16 +119,12 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 			requestedModel = gjson.GetBytes(currentBodyBytes, "model").String()
 		}
 	}
-	effectiveModel := provider.GetEffectiveModel(requestedModel)
-	bodyModelValue := effectiveModel
-	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.bodyModelFormatter != nil {
-		bodyModelValue = ctx.RequestMeta.RouteOptions.bodyModelFormatter(effectiveModel)
-	}
-	shouldRewriteBody := effectiveModel != requestedModel && requestedModel != ""
-	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.forceBodyRewrite {
-		shouldRewriteBody = shouldRewriteBody || (bodyHasModelField && requestedModel != "")
-	}
-	if shouldRewriteBody && bodyHasModelField {
+	rewrite := provider.PlanModelRewrite(requestedModel, bodyHasModelField, opts.forceBodyRewrite)
+	if rewrite.ShouldRewriteBody {
+		bodyModelValue := rewrite.EffectiveModel
+		if opts.bodyModelFormatter != nil {
+			bodyModelValue = opts.bodyModelFormatter(rewrite.EffectiveModel)
+		}
 		relayDebugf("remap model: %s -> %s", requestedModel, bodyModelValue)
 		modifiedBody, err := ReplaceModelInRequestBody(currentBodyBytes, bodyModelValue)
 		if err != nil {
@@ -175,23 +133,23 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		currentBodyBytes = modifiedBody
 	}
 	targetEndpoint := ctx.RequestMeta.Endpoint
-	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.endpointMutator != nil {
-		newEndpoint, err := ctx.RequestMeta.RouteOptions.endpointMutator(targetEndpoint, requestedModel, effectiveModel)
+	if opts.endpointMutator != nil {
+		newEndpoint, err := opts.endpointMutator(targetEndpoint, requestedModel, rewrite.EffectiveModel)
 		if err != nil {
 			return nil, err
 		}
 		targetEndpoint = newEndpoint
 	}
 	targetQuery := ctx.Query
-	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.queryMutator != nil {
-		targetQuery = ctx.RequestMeta.RouteOptions.queryMutator(cloneMap(ctx.Query), *provider)
+	if opts.queryMutator != nil {
+		targetQuery = opts.queryMutator(cloneMap(ctx.Query), *provider)
 	}
 	if targetQuery == nil {
 		targetQuery = make(map[string]string)
 	}
 	targetHeaders := ctx.Headers
-	if ctx.RequestMeta.RouteOptions != nil && ctx.RequestMeta.RouteOptions.headerMutator != nil {
-		targetHeaders = ctx.RequestMeta.RouteOptions.headerMutator(cloneMap(ctx.Headers), *provider)
+	if opts.headerMutator != nil {
+		targetHeaders = opts.headerMutator(cloneMap(ctx.Headers), *provider)
 	}
 	if targetHeaders == nil {
 		targetHeaders = make(map[string]string)
@@ -206,7 +164,7 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		BodyBytes: currentBodyBytes,
 		IsStream:  ctx.RequestMeta.IsStream,
 		IsFast:    ctx.RequestMeta.IsFast,
-		Model:     effectiveModel,
+		Model:     rewrite.EffectiveModel,
 	}, nil
 }
 
@@ -219,18 +177,7 @@ func (s *Server) executeAndHandleSession(
 	kind := fwdCtx.Platform.String()
 	relayDebugf("forwarding provider=%s model=%s", fwdCtx.Provider.Name, fwdCtx.Model)
 	startTime := time.Now()
-	ok, err := s.forwardRequest(
-		fwdCtx.GinCtx,
-		fwdCtx.Platform,
-		*fwdCtx.Provider,
-		fwdCtx.Endpoint,
-		fwdCtx.Query,
-		fwdCtx.Headers,
-		fwdCtx.BodyBytes,
-		fwdCtx.IsStream,
-		fwdCtx.IsFast,
-		fwdCtx.Model,
-	)
+	ok, err := s.forwardRequest(fwdCtx)
 	duration := time.Since(startTime)
 	if ok {
 		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound, sessionGeneration)
@@ -246,7 +193,7 @@ func (s *Server) executeAndHandleSession(
 }
 
 func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, alreadyBound bool, generation uint64) {
-	if sessionID == "" {
+	if sessionID == "" || s.sessionCache == nil {
 		return
 	}
 	if !alreadyBound {

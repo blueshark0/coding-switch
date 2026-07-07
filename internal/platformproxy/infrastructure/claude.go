@@ -56,14 +56,22 @@ func (m *ClaudeManager) EnableProxy() error {
 	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
 		return err
 	}
+	// 已处于代理状态时跳过备份：重复 Enable 会用已代理内容覆盖唯一备份，
+	// 导致用户原始配置永久丢失。
+	alreadyProxied := false
+	if status, statusErr := m.ProxyStatus(); statusErr == nil {
+		alreadyProxied = status.Enabled
+	}
 	var raw map[string]any
 	if _, err := os.Stat(settingsPath); err == nil {
 		content, readErr := os.ReadFile(settingsPath)
 		if readErr != nil {
 			return readErr
 		}
-		if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-			return err
+		if !alreadyProxied {
+			if err := os.WriteFile(backupPath, content, 0o600); err != nil {
+				return err
+			}
 		}
 		if err := json.Unmarshal(content, &raw); err != nil {
 			raw = make(map[string]any)

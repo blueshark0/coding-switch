@@ -1,14 +1,12 @@
 package infrastructure
 
 import (
-	"database/sql"
 	"fmt"
 	"sort"
 	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
-	modelpricing "codeswitch/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 )
@@ -47,7 +45,7 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 		FROM request_log
 		WHERE created_at >= ?
 		GROUP BY bucket, model, is_fast
-		ORDER BY bucket DESC`, rangeStart.Format(timeLayout))
+		ORDER BY bucket DESC`, utcBoundString(rangeStart))
 	if err != nil {
 		if isNoSuchTableErr(err) {
 			return []observabilitydomain.HeatmapStat{}, nil
@@ -57,20 +55,18 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 	defer rows.Close()
 
 	hourBuckets := map[int64]*observabilitydomain.HeatmapStat{}
+	skipped := 0
 	for rows.Next() {
-		var bucketStr sql.NullString
-		var modelName sql.NullString
-		var totalRequests sql.NullInt64
-		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		var isFast sql.NullInt64
-		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
+		row, ok, err := scanUsageAggRow(rows, false)
+		if err != nil {
 			return nil, err
 		}
-		if !bucketStr.Valid {
+		if !ok {
 			continue
 		}
-		bucketTime, err := time.ParseInLocation(timeLayout, bucketStr.String, time.Local)
+		bucketTime, err := time.ParseInLocation(timeLayout, row.key, time.Local)
 		if err != nil {
+			skipped++
 			continue
 		}
 		hourKey := bucketTime.Unix()
@@ -79,22 +75,16 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 			bucket = &observabilitydomain.HeatmapStat{Day: bucketTime.Format("01-02 15")}
 			hourBuckets[hourKey] = bucket
 		}
-		bucket.TotalRequests += nullInt64(totalRequests)
-		bucket.InputTokens += nullInt64(input)
-		bucket.OutputTokens += nullInt64(output)
-		bucket.ReasoningTokens += nullInt64(reasoning)
-		cost := q.calculateCost(modelName.String, modelpricing.UsageSnapshot{
-			InputTokens:       int(nullInt64(input)),
-			OutputTokens:      int(nullInt64(output)),
-			CacheCreateTokens: int(nullInt64(cacheCreate)),
-			CacheReadTokens:   int(nullInt64(cacheRead)),
-			IsFast:            nullInt64(isFast) != 0,
-		})
-		bucket.TotalCost += cost.TotalCost
+		bucket.TotalRequests += row.totalRequests
+		bucket.InputTokens += row.input
+		bucket.OutputTokens += row.output
+		bucket.ReasoningTokens += row.reasoning
+		bucket.TotalCost += q.calculateCost(row.model, row.usageSnapshot()).TotalCost
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	warnSkippedStatRows("HeatmapStats", skipped)
 	if len(hourBuckets) == 0 {
 		return q.heatmapCache.Set(cacheKey, []observabilitydomain.HeatmapStat{}), nil
 	}
@@ -129,10 +119,6 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	}
 	seriesBuckets, bucketIndexes := newStatsSeriesBuckets(rangeSpec)
 
-	if normalizedCostTier != requestLogCostTierAll {
-		return q.statsSinceCostTierFiltered(cacheKey, stats, rangeSpec, seriesBuckets, bucketIndexes, platform, provider, normalizedCostTier)
-	}
-
 	db, err := xdb.DB(storage.RequestLogDBName)
 	if err != nil {
 		return stats, err
@@ -148,6 +134,10 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 		filterClause += " AND provider = ?"
 		args = append(args, provider)
 	}
+	// 费用档位过滤下推到落库的 total_cost 列，不再拉全量日志进内存逐行算费。
+	tierClause, tierArgs := costTierSQLClause(normalizedCostTier)
+	filterClause += tierClause
+	args = append(args, tierArgs...)
 
 	rows, err := db.Query(fmt.Sprintf(`SELECT strftime('%s', created_at, 'localtime') AS bucket,
 			model,
@@ -171,20 +161,18 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	}
 	defer rows.Close()
 
+	skipped := 0
 	for rows.Next() {
-		var bucketStr sql.NullString
-		var modelName sql.NullString
-		var totalRequests sql.NullInt64
-		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		var isFast sql.NullInt64
-		if err := rows.Scan(&bucketStr, &modelName, &totalRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
+		row, ok, err := scanUsageAggRow(rows, false)
+		if err != nil {
 			return stats, err
 		}
-		if !bucketStr.Valid {
+		if !ok {
 			continue
 		}
-		bucketTime, err := time.ParseInLocation(timeLayout, bucketStr.String, time.Local)
+		bucketTime, err := time.ParseInLocation(timeLayout, row.key, time.Local)
 		if err != nil {
+			skipped++
 			continue
 		}
 		bucketIndex, ok := bucketIndexes[bucketTime.Format(timeLayout)]
@@ -192,28 +180,22 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 			continue
 		}
 
+		cost := q.calculateCost(row.model, row.usageSnapshot())
 		bucket := seriesBuckets[bucketIndex]
-		bucket.TotalRequests += nullInt64(totalRequests)
-		bucket.InputTokens += nullInt64(input)
-		bucket.OutputTokens += nullInt64(output)
-		bucket.ReasoningTokens += nullInt64(reasoning)
-		bucket.CacheCreateTokens += nullInt64(cacheCreate)
-		bucket.CacheReadTokens += nullInt64(cacheRead)
-
-		cost := q.calculateCost(modelName.String, modelpricing.UsageSnapshot{
-			InputTokens:       int(nullInt64(input)),
-			OutputTokens:      int(nullInt64(output)),
-			CacheCreateTokens: int(nullInt64(cacheCreate)),
-			CacheReadTokens:   int(nullInt64(cacheRead)),
-			IsFast:            nullInt64(isFast) != 0,
-		})
+		bucket.TotalRequests += row.totalRequests
+		bucket.InputTokens += row.input
+		bucket.OutputTokens += row.output
+		bucket.ReasoningTokens += row.reasoning
+		bucket.CacheCreateTokens += row.cacheCreate
+		bucket.CacheReadTokens += row.cacheRead
 		bucket.TotalCost += cost.TotalCost
-		stats.TotalRequests += nullInt64(totalRequests)
-		stats.InputTokens += nullInt64(input)
-		stats.OutputTokens += nullInt64(output)
-		stats.ReasoningTokens += nullInt64(reasoning)
-		stats.CacheCreateTokens += nullInt64(cacheCreate)
-		stats.CacheReadTokens += nullInt64(cacheRead)
+
+		stats.TotalRequests += row.totalRequests
+		stats.InputTokens += row.input
+		stats.OutputTokens += row.output
+		stats.ReasoningTokens += row.reasoning
+		stats.CacheCreateTokens += row.cacheCreate
+		stats.CacheReadTokens += row.cacheRead
 		stats.CostInput += cost.InputCost
 		stats.CostOutput += cost.OutputCost
 		stats.CostCacheCreate += cost.CacheCreateCost
@@ -223,107 +205,15 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	if err := rows.Err(); err != nil {
 		return stats, err
 	}
+	warnSkippedStatRows("StatsSince", skipped)
 	appendStatsSeries(&stats, seriesBuckets)
 	return q.statsCache.Set(cacheKey, stats), nil
 }
 
-func (q *SQLiteQueries) statsSinceCostTierFiltered(
-	cacheKey string,
-	stats observabilitydomain.LogStats,
-	rangeSpec logRangeSpec,
-	seriesBuckets []*observabilitydomain.LogStatsSeries,
-	bucketIndexes map[string]int,
-	platform string,
-	provider string,
-	costTier string,
-) (observabilitydomain.LogStats, error) {
-	options := []xdb.Option{
-		xdb.WhereGte("created_at", rangeSpec.startUTCString()),
-		xdb.WhereLt("created_at", rangeSpec.endUTCString()),
-	}
-	if platform != "" {
-		options = append(options, xdb.WhereEq("platform", platform))
-	}
-	if provider != "" {
-		options = append(options, xdb.WhereEq("provider", provider))
-	}
-
-	records, err := requestLogModel().Selects(options...)
-	if err != nil {
-		if isNoSuchTableErr(err) {
-			appendStatsSeries(&stats, seriesBuckets)
-			return stats, nil
-		}
-		return stats, err
-	}
-
-	for _, logEntry := range q.requestLogsFromRecords(records) {
-		if !matchesRequestLogCostTier(logEntry, costTier) {
-			continue
-		}
-		bucketKey, ok := requestLogStatsBucketKey(logEntry.CreatedAt, rangeSpec)
-		if !ok {
-			continue
-		}
-		bucketIndex, ok := bucketIndexes[bucketKey]
-		if !ok {
-			continue
-		}
-
-		bucket := seriesBuckets[bucketIndex]
-		bucket.TotalRequests++
-		bucket.InputTokens += int64(logEntry.InputTokens)
-		bucket.OutputTokens += int64(logEntry.OutputTokens)
-		bucket.ReasoningTokens += int64(logEntry.ReasoningTokens)
-		bucket.CacheCreateTokens += int64(logEntry.CacheCreateTokens)
-		bucket.CacheReadTokens += int64(logEntry.CacheReadTokens)
-		bucket.TotalCost += logEntry.TotalCost
-
-		stats.TotalRequests++
-		stats.InputTokens += int64(logEntry.InputTokens)
-		stats.OutputTokens += int64(logEntry.OutputTokens)
-		stats.ReasoningTokens += int64(logEntry.ReasoningTokens)
-		stats.CacheCreateTokens += int64(logEntry.CacheCreateTokens)
-		stats.CacheReadTokens += int64(logEntry.CacheReadTokens)
-		stats.CostInput += logEntry.InputCost
-		stats.CostOutput += logEntry.OutputCost
-		stats.CostCacheCreate += logEntry.CacheCreateCost
-		stats.CostCacheRead += logEntry.CacheReadCost
-		stats.CostTotal += logEntry.TotalCost
-	}
-
-	appendStatsSeries(&stats, seriesBuckets)
-	return q.statsCache.Set(cacheKey, stats), nil
-}
-
-func requestLogStatsBucketKey(createdAt string, rangeSpec logRangeSpec) (string, bool) {
-	createdAtUTC, err := parseRequestLogCreatedAt(createdAt)
-	if err != nil {
-		return "", false
-	}
-	localTime := createdAtUTC.In(time.Local)
-	if rangeSpec.bucketGranularity == logRangeDaily {
-		return startOfDay(localTime).Format(timeLayout), true
-	}
-	return startOfHour(localTime).Format(timeLayout), true
-}
-
-func parseRequestLogCreatedAt(createdAt string) (time.Time, error) {
-	layouts := []string{
-		timeLayout,
-		"2006-01-02 15:04:05 -0700 MST",
-		time.RFC3339,
-		time.RFC3339Nano,
-	}
-	var lastErr error
-	for _, layout := range layouts {
-		parsed, err := time.Parse(layout, createdAt)
-		if err == nil {
-			return parsed, nil
-		}
-		lastErr = err
-	}
-	return time.Time{}, lastErr
+// utcBoundString 把本地时间边界转成与 created_at 落库格式（UTC 字符串）可比较的形式。
+// 所有统计查询的 WHERE 边界都必须经过它，避免再出现本地时间与 UTC 字符串直接比较的偏移。
+func utcBoundString(t time.Time) string {
+	return t.UTC().Format(timeLayout)
 }
 
 func newStatsSeriesBuckets(rangeSpec logRangeSpec) ([]*observabilitydomain.LogStatsSeries, map[string]int) {
@@ -370,7 +260,7 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 		return nil, err
 	}
 
-	args := []any{start.Format(timeLayout), end.Format(timeLayout)}
+	args := []any{utcBoundString(start), utcBoundString(end)}
 	platformFilter := ""
 	if platform != "" {
 		platformFilter = " AND platform = ?"
@@ -400,37 +290,27 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 
 	statMap := map[string]*observabilitydomain.ProviderDailyStat{}
 	for rows.Next() {
-		var provider string
-		var modelName sql.NullString
-		var totalRequests sql.NullInt64
-		var successfulRequests sql.NullInt64
-		var input, output, reasoning, cacheCreate, cacheRead sql.NullInt64
-		var isFast sql.NullInt64
-		if err := rows.Scan(&provider, &modelName, &totalRequests, &successfulRequests, &input, &output, &reasoning, &cacheCreate, &cacheRead, &isFast); err != nil {
+		row, ok, err := scanUsageAggRow(rows, true)
+		if err != nil {
 			return nil, err
 		}
-		stat := statMap[provider]
-		if stat == nil {
-			stat = &observabilitydomain.ProviderDailyStat{Provider: provider}
-			statMap[provider] = stat
+		if !ok {
+			continue
 		}
-		tr := nullInt64(totalRequests)
-		succ := nullInt64(successfulRequests)
-		stat.TotalRequests += tr
-		stat.SuccessfulRequests += succ
-		stat.FailedRequests += tr - succ
-		stat.InputTokens += nullInt64(input)
-		stat.OutputTokens += nullInt64(output)
-		stat.ReasoningTokens += nullInt64(reasoning)
-		stat.CacheCreateTokens += nullInt64(cacheCreate)
-		stat.CacheReadTokens += nullInt64(cacheRead)
-		stat.CostTotal += q.calculateCost(modelName.String, modelpricing.UsageSnapshot{
-			InputTokens:       int(nullInt64(input)),
-			OutputTokens:      int(nullInt64(output)),
-			CacheCreateTokens: int(nullInt64(cacheCreate)),
-			CacheReadTokens:   int(nullInt64(cacheRead)),
-			IsFast:            nullInt64(isFast) != 0,
-		}).TotalCost
+		stat := statMap[row.key]
+		if stat == nil {
+			stat = &observabilitydomain.ProviderDailyStat{Provider: row.key}
+			statMap[row.key] = stat
+		}
+		stat.TotalRequests += row.totalRequests
+		stat.SuccessfulRequests += row.successfulReqs
+		stat.FailedRequests += row.totalRequests - row.successfulReqs
+		stat.InputTokens += row.input
+		stat.OutputTokens += row.output
+		stat.ReasoningTokens += row.reasoning
+		stat.CacheCreateTokens += row.cacheCreate
+		stat.CacheReadTokens += row.cacheRead
+		stat.CostTotal += q.calculateCost(row.model, row.usageSnapshot()).TotalCost
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

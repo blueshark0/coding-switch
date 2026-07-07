@@ -220,7 +220,7 @@ import { useProviderWorkbench } from './useProviderWorkbench'
 import { useRouter } from 'vue-router'
 import { useDarkMode } from '../../composables/useDarkMode'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
 const { isDarkMode } = useDarkMode()
 const themeIcon = computed(() => (isDarkMode.value ? 'moon' : 'sun'))
@@ -257,7 +257,6 @@ const {
   toggleDefaultProvider,
   usageHeatmap,
 } = useProviderWorkbench({
-  locale,
   t,
 })
 

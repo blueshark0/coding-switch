@@ -29,7 +29,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 	}
 
 	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, icon, tint, accent,
-		position, supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url
+		position, supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify
 		FROM providers
 		WHERE platform = ?
 		ORDER BY position ASC, id ASC`, platform.String())
@@ -43,6 +43,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 		var supportedModelsJSON string
 		var modelMappingJSON string
 		var requestBodyReplacementsJSON string
+		var insecureSkipVerify int
 		if err := rows.Scan(
 			&provider.ID,
 			&provider.Name,
@@ -58,9 +59,11 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 			&requestBodyReplacementsJSON,
 			&provider.ProxyMode,
 			&provider.ProxyURL,
+			&insecureSkipVerify,
 		); err != nil {
 			return domain.RouteProfile{}, err
 		}
+		provider.InsecureSkipVerify = insecureSkipVerify == 1
 		provider.SupportedModels = map[string]bool{}
 		provider.ModelMapping = map[string]string{}
 		if err := decodeJSONMap(supportedModelsJSON, &provider.SupportedModels); err != nil {
@@ -95,6 +98,52 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 		}
 	}()
 
+	if err := saveProfileTx(ctx, tx, profile); err != nil {
+		return domain.RouteProfile{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return domain.RouteProfile{}, err
+	}
+	tx = nil
+	return s.GetProfile(ctx, profile.Platform)
+}
+
+// ReplaceAll 在单个事务里替换应用偏好与全部平台 profile：云端快照恢复
+// 到一半失败时，不能留下 Claude 已是新配置、Codex 还是旧配置的混合状态。
+func (s *SQLiteStore) ReplaceAll(ctx context.Context, preferences domain.AppPreferences, profiles []domain.RouteProfile) error {
+	if err := domain.ValidateProxyURL(preferences.ProxyURL); err != nil {
+		return err
+	}
+	db, err := queryDB(s.dbName)
+	if err != nil {
+		return err
+	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if tx != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	if err := saveAppPreferencesIn(ctx, tx, preferences); err != nil {
+		return err
+	}
+	for _, profile := range profiles {
+		if err := saveProfileTx(ctx, tx, profile); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	tx = nil
+	return nil
+}
+
+func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile) error {
 	var defaultProviderID any
 	if profile.DefaultProviderID != nil {
 		defaultProviderID = *profile.DefaultProviderID
@@ -104,12 +153,12 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 		ON CONFLICT(platform) DO UPDATE SET default_provider_id = excluded.default_provider_id, updated_at = CURRENT_TIMESTAMP`,
 		profile.Platform.String(), defaultProviderID,
 	); err != nil {
-		return domain.RouteProfile{}, err
+		return err
 	}
 
 	existingIDs, err := loadProviderIDs(ctx, tx, profile.Platform.String())
 	if err != nil {
-		return domain.RouteProfile{}, err
+		return err
 	}
 	incomingIDs := make(map[int]struct{}, len(profile.Providers))
 	for _, provider := range profile.Providers {
@@ -120,26 +169,26 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			continue
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM providers WHERE platform = ? AND id = ?`, profile.Platform.String(), providerID); err != nil {
-			return domain.RouteProfile{}, err
+			return err
 		}
 	}
 	for _, provider := range profile.Providers {
 		supportedModelsJSON, err := encodeJSONMap(provider.SupportedModels)
 		if err != nil {
-			return domain.RouteProfile{}, err
+			return err
 		}
 		modelMappingJSON, err := encodeJSONMap(provider.ModelMapping)
 		if err != nil {
-			return domain.RouteProfile{}, err
+			return err
 		}
 		requestBodyReplacementsJSON, err := encodeJSONMap(provider.RequestBodyReplacements)
 		if err != nil {
-			return domain.RouteProfile{}, err
+			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
 			platform, id, name, api_url, api_key, official_site, icon, tint, accent, position,
-			supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, id) DO UPDATE SET
 			name = excluded.name,
 			api_url = excluded.api_url,
@@ -153,7 +202,8 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			model_mapping_json = excluded.model_mapping_json,
 			request_body_replacements_json = excluded.request_body_replacements_json,
 			proxy_mode = excluded.proxy_mode,
-			proxy_url = excluded.proxy_url`,
+			proxy_url = excluded.proxy_url,
+			insecure_skip_verify = excluded.insecure_skip_verify`,
 			profile.Platform.String(),
 			provider.ID,
 			provider.Name,
@@ -169,15 +219,12 @@ func (s *SQLiteStore) SaveProfile(ctx context.Context, profile domain.RouteProfi
 			requestBodyReplacementsJSON,
 			provider.ProxyMode,
 			provider.ProxyURL,
+			boolToInt(provider.InsecureSkipVerify),
 		); err != nil {
-			return domain.RouteProfile{}, err
+			return err
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return domain.RouteProfile{}, err
-	}
-	tx = nil
-	return s.GetProfile(ctx, profile.Platform)
+	return nil
 }
 
 func loadProviderIDs(ctx context.Context, tx *sql.Tx, platform string) ([]int, error) {

@@ -63,6 +63,9 @@ type Provider struct {
 	RequestBodyReplacements []RequestBodyReplacement `json:"requestBodyReplacements,omitempty"`
 	ProxyMode               string                   `json:"proxyMode,omitempty"`
 	ProxyURL                string                   `json:"proxyUrl,omitempty"`
+	// InsecureSkipVerify 显式跳过该供应商上游 TLS 证书校验（如本地抓包代理
+	// 调试）。默认 false：配置代理不再隐式关闭全局证书校验。
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
 func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string {
@@ -242,11 +245,12 @@ func (p *Provider) IsModelSupported(modelName string) bool {
 	if p.SupportedModels != nil && p.SupportedModels[modelName] {
 		return true
 	}
-	if p.SupportedModels != nil {
-		for supportedModel := range p.SupportedModels {
-			if matchWildcard(supportedModel, modelName) {
-				return true
-			}
+	for supportedModel, enabled := range p.SupportedModels {
+		if !enabled {
+			continue
+		}
+		if matchWildcard(supportedModel, modelName) {
+			return true
 		}
 	}
 	if p.ModelMapping != nil {
@@ -263,18 +267,38 @@ func (p *Provider) IsModelSupported(modelName string) bool {
 }
 
 func (p *Provider) GetEffectiveModel(requestedModel string) string {
-	if p.ModelMapping == nil || len(p.ModelMapping) == 0 {
+	if len(p.ModelMapping) == 0 {
 		return requestedModel
 	}
 	if mappedModel, exists := p.ModelMapping[requestedModel]; exists {
 		return mappedModel
 	}
+	// 多个通配符同时命中时按特异性取最具体的一条：Go map 遍历序随机，
+	// 取"第一个命中"会让同一请求在不同时刻映射到不同模型。
+	bestPattern, bestReplacement, found := "", "", false
 	for pattern, replacement := range p.ModelMapping {
-		if matchWildcard(pattern, requestedModel) {
-			return applyWildcardMapping(pattern, replacement, requestedModel)
+		if !matchWildcard(pattern, requestedModel) {
+			continue
+		}
+		if !found || wildcardMoreSpecific(pattern, bestPattern) {
+			bestPattern, bestReplacement, found = pattern, replacement, true
 		}
 	}
+	if found {
+		return applyWildcardMapping(bestPattern, bestReplacement, requestedModel)
+	}
 	return requestedModel
+}
+
+// wildcardMoreSpecific 判断 a 是否比 b 更特异：字面字符更多者优先，
+// 平局按字典序，保证结果与 map 遍历顺序无关。
+func wildcardMoreSpecific(a, b string) bool {
+	la := len(strings.ReplaceAll(a, "*", ""))
+	lb := len(strings.ReplaceAll(b, "*", ""))
+	if la != lb {
+		return la > lb
+	}
+	return a < b
 }
 
 func (p *Provider) ValidateConfiguration() []string {
@@ -289,7 +313,10 @@ func (p *Provider) ValidateConfiguration() []string {
 			if p.SupportedModels[internalModel] {
 				supported = true
 			} else {
-				for supportedPattern := range p.SupportedModels {
+				for supportedPattern, enabled := range p.SupportedModels {
+					if !enabled {
+						continue
+					}
 					if matchWildcard(supportedPattern, internalModel) {
 						supported = true
 						break

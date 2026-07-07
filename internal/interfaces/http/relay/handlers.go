@@ -97,21 +97,12 @@ func (h *GeminiHandler) createRouteOptions(forceBodyRewrite bool) *relayRouteOpt
 		},
 		queryMutator: func(q map[string]string, provider routingdomain.Provider) map[string]string {
 			if q == nil {
-				q = make(map[string]string)
+				return nil
 			}
-			if provider.APIKey != "" {
-				q["key"] = provider.APIKey
-			}
+			// 认证统一由 forwardRequest 注入 x-goog-api-key 头：清掉客户端
+			// 带来的 key 参数，避免占位符或密钥落入 URL 与上游访问日志。
+			delete(q, "key")
 			return q
-		},
-		headerMutator: func(headers map[string]string, provider routingdomain.Provider) map[string]string {
-			if headers == nil {
-				headers = make(map[string]string)
-			}
-			if provider.APIKey != "" {
-				headers["x-goog-api-key"] = provider.APIKey
-			}
-			return headers
 		},
 		bodyModelFormatter: formatGeminiModelForBody,
 		forceBodyRewrite:   forceBodyRewrite,

@@ -2,12 +2,33 @@ package infrastructure
 
 import (
 	"log"
+	"sync"
 	"time"
 
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/storage"
 	modelpricing "codeswitch/resources/model-pricing"
 )
+
+var (
+	sharedPricingOnce sync.Once
+	sharedPricingSvc  *modelpricing.Service
+)
+
+// sharedPricingService 是查询侧与写入侧共用的定价服务：价格表只加载一次。
+// NewServiceWithFile 对缺失/损坏的外部定价文件会告警并回退内置价，
+// 因此除内置数据损坏外总是返回可用实例。
+func sharedPricingService() *modelpricing.Service {
+	sharedPricingOnce.Do(func() {
+		pricingPath, _ := storage.AppDataPath("model_prices_and_context_window.json")
+		svc, err := modelpricing.NewServiceWithFile(pricingPath)
+		if err != nil {
+			log.Printf("pricing service init failed: %v", err)
+		}
+		sharedPricingSvc = svc
+	})
+	return sharedPricingSvc
+}
 
 type SQLiteQueries struct {
 	pricing *modelpricing.Service
@@ -18,21 +39,19 @@ type SQLiteQueries struct {
 }
 
 func NewSQLiteQueries() *SQLiteQueries {
-	pricingPath, _ := storage.AppDataPath("model_prices_and_context_window.json")
-	svc, err := modelpricing.NewServiceWithFile(pricingPath)
-	if err != nil {
-		log.Printf("pricing service init failed: %v", err)
-	}
 	return &SQLiteQueries{
-		pricing:            svc,
+		pricing:            sharedPricingService(),
 		statsCache:         newTTLCache(30*time.Second, cloneLogStats),
 		providerDailyCache: newTTLCache(5*time.Minute, cloneProviderDailyStats),
 		heatmapCache:       newTTLCache(5*time.Minute, cloneHeatmapStats),
 	}
 }
 
-func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
-	if q == nil || q.pricing == nil || logEntry == nil {
+// decorateRequestLogCost 按当前定价表计算一条日志的费用明细与档位。
+// 查询侧用它装配响应（明细与总额在响应内自洽）；写入侧用它得到
+// 落库的 total_cost/has_pricing 物化值。
+func decorateRequestLogCost(pricing *modelpricing.Service, logEntry *observabilitydomain.RequestLog) {
+	if pricing == nil || logEntry == nil {
 		return
 	}
 	usage := modelpricing.UsageSnapshot{
@@ -42,7 +61,7 @@ func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
 		CacheReadTokens:   logEntry.CacheReadTokens,
 		IsFast:            logEntry.IsFast,
 	}
-	cost := q.pricing.CalculateCost(logEntry.Model, usage)
+	cost := pricing.CalculateCost(logEntry.Model, usage)
 	logEntry.HasPricing = cost.HasPricing
 	logEntry.InputCost = cost.InputCost
 	logEntry.OutputCost = cost.OutputCost
@@ -51,6 +70,14 @@ func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
 	logEntry.Ephemeral5mCost = cost.Ephemeral5mCost
 	logEntry.Ephemeral1hCost = cost.Ephemeral1hCost
 	logEntry.TotalCost = cost.TotalCost
+	logEntry.CostTier = classifyRequestLogCostTier(cost.HasPricing, cost.TotalCost)
+}
+
+func (q *SQLiteQueries) decorateCost(logEntry *observabilitydomain.RequestLog) {
+	if q == nil {
+		return
+	}
+	decorateRequestLogCost(q.pricing, logEntry)
 }
 
 func (q *SQLiteQueries) calculateCost(model string, usage modelpricing.UsageSnapshot) modelpricing.CostBreakdown {

@@ -55,6 +55,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     requestBodyReplacements: [],
     proxyMode: '',
     proxyUrl: '',
+    insecureSkipVerify: false,
   })
 
   const modalState = reactive({
@@ -129,6 +130,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     supportedModels: { ...(form.supportedModels ?? {}) },
     proxyMode: form.proxyMode ?? '',
     proxyUrl: (form.proxyUrl ?? '').trim(),
+    insecureSkipVerify: form.insecureSkipVerify ?? false,
   })
 
   const nextProviderID = (tabId: ProviderTab) => {

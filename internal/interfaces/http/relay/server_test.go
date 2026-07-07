@@ -2,9 +2,11 @@ package relay
 
 import (
 	"context"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,6 +46,16 @@ func (r *relayRoutingRepoStub) GetAppPreferences(_ context.Context) (routingdoma
 
 func (r *relayRoutingRepoStub) SaveAppPreferences(_ context.Context, preferences routingdomain.AppPreferences) (routingdomain.AppPreferences, error) {
 	return preferences, nil
+}
+
+func (r *relayRoutingRepoStub) ReplaceAll(_ context.Context, _ routingdomain.AppPreferences, profiles []routingdomain.RouteProfile) error {
+	if r.profiles == nil {
+		r.profiles = make(map[kernel.Platform]routingdomain.RouteProfile)
+	}
+	for _, profile := range profiles {
+		r.profiles[profile.Platform] = profile
+	}
+	return nil
 }
 
 type relaySessionRepoStub struct {
@@ -313,6 +325,128 @@ func TestRouteToManualProviderIgnoresStaleSuccessAfterUnbindAndRebindsNextReques
 	}
 	if got := sessionRepo.bindings[sessionRepo.key("claude", "session-race")]; got != "provider-b" {
 		t.Fatalf("expected next request to rebind default provider, got %q", got)
+	}
+}
+
+func TestRouteToManualProviderRewritesMappedModelAndInjectsCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	var gotBody []byte
+	var gotAuth, gotAPIKey string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		gotAuth = r.Header.Get("Authorization")
+		gotAPIKey = r.Header.Get("X-Api-Key")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer upstream.Close()
+
+	server := &Server{}
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	ok, err := server.routeToManualProvider(&RelayContext{
+		GinCtx:    ginCtx,
+		Platform:  kernel.PlatformClaude,
+		BodyBytes: []byte(`{"model":"claude-sonnet-4","stream":false}`),
+		Query:     map[string]string{},
+		Headers: map[string]string{
+			"Accept":        "application/json",
+			"Authorization": "Bearer code-switch",
+			"X-Api-Key":     "sk-user-real",
+		},
+		Profile: routingdomain.RouteProfile{
+			Platform:          kernel.PlatformClaude,
+			DefaultProviderID: intPtr(1),
+			Providers: []routingdomain.Provider{
+				{
+					ID:       1,
+					Name:     "mapped-provider",
+					APIURL:   upstream.URL,
+					APIKey:   "sk-provider",
+					Position: 1,
+					ModelMapping: map[string]string{
+						"claude-*": "vendor/claude-*",
+					},
+				},
+			},
+		},
+		RequestMeta: RequestMeta{
+			Endpoint:          "/v1/messages",
+			RequestedModel:    "claude-sonnet-4",
+			BodyHasModelField: true,
+		},
+	})
+	if err != nil {
+		t.Fatalf("route: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected mapped-model route to succeed")
+	}
+	if got := string(gotBody); !strings.Contains(got, `"model":"vendor/claude-sonnet-4"`) {
+		t.Fatalf("upstream body model not rewritten: %s", got)
+	}
+	if gotAuth != "Bearer sk-provider" {
+		t.Fatalf("Authorization = %q, want provider bearer", gotAuth)
+	}
+	if gotAPIKey != "sk-provider" {
+		t.Fatalf("X-Api-Key = %q, want provider key (client key must not leak)", gotAPIKey)
+	}
+}
+
+func TestRouteToManualProviderPassesThroughUpstreamError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Retry-After", "17")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"error":{"type":"rate_limit_error","message":"slow down"}}`))
+	}))
+	defer upstream.Close()
+
+	server := &Server{}
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/messages", nil)
+
+	profile := routingdomain.RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: intPtr(1),
+		Providers: []routingdomain.Provider{
+			{ID: 1, Name: "p", APIURL: upstream.URL, APIKey: "k", Position: 1},
+		},
+	}
+	ok, err := server.routeToManualProvider(&RelayContext{
+		GinCtx:    ginCtx,
+		Platform:  kernel.PlatformClaude,
+		BodyBytes: []byte(`{"model":"claude-sonnet-4"}`),
+		Query:     map[string]string{},
+		Headers:   map[string]string{"Accept": "application/json"},
+		Profile:   profile,
+		RequestMeta: RequestMeta{
+			Endpoint:          "/v1/messages",
+			RequestedModel:    "claude-sonnet-4",
+			BodyHasModelField: true,
+		},
+	})
+	if ok {
+		t.Fatal("expected non-2xx upstream to be reported as failure (no session binding)")
+	}
+	if err == nil {
+		t.Fatal("expected upstream status error")
+	}
+	// 上游错误必须原样透传：状态码、限流头与错误体都不能丢。
+	if recorder.Code != http.StatusTooManyRequests {
+		t.Fatalf("client status = %d, want 429", recorder.Code)
+	}
+	if recorder.Header().Get("Retry-After") != "17" {
+		t.Fatalf("Retry-After lost: %q", recorder.Header().Get("Retry-After"))
+	}
+	if !strings.Contains(recorder.Body.String(), "rate_limit_error") {
+		t.Fatalf("upstream error body lost: %s", recorder.Body.String())
 	}
 }
 

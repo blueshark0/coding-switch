@@ -42,7 +42,6 @@ func (i *Initializer) Initialize() error {
 	if err := i.ensureSchemas(); err != nil {
 		return err
 	}
-	i.configurePragmas()
 	if err := i.runMigrations(); err != nil {
 		log.Printf("数据迁移警告: %v\n", err)
 	}

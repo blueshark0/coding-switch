@@ -2,15 +2,13 @@ package relay
 
 import (
 	"log"
-
-	sessioninfra "codeswitch/internal/sessions/infrastructure"
 )
 
 type sessionUpdateProcessor struct {
-	cache *sessioninfra.Cache
+	cache SessionBinder
 }
 
-func newSessionUpdateProcessor(cache *sessioninfra.Cache) *sessionUpdateProcessor {
+func newSessionUpdateProcessor(cache SessionBinder) *sessionUpdateProcessor {
 	return &sessionUpdateProcessor{cache: cache}
 }
 

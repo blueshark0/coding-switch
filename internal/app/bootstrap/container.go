@@ -20,6 +20,7 @@ import (
 	sessioninfra "codeswitch/internal/sessions/infrastructure"
 	"codeswitch/internal/shared/kernel"
 	"codeswitch/internal/shared/logging"
+	"codeswitch/internal/shared/storage"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/dock"
@@ -37,6 +38,7 @@ type Container struct {
 	syncFacade    *facades.ConfigSyncFacade
 	sessionFacade *facades.SessionFacade
 	obsFacade     *facades.ObservabilityFacade
+	appLogFacade  *facades.AppLogFacade
 	proxyFacade   *facades.PlatformProxyFacade
 	dockService   *dock.DockService
 	shutdownOnce  sync.Once
@@ -88,6 +90,9 @@ func Initialize(appVersion string) (*Container, error) {
 		appVersion,
 	)
 
+	// 路径失败时留空即可：reader 对不存在的文件返回空日志而非报错。
+	appLogPath, _ := storage.AppDataPath("app.log")
+
 	return &Container{
 		logFile:       logFile,
 		relayServer:   relayServer,
@@ -98,6 +103,7 @@ func Initialize(appVersion string) (*Container, error) {
 		syncFacade:    facades.NewConfigSyncFacade(configSyncService),
 		sessionFacade: facades.NewSessionFacade(sessionService),
 		obsFacade:     facades.NewObservabilityFacade(observabilityinfra.NewSQLiteQueries()),
+		appLogFacade:  facades.NewAppLogFacade(observabilityinfra.NewAppLogReader(appLogPath)),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),
 		dockService:   dock.New(),
 	}, nil
@@ -111,6 +117,7 @@ func (c *Container) ApplicationServices(extra ...application.Service) []applicat
 		application.NewService(c.syncFacade),
 		application.NewService(c.sessionFacade),
 		application.NewService(c.obsFacade),
+		application.NewService(c.appLogFacade),
 		application.NewService(c.proxyFacade),
 		application.NewService(c.dockService),
 	}

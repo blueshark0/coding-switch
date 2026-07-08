@@ -207,8 +207,9 @@
         "total": "{total} total"
       },
       "tabs": {
-        "all": "All logs",
-        "errors": "Errors only"
+        "requests": "Request logs",
+        "app": "App log",
+        "ariaLabel": "Log type"
       },
       "summary": {
         "total": "Requests",
@@ -246,7 +247,19 @@
       "streamOff": "Single response",
       "back": "Back to home",
       "nextRefresh": "Next refresh in {seconds}s",
-      "query": "Query"
+      "query": "Query",
+      "appLog": {
+        "levelLabel": "Level",
+        "levels": {
+          "all": "All levels",
+          "none": "No level"
+        },
+        "keywordPlaceholder": "Search keyword…",
+        "follow": "Follow",
+        "refresh": "Refresh",
+        "empty": "No app log entries",
+        "truncatedHint": "Log file is large; only the most recent portion is shown"
+      }
     },
     "general": {
       "title": {

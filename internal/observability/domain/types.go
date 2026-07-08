@@ -73,6 +73,22 @@ type ProviderDailyStat struct {
 	CostTotal          float64 `json:"cost_total"`
 }
 
+// AppLogEntry 是 ~/.code-switch/app.log 中的一条日志（续行已合并进 Message）。
+type AppLogEntry struct {
+	Time    string `json:"time"`    // "2026/07/08 18:27:22"，原样字符串；孤儿续行为 ""
+	Source  string `json:"source"`  // "logging.go:23"（log.Lshortfile）
+	Level   string `json:"level"`   // "INFO"/"WARN"/"ERROR"/"DEBUG"/""（无级别标签）
+	Message string `json:"message"` // 已剥离级别标签，续行以 \n 拼接
+}
+
+type AppLogChunk struct {
+	Entries    []AppLogEntry `json:"entries"`
+	NextOffset int64         `json:"next_offset"` // 下次增量读取的起始字节偏移
+	FileSize   int64         `json:"file_size"`
+	Reset      bool          `json:"reset"`     // 文件轮转/截断，前端应清空已有列表
+	Truncated  bool          `json:"truncated"` // 首次加载仅扫描了尾部窗口，更早日志未读取
+}
+
 type LogStatsSeries struct {
 	Day               string  `json:"day"`
 	TotalRequests     int64   `json:"total_requests"`

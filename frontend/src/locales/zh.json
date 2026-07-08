@@ -208,8 +208,9 @@
         "total": "共 {total} 条"
       },
       "tabs": {
-        "all": "全部日志",
-        "errors": "仅错误"
+        "requests": "请求日志",
+        "app": "应用日志",
+        "ariaLabel": "日志类型"
       },
       "summary": {
         "total": "请求量",
@@ -247,7 +248,19 @@
       "streamOff": "非流",
       "back": "返回主页",
       "nextRefresh": "距离下次刷新 {seconds}s",
-      "query": "查询"
+      "query": "查询",
+      "appLog": {
+        "levelLabel": "级别",
+        "levels": {
+          "all": "全部级别",
+          "none": "无级别"
+        },
+        "keywordPlaceholder": "搜索关键字…",
+        "follow": "自动跟随",
+        "refresh": "刷新",
+        "empty": "暂无应用日志",
+        "truncatedHint": "日志文件较大，仅显示最近部分内容"
+      }
     },
     "general": {
       "title": {

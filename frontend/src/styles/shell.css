@@ -161,6 +161,10 @@
   align-items: center;
   justify-content: center;
   line-height: 1.1;
+  /* WebKitGTK(Wails Linux)对嵌套 flex 中 auto 宽度按钮的 max-content 贡献
+     会按 CJK 逐字断行计算(无视 nowrap),导致 .tab-group 被算窄、pill 溢出窗口;
+     显式 width 绕过该路径,Chrome 行为不变 */
+  width: max-content;
   min-width: max-content;
   isolation: isolate;
   margin: 0;

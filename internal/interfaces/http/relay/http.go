@@ -2,6 +2,8 @@ package relay
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -162,7 +164,39 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	status := resp.StatusCode()
 	requestLog.HttpCode = status
 	if status >= http.StatusOK && status < http.StatusMultipleChoices {
-		_, copyErr := resp.ToHttpResponseWriter(c.Writer, s.requestLogHook(fwdCtx.Platform, requestLog))
+		responseHook := s.requestLogHook(fwdCtx.Platform, requestLog)
+		var codexOutcome *codexStreamOutcome
+		if fwdCtx.Platform == kernel.PlatformCodex {
+			codexOutcome = &codexStreamOutcome{}
+			logHook := responseHook
+			responseHook = func(data []byte) (bool, []byte) {
+				codexOutcome.Observe(data)
+				return logHook(data)
+			}
+		}
+		_, copyErr := resp.ToHttpResponseWriter(c.Writer, responseHook)
+		if codexOutcome != nil {
+			switch codexOutcome.Status() {
+			case codexStreamCompleted:
+				// Codex 把 response.completed 当作业务终点，可能在收到该事件后
+				// 立即关闭下游连接，不再等待 HTTP chunked 的 0 chunk。此时
+				// 上游读取会因请求 context 传播返回 context.Canceled，但供应商
+				// 已经成功服务本次会话，仍应绑定或续期。
+				if copyErr == nil {
+					return true, nil
+				}
+				if errors.Is(copyErr, context.Canceled) {
+					relayDebugf("Codex 已完成，忽略流收尾取消: %v", copyErr)
+					return true, nil
+				}
+				return false, copyErr
+			case codexStreamFailed:
+				if copyErr != nil {
+					return false, copyErr
+				}
+				return false, fmt.Errorf("upstream codex stream ended with %s", codexOutcome.EventType())
+			}
+		}
 		return copyErr == nil, copyErr
 	}
 	// 非 2xx：把上游状态码、响应头与错误体原样透传给客户端（400 的参数

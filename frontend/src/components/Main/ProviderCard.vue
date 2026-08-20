@@ -117,6 +117,25 @@
         </svg>
       </button>
 
+      <button
+        class="ghost-icon archive-icon"
+        :title="t('components.main.archive')"
+        :aria-label="t('components.main.archive')"
+        type="button"
+        @click="$emit('archive', card)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 014.5 3.75h15A2.25 2.25 0 0121.75 6v3.776M4.75 9.75v.5a2.25 2.25 0 002.25 2.25h10.5a2.25 2.25 0 002.25-2.25v-.5"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+
       <button class="ghost-icon" type="button" @click="$emit('remove', card)">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -150,6 +169,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  archive: [card: AutomationCard]
   configure: [card: AutomationCard]
   'drag-end': []
   dragstart: [id: number, event: DragEvent]
@@ -210,6 +230,26 @@ const handleDragStart = (event: DragEvent) => {
 </script>
 
 <style scoped>
+.archive-icon {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.archive-icon svg {
+  width: 18px;
+  height: 18px;
+  transition: all 0.2s ease;
+}
+
+.archive-icon {
+  opacity: 0.55;
+}
+
+.archive-icon:hover {
+  opacity: 0.9;
+  transform: scale(1.08);
+}
+
 .star-icon {
   position: relative;
   transition: all 0.2s ease;

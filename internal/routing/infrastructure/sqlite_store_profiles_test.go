@@ -81,3 +81,67 @@ func TestSQLiteStoreSaveProfilePersistsRequestBodyReplacements(t *testing.T) {
 func intPtr(value int) *int {
 	return &value
 }
+
+func TestSQLiteStoreSaveProfilePersistsArchivedFlag(t *testing.T) {
+	dbName := "routing_test_" + t.Name()
+	dbPath := filepath.Join(t.TempDir(), "app.db")
+
+	if err := xdb.Init(map[string]*xdb.Config{
+		dbName: {
+			Name:   dbName,
+			Driver: "sqlite",
+			DSN:    dbPath,
+		},
+	}); err != nil {
+		t.Fatalf("xdb.Init: %v", err)
+	}
+
+	db, err := xdb.DB(dbName)
+	if err != nil {
+		t.Fatalf("xdb.DB: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = db.Close()
+	})
+
+	store := NewSQLiteStoreWithDBName(dbName)
+	if err := store.EnsureSchema(); err != nil {
+		t.Fatalf("EnsureSchema: %v", err)
+	}
+
+	profile := domain.RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: intPtr(1),
+		Providers: []domain.Provider{
+			{ID: 1, Name: "alpha", APIURL: "https://alpha.example", APIKey: "secret", Position: 1},
+			{ID: 2, Name: "beta", APIURL: "https://beta.example", APIKey: "secret", Position: 2, Archived: true},
+		},
+	}
+	if _, err := store.SaveProfile(context.Background(), profile); err != nil {
+		t.Fatalf("SaveProfile: %v", err)
+	}
+
+	loaded, err := store.GetProfile(context.Background(), kernel.PlatformClaude)
+	if err != nil {
+		t.Fatalf("GetProfile: %v", err)
+	}
+	if loaded.Providers[0].Archived {
+		t.Fatalf("provider alpha should not be archived, got %+v", loaded.Providers[0])
+	}
+	if !loaded.Providers[1].Archived {
+		t.Fatalf("provider beta should stay archived, got %+v", loaded.Providers[1])
+	}
+
+	// 恢复归档供应商后落库，标记应翻转为 false。
+	loaded.Providers[1].Archived = false
+	if _, err := store.SaveProfile(context.Background(), loaded); err != nil {
+		t.Fatalf("SaveProfile restore: %v", err)
+	}
+	reloaded, err := store.GetProfile(context.Background(), kernel.PlatformClaude)
+	if err != nil {
+		t.Fatalf("GetProfile restore: %v", err)
+	}
+	if reloaded.Providers[1].Archived {
+		t.Fatalf("provider beta should be restored, got %+v", reloaded.Providers[1])
+	}
+}

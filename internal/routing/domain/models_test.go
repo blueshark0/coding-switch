@@ -30,6 +30,40 @@ func intPtr(value int) *int {
 	return &value
 }
 
+func TestRouteProfileValidateArchivedDefault(t *testing.T) {
+	profile := RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: intPtr(1),
+		Providers: []Provider{
+			{ID: 1, Name: "Alpha", Position: 1, APIURL: "https://alpha.example", APIKey: "secret", Archived: true},
+			{ID: 2, Name: "Beta", Position: 2, APIURL: "https://beta.example", APIKey: "secret"},
+		},
+	}
+
+	err := profile.Normalize().Validate()
+	if err == nil {
+		t.Fatal("expected archived default provider validation error")
+	}
+	if !strings.Contains(err.Error(), "已归档") {
+		t.Fatalf("expected archived default provider error, got %v", err)
+	}
+}
+
+func TestRouteProfileValidateAllowsArchivedNonDefault(t *testing.T) {
+	profile := RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: intPtr(1),
+		Providers: []Provider{
+			{ID: 1, Name: "Alpha", Position: 1, APIURL: "https://alpha.example", APIKey: "secret"},
+			{ID: 2, Name: "Beta", Position: 2, APIURL: "https://beta.example", APIKey: "secret", Archived: true},
+		},
+	}
+
+	if err := profile.Normalize().Validate(); err != nil {
+		t.Fatalf("archived non-default provider should validate, got %v", err)
+	}
+}
+
 func TestMatchWildcard(t *testing.T) {
 	tests := []struct {
 		name    string

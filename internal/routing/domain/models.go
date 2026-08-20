@@ -66,6 +66,9 @@ type Provider struct {
 	// InsecureSkipVerify 显式跳过该供应商上游 TLS 证书校验（如本地抓包代理
 	// 调试）。默认 false：配置代理不再隐式关闭全局证书校验。
 	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
+	// Archived 归档状态：保留配置但彻底退出路由（不可被解析为默认或
+	// 会话绑定供应商），可在 UI 中恢复。
+	Archived bool `json:"archived,omitempty"`
 }
 
 func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string {
@@ -193,6 +196,9 @@ func (p RouteProfile) Validate() error {
 	if p.DefaultProviderID != nil {
 		if defaultProvider == nil {
 			return fmt.Errorf("default provider %d not found", *p.DefaultProviderID)
+		}
+		if defaultProvider.Archived {
+			return fmt.Errorf("默认供应商 %s 已归档，请先恢复或另设默认", defaultProvider.Name)
 		}
 	}
 	return nil

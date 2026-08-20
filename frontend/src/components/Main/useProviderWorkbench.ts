@@ -1,6 +1,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { fetchCurrentVersion } from '../../services/version'
+import type { AutomationCard } from '../../data/cards'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
+import { showToast } from '../../utils/toast'
 import type { TranslateFn } from './types'
 import { useProviderCatalog } from './useProviderCatalog'
 import { useProviderPreferences } from './useProviderPreferences'
@@ -20,6 +22,7 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
   )
   const {
     activeCards,
+    archivedCards,
     closeConfirm,
     closeModal,
     confirmRemove,
@@ -36,6 +39,7 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     pinProvider,
     requestRemove,
     submitModal,
+    toggleArchive,
   } = useProviderCatalog({
     activeTab,
     t,
@@ -63,6 +67,19 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     activeTab,
     t,
   })
+
+  // 归档默认供应商被后端 Validate 拒绝，前端先行拦截给出可操作提示。
+  const archiveProvider = (card: AutomationCard) => {
+    if (isDefaultProvider(card.name)) {
+      showToast(t('components.main.archiveBlockedBecauseDefault'), 'error')
+      return
+    }
+    toggleArchive(card.id)
+  }
+
+  const restoreProvider = (card: AutomationCard) => {
+    toggleArchive(card.id)
+  }
 
   const loadAppVersion = async () => {
     try {
@@ -96,6 +113,8 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     activeProxyBusy,
     activeProxyState,
     appVersion,
+    archiveProvider,
+    archivedCards,
     closeConfirm,
     closeModal,
     confirmRemove,
@@ -115,6 +134,7 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     pinProvider,
     providerStatDisplay,
     requestRemove,
+    restoreProvider,
     selectedIndex,
     showHeatmap,
     showHomeTitle,

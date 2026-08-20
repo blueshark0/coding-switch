@@ -172,6 +172,7 @@
           :is-top-provider="isTopProvider(card.id)"
           :is-default-provider="isDefaultProvider(card.name)"
           :provider-stats="providerStatDisplay(card.name)"
+          @archive="archiveProvider"
           @configure="configure"
           @drag-end="onDragEnd"
           @dragstart="onDragStart"
@@ -181,6 +182,12 @@
           @toggle-default="toggleDefaultProvider"
         />
       </div>
+
+      <ArchivedProviders
+        :cards="archivedCards"
+        @remove="requestRemove"
+        @restore="restoreProvider"
+      />
       </section>
 
       <ProviderEditorModal
@@ -211,6 +218,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import ArchivedProviders from './ArchivedProviders.vue'
 import HeatmapWall from './HeatmapWall.vue'
 import ProviderDeleteModal from './ProviderDeleteModal.vue'
 import ProviderEditorModal from './ProviderEditorModal.vue'
@@ -230,6 +238,8 @@ const {
   activeProxyBusy,
   activeProxyState,
   appVersion,
+  archiveProvider,
+  archivedCards,
   closeConfirm,
   closeModal,
   confirmRemove,
@@ -249,6 +259,7 @@ const {
   pinProvider,
   providerStatDisplay,
   requestRemove,
+  restoreProvider,
   selectedIndex,
   showHeatmap,
   showHomeTitle,

@@ -56,6 +56,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     proxyMode: '',
     proxyUrl: '',
     insecureSkipVerify: false,
+    archived: false,
   })
 
   const modalState = reactive({
@@ -76,7 +77,8 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     tabId: providerTabs[0].id as ProviderTab,
   })
 
-  const activeCards = computed(() => cards[activeTab.value] ?? [])
+  const activeCards = computed(() => (cards[activeTab.value] ?? []).filter((card) => !card.archived))
+  const archivedCards = computed(() => (cards[activeTab.value] ?? []).filter((card) => card.archived))
 
   const serializeProviders = (providers: AutomationCard[]) =>
     providers.map((provider, index) => ({ ...provider, position: index + 1 }))
@@ -229,6 +231,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     accent: '#0a84ff',
     tint: 'rgba(15, 23, 42, 0.12)',
     ...buildCardValues(form),
+    archived: false,
   })
 
   const openCreateModal = () => {
@@ -333,6 +336,19 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     void saveMutation(activeTab.value, (providers) => moveCardToFrontInList(providers, cardId))
   }
 
+  // 归档/恢复共用一次翻转：卡片保留在数组原位（position 由 serializeProviders
+  // 统一重排），活跃列表与归档区各自按 archived 过滤展示。
+  const toggleArchive = (cardId: number) => {
+    void saveMutation(activeTab.value, (providers) => {
+      const card = providers.find((item) => item.id === cardId)
+      if (!card) {
+        return false
+      }
+      card.archived = !card.archived
+      return true
+    })
+  }
+
   const onDragStart = (id: number, event: DragEvent) => {
     draggingId.value = id
     if (event.dataTransfer) {
@@ -367,6 +383,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
 
   return {
     activeCards,
+    archivedCards,
     closeConfirm,
     closeModal,
     confirmRemove,
@@ -383,5 +400,6 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     pinProvider,
     requestRemove,
     submitModal,
+    toggleArchive,
   }
 }

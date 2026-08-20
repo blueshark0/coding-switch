@@ -96,5 +96,6 @@ export function createAutomationCards(data: AutomationCard[] = []): AutomationCa
     proxyMode: item.proxyMode ?? '',
     proxyUrl: item.proxyUrl ?? '',
     insecureSkipVerify: item.insecureSkipVerify ?? false,
+    archived: item.archived ?? false,
   }))
 }

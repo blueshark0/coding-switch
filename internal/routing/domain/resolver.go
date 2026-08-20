@@ -4,7 +4,7 @@ import "fmt"
 
 // ResolveProvider 解析可服务本次请求的供应商，是路由的核心领域决策：
 // providerName 为空时取 profile 的默认供应商（会话未绑定的场景），
-// 并校验配置完整性与模型支持。错误信息面向用户展示。
+// 并校验归档状态、配置完整性与模型支持。错误信息面向用户展示。
 func (p RouteProfile) ResolveProvider(providerName, requestedModel string) (*Provider, error) {
 	var provider *Provider
 	if providerName == "" {
@@ -17,6 +17,9 @@ func (p RouteProfile) ResolveProvider(providerName, requestedModel string) (*Pro
 		if provider == nil {
 			return nil, fmt.Errorf("供应商 %s 不存在", providerName)
 		}
+	}
+	if provider.Archived {
+		return nil, fmt.Errorf("供应商 %s 已归档", provider.Name)
 	}
 	if provider.APIURL == "" || provider.APIKey == "" {
 		return nil, fmt.Errorf("供应商 %s 配置不完整", provider.Name)

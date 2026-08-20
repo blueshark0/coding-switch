@@ -17,6 +17,7 @@ func resolverTestProfile() RouteProfile {
 			{ID: 2, Name: "limited-p", APIURL: "https://b.example.com", APIKey: "k2", Position: 2,
 				SupportedModels: map[string]bool{"claude-opus-4": true}},
 			{ID: 3, Name: "broken-p", APIURL: "", APIKey: "", Position: 3},
+			{ID: 4, Name: "archived-p", APIURL: "https://c.example.com", APIKey: "k4", Position: 4, Archived: true},
 		},
 	}
 }
@@ -37,6 +38,7 @@ func TestResolveProvider(t *testing.T) {
 		{name: "incomplete configuration", providerName: "broken-p", wantErr: "配置不完整"},
 		{name: "unsupported model", providerName: "limited-p", model: "claude-sonnet-4", wantErr: "不支持模型"},
 		{name: "empty model skips support check", providerName: "limited-p", model: "", wantProvider: "limited-p"},
+		{name: "archived provider is unreachable", providerName: "archived-p", wantErr: "已归档"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -61,6 +63,20 @@ func TestResolveProviderWithoutDefault(t *testing.T) {
 	profile := RouteProfile{Platform: kernel.PlatformClaude}
 	if _, err := profile.ResolveProvider("", "any"); err == nil || !strings.Contains(err.Error(), "默认供应商") {
 		t.Fatalf("expected missing default provider error, got %v", err)
+	}
+}
+
+func TestResolveProviderArchivedDefault(t *testing.T) {
+	defaultID := 9
+	profile := RouteProfile{
+		Platform:          kernel.PlatformClaude,
+		DefaultProviderID: &defaultID,
+		Providers: []Provider{
+			{ID: 9, Name: "default-p", APIURL: "https://a.example.com", APIKey: "k1", Position: 1, Archived: true},
+		},
+	}
+	if _, err := profile.ResolveProvider("", "claude-sonnet-4"); err == nil || !strings.Contains(err.Error(), "已归档") {
+		t.Fatalf("expected archived default provider error, got %v", err)
 	}
 }
 

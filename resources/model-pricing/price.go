@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 	"sync"
 )
@@ -24,6 +26,7 @@ type Service struct {
 	normalized   map[string]string
 	ephemeral1h  map[string]float64
 	longContexts map[string]LongContextPricing
+	mu           sync.RWMutex
 }
 
 // PricingEntry 映射 JSON 内的字段。
@@ -46,6 +49,7 @@ type UsageSnapshot struct {
 	CacheCreateTokens int
 	CacheReadTokens   int
 	CacheCreation     *CacheCreationDetail
+	IsFast            bool
 }
 
 // CacheCreationDetail 细分缓存创建 tokens。
@@ -136,23 +140,37 @@ func (s *Service) CalculateCost(model string, usage UsageSnapshot) CostBreakdown
 	breakdown.CacheCreateCost = cache5mCost + cache1hCost
 	breakdown.CacheReadCost = float64(usage.CacheReadTokens) * entry.CacheReadInputTokenCost
 	breakdown.TotalCost = breakdown.InputCost + breakdown.OutputCost + breakdown.CacheCreateCost + breakdown.CacheReadCost
+	if usage.IsFast {
+		applyCostMultiplier(&breakdown, 2)
+	}
 	if breakdown.TotalCost > 0 {
 		breakdown.HasPricing = true
 	}
 	return breakdown
 }
 
+func applyCostMultiplier(breakdown *CostBreakdown, multiplier float64) {
+	if breakdown == nil || multiplier == 1 {
+		return
+	}
+	breakdown.InputCost *= multiplier
+	breakdown.OutputCost *= multiplier
+	breakdown.CacheCreateCost *= multiplier
+	breakdown.CacheReadCost *= multiplier
+	breakdown.Ephemeral5mCost *= multiplier
+	breakdown.Ephemeral1hCost *= multiplier
+	breakdown.TotalCost *= multiplier
+}
+
 func (s *Service) getPricing(model string) (*PricingEntry, bool) {
 	if model == "" {
 		return nil, false
 	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	if entry, ok := s.pricingMap[model]; ok {
 		return entry, true
-	}
-	if model == "gpt-5-codex" {
-		if entry, ok := s.pricingMap["gpt-5"]; ok {
-			return entry, true
-		}
 	}
 	withoutRegion := stripRegionPrefix(model)
 	if entry, ok := s.pricingMap[withoutRegion]; ok {
@@ -285,5 +303,48 @@ func buildLongContextPricing() map[string]LongContextPricing {
 			Input:  0.000006,
 			Output: 0.0000225,
 		},
+	}
+}
+
+// NewServiceWithFile 创建服务并尝试加载外部定价文件。
+// 先加载内置默认值，再从指定路径加载外部定价（外部优先级更高）。
+func NewServiceWithFile(path string) (*Service, error) {
+	svc, err := NewService()
+	if err != nil {
+		return nil, err
+	}
+
+	data, readErr := os.ReadFile(path)
+	if readErr != nil {
+		// 外部定价文件是可选的：不存在时静默用内置价；但权限等其他
+		// 读取错误必须告警，否则用户自定义价格无声失效、极难排查。
+		if !os.IsNotExist(readErr) {
+			log.Printf("[model-pricing] 读取外部定价文件失败 (%s): %v\n", path, readErr)
+		}
+		return svc, nil
+	}
+	var external map[string]PricingEntry
+	if err := json.Unmarshal(data, &external); err != nil {
+		log.Printf("[model-pricing] 解析外部定价文件失败 (%s)，已回退内置价格: %v\n", path, err)
+		return svc, nil
+	}
+	svc.mergeExternal(external)
+	return svc, nil
+}
+
+// mergeExternal 将外部定价合并到现有映射中。
+func (s *Service) mergeExternal(external map[string]PricingEntry) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, entry := range external {
+		item := entry
+		ensureCachePricing(&item)
+		s.pricingMap[key] = &item
+
+		norm := normalizeName(key)
+		if _, exists := s.normalized[norm]; !exists {
+			s.normalized[norm] = key
+		}
 	}
 }

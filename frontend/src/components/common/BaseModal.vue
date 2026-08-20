@@ -15,7 +15,7 @@
           <DialogPanel :class="['modal', variantClass]">
             <header class="modal-header">
               <DialogTitle class="modal-title">{{ title }}</DialogTitle>
-              <button class="ghost-icon" aria-label="Close" @click="$emit('close')">✕</button>
+              <button class="ghost-icon" :aria-label="$t('components.common.close')" @click="$emit('close')">✕</button>
             </header>
             <div class="modal-body modal-scrollable">
               <slot />

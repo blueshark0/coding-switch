@@ -1,13 +1,10 @@
 # Code Switch
 
-集中管理 Claude Code & Codex 供应商
+集中管理 Claude Code、Codex 与 Gemini 供应商
 
 - 无需重启 cc & codex, 平滑切换不同供应商
-- 支持多供应商自动降级, 保证使用体验
+- 支持按平台维护默认供应商与会话绑定, 路由行为清晰可控
 - 支持请求级别的用量统计, 花费多少清晰可见
-- 支持 cc & codex Mcp Server 双平台管理
-- 支持 Claude Skill 自动下载与安装, 内置 2 个流行的 skill 仓库
-- 支持添加自定义 Skill 仓库
 
 基于 [Wails 3](https://v3.wails.io)
 
@@ -21,8 +18,10 @@
 
 - /v1/messages 转发到配置的 Claude 供应商
 - /responses 转发到 Codex 供应商；
+- /gemini/v1beta/* 以及 /gemini/v1/* 以 Gemini API 格式转发到配置的 Gemini 供应商
 
-请求由 proxyHandler 动态挑选符合当前优先级与启用状态的 provider，并在失败时自动回退。
+请求会优先命中当前会话已绑定的 provider；如果没有会话绑定，则转发到该平台的默认 provider。
+当已绑定 provider 已被删除、禁用或与当前请求不兼容时，Code Switch 会自动清理这条失效绑定，并回退到当前默认 provider 重新建立绑定。
 
 以上流程让 cli 看到的是一个固定的本地地址，而真实请求会被 Code Switch 透明地路由到你在应用里维护的供应商列表
 
@@ -87,3 +86,6 @@ scripts/publish_release.sh
 ## 常见问题
 - 若 `.app` 无法打开，先执行 `wails3 task common:update:build-assets` 后再构建。
 - macOS 交叉编译需要终端拥有完全磁盘访问权限，否则 `~/Library/Caches/go-build` 会报 *operation not permitted*。
+
+## 模型价格参考源
+//URL Source: http://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json

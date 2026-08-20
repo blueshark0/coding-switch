@@ -1,12 +1,15 @@
 // src/utils/ThemeManager.ts
 const THEME_KEY = 'theme'
+const SYSTEM_THEME_QUERY = '(prefers-color-scheme: dark)'
+
+let themeInitialized = false
 
 export type ThemeMode = 'light' | 'dark' | 'systemdefault'
 
 export function applyTheme(mode: ThemeMode) {
   let resolvedTheme = mode
   if (mode === 'systemdefault') {
-    resolvedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    resolvedTheme = window.matchMedia(SYSTEM_THEME_QUERY).matches ? 'dark' : 'light'
   }
 
   document.documentElement.classList.remove('dark', 'light')
@@ -14,11 +17,15 @@ export function applyTheme(mode: ThemeMode) {
 }
 
 export function initTheme() {
+  if (themeInitialized) {
+    return
+  }
+  themeInitialized = true
+
   const savedTheme = (localStorage.getItem(THEME_KEY) || 'systemdefault') as ThemeMode
   applyTheme(savedTheme)
 
-  // 监听系统变化，仅在 systemdefault 时响应
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  window.matchMedia(SYSTEM_THEME_QUERY).addEventListener('change', () => {
     const current = getCurrentTheme()
     if (current === 'systemdefault') {
       applyTheme('systemdefault')

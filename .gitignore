@@ -4,3 +4,7 @@ frontend/dist
 .DS_Store
 .task
 bin
+.idea/
+/build/linux/appimage/build
+/build/linux/appimage/appicon.png
+/build/linux/appimage/CodeSwitch

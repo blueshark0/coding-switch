@@ -1,24 +1,7 @@
 <template>
   <div class="main-shell">
-    <div class="global-actions">
+    <div class="global-actions home-actions">
       <p class="global-eyebrow">{{ t('components.main.hero.eyebrow') }}</p>
-      <button
-        class="ghost-icon github-icon"
-        :class="{ 'github-upgrade': hasUpdateAvailable }"
-        :data-tooltip="hasUpdateAvailable ? t('components.main.controls.githubUpdate') : t('components.main.controls.github')"
-        @click="openGitHub"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M9 19c-4.5 1.5-4.5-2.5-6-3m12 5v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0018 3.77 5.07 5.07 0 0017.91 1S16.73.65 14 2.48a13.38 13.38 0 00-5 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 3.77a5.44 5.44 0 00-1.5 3.76c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
       <button
         class="ghost-icon"
         :data-tooltip="t('components.main.controls.theme')"
@@ -77,51 +60,7 @@
         </p> -->
       </section>
 
-      <section
-        v-if="showHeatmap"
-        ref="heatmapContainerRef"
-        class="contrib-wall"
-        :aria-label="t('components.main.heatmap.ariaLabel')"
-      >
-        <div class="contrib-legend">
-          <span>{{ t('components.main.heatmap.legendLow') }}</span>
-          <span v-for="level in 5" :key="level" :class="['legend-box', intensityClass(level - 1)]" />
-          <span>{{ t('components.main.heatmap.legendHigh') }}</span>
-        </div>
-
-        <div class="contrib-grid">
-          <div
-            v-for="(week, weekIndex) in usageHeatmap"
-            :key="weekIndex"
-            class="contrib-column"
-          >
-            <div
-              v-for="(day, dayIndex) in week"
-              :key="dayIndex"
-              class="contrib-cell"
-              :class="intensityClass(day.intensity)"
-              @mouseenter="showUsageTooltip(day, $event)"
-              @mousemove="showUsageTooltip(day, $event)"
-              @mouseleave="hideUsageTooltip"
-            />
-          </div>
-        </div>
-        <div
-          v-if="usageTooltip.visible"
-          ref="tooltipRef"
-          class="contrib-tooltip"
-          :class="usageTooltip.placement"
-          :style="{ left: `${usageTooltip.left}px`, top: `${usageTooltip.top}px` }"
-        >
-          <p class="tooltip-heading">{{ formattedTooltipLabel }}</p>
-          <ul class="tooltip-metrics">
-            <li v-for="metric in usageTooltipMetrics" :key="metric.key">
-              <span class="metric-label">{{ metric.label }}</span>
-              <span class="metric-value">{{ metric.value }}</span>
-            </li>
-          </ul>
-        </div>
-      </section>
+      <HeatmapWall v-if="showHeatmap" :usage-heatmap="usageHeatmap" />
 
       <section class="automation-section">
       <div class="section-header">
@@ -156,43 +95,6 @@
           </div>
           <button
             class="ghost-icon"
-            :data-tooltip="t('components.main.controls.mcp')"
-            @click="goToMcp"
-          >
-            <span class="icon-svg" v-html="mcpIcon" aria-hidden="true"></span>
-          </button>
-          <button
-            class="ghost-icon"
-            :data-tooltip="t('components.main.controls.skill')"
-            @click="goToSkill"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M6 4h8a4 4 0 014 4v12a3 3 0 00-3-3H6z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M6 4a2 2 0 00-2 2v13c0 .55.45 1 1 1h11"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M9 8h5"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
-          <button
-            class="ghost-icon"
             :data-tooltip="t('components.main.logs.view')"
             @click="goToLogs"
           >
@@ -203,6 +105,42 @@
                 stroke-width="1.5"
                 stroke-linecap="round"
                 stroke-linejoin="round"
+                fill="none"
+              />
+            </svg>
+          </button>
+          <button
+            class="ghost-icon"
+            :data-tooltip="t('components.main.controls.sessions')"
+            @click="goToSessions"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M9.5 14.5l5-5"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                fill="none"
+              />
+              <rect
+                x="3.5"
+                y="10"
+                width="8"
+                height="8"
+                rx="2.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+                fill="none"
+              />
+              <rect
+                x="12.5"
+                y="4"
+                width="8"
+                height="8"
+                rx="2.5"
+                stroke="currentColor"
+                stroke-width="1.5"
                 fill="none"
               />
             </svg>
@@ -226,237 +164,50 @@
         </div>
       </div>
       <div class="automation-list" @dragover.prevent>
-        <article
+        <ProviderCard
           v-for="card in activeCards"
           :key="card.id"
-          :class="['automation-card', { dragging: draggingId === card.id }]"
-          draggable="true"
-          @dragstart="onDragStart(card.id)"
-          @dragend="onDragEnd"
-          @drop="onDrop(card.id)"
-        >
-          <div class="card-leading">
-            <div class="card-icon" :style="{ backgroundColor: card.tint, color: card.accent }">
-              <span
-                v-if="!iconSvg(card.icon)"
-                class="icon-fallback"
-              >
-                {{ vendorInitials(card.name) }}
-              </span>
-              <span
-                v-else
-                class="icon-svg"
-                v-html="iconSvg(card.icon)"
-                aria-hidden="true"
-              ></span>
-            </div>
-            <div class="card-text">
-              <div class="card-title-row">
-                <p class="card-title">{{ card.name }}</p>
-                <span
-                  v-if="card.officialSite"
-                  class="card-site"
-                  role="button"
-                  tabindex="0"
-                  @click.stop="openOfficialSite(card.officialSite)"
-                  @keydown.enter.stop.prevent="openOfficialSite(card.officialSite)"
-                  @keydown.space.stop.prevent="openOfficialSite(card.officialSite)"
-                >
-                  {{ formatOfficialSite(card.officialSite) }}
-                </span>
-              </div>
-              <!-- <p class="card-subtitle">{{ card.apiUrl }}</p> -->
-              <p
-                v-for="stats in [providerStatDisplay(card.name)]"
-                :key="`metrics-${card.id}`"
-                class="card-metrics"
-              >
-                <template v-if="stats.state !== 'ready'">
-                  {{ stats.message }}
-                </template>
-                <template v-else>
-                  <span
-                    v-if="stats.successRateLabel"
-                    class="card-success-rate"
-                    :class="stats.successRateClass"
-                  >
-                    {{ stats.successRateLabel }}
-                  </span>
-                  <span class="card-metric-separator" aria-hidden="true">·</span>
-                  <span >{{ stats.requests }}</span>
-                  <span class="card-metric-separator" aria-hidden="true">·</span>
-                  <span>{{ stats.tokens }}</span>
-                  <span class="card-metric-separator" aria-hidden="true">·</span>
-                  <span>{{ stats.cost }}</span>
-                </template>
-              </p>
-            </div>
-          </div>
-          <div class="card-actions">
-            <label class="mac-switch sm">
-              <input type="checkbox" v-model="card.enabled" @change="persistProviders(activeTab)" />
-              <span></span>
-            </label>
-            <button class="ghost-icon" @click="configure(card)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M11.983 2.25a1.125 1.125 0 011.077.81l.563 2.101a7.482 7.482 0 012.326 1.343l2.08-.621a1.125 1.125 0 011.356.651l1.313 3.207a1.125 1.125 0 01-.442 1.339l-1.86 1.205a7.418 7.418 0 010 2.686l1.86 1.205a1.125 1.125 0 01.442 1.339l-1.313 3.207a1.125 1.125 0 01-1.356.651l-2.08-.621a7.482 7.482 0 01-2.326 1.343l-.563 2.101a1.125 1.125 0 01-1.077.81h-2.634a1.125 1.125 0 01-1.077-.81l-.563-2.101a7.482 7.482 0 01-2.326-1.343l-2.08.621a1.125 1.125 0 01-1.356-.651l-1.313-3.207a1.125 1.125 0 01.442-1.339l1.86-1.205a7.418 7.418 0 010-2.686l-1.86-1.205a1.125 1.125 0 01-.442-1.339l1.313-3.207a1.125 1.125 0 011.356-.651l2.08.621a7.482 7.482 0 012.326-1.343l.563-2.101a1.125 1.125 0 011.077-.81h2.634z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-            <button class="ghost-icon" @click="requestRemove(card)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M9 3h6m-7 4h8m-6 0v11m4-11v11M5 7h14l-.867 12.138A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.862L5 7z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </article>
+          :card="card"
+          :is-dragging="draggingId === card.id"
+          :is-top-provider="isTopProvider(card.id)"
+          :is-default-provider="isDefaultProvider(card.name)"
+          :provider-stats="providerStatDisplay(card.name)"
+          @archive="archiveProvider"
+          @configure="configure"
+          @drag-end="onDragEnd"
+          @dragstart="onDragStart"
+          @drop="onDrop"
+          @pin="pinProvider"
+          @remove="requestRemove"
+          @toggle-default="toggleDefaultProvider"
+        />
       </div>
+
+      <ArchivedProviders
+        :cards="archivedCards"
+        @remove="requestRemove"
+        @restore="restoreProvider"
+      />
       </section>
 
-      <BaseModal
-      :open="modalState.open"
-      :title="modalState.editingId ? t('components.main.form.editTitle') : t('components.main.form.createTitle')"
-      @close="closeModal"
-    >
-      <form class="vendor-form" @submit.prevent="submitModal">
-                <label class="form-field">
-                  <span>{{ t('components.main.form.labels.name') }}</span>
-                  <BaseInput
-                    v-model="modalState.form.name"
-                    type="text"
-                    :placeholder="t('components.main.form.placeholders.name')"
-                    required
-                    :disabled="Boolean(modalState.editingId)"
-                  />
-                </label>
+      <ProviderEditorModal
+        :api-url-error="modalState.errors.apiUrl"
+        :editing="Boolean(modalState.editingId)"
+        :form="modalState.form"
+        :name-error="modalState.errors.name"
+        :open="modalState.open"
+        :platform="modalState.tabId"
+        :proxy-url-error="modalState.errors.proxyUrl"
+        @close="closeModal"
+        @submit="submitModal"
+      />
+      <ProviderDeleteModal
+        :name="confirmState.card?.name ?? ''"
+        :open="confirmState.open"
+        @close="closeConfirm"
+        @confirm="confirmRemove"
+      />
 
-                <label class="form-field">
-                  <span class="label-row">
-                    {{ t('components.main.form.labels.apiUrl') }}
-                    <span v-if="modalState.errors.apiUrl" class="field-error">
-                      {{ modalState.errors.apiUrl }}
-                    </span>
-                  </span>
-                  <BaseInput
-                    v-model="modalState.form.apiUrl"
-                    type="text"
-                    :placeholder="t('components.main.form.placeholders.apiUrl')"
-                    required
-                    :class="{ 'has-error': !!modalState.errors.apiUrl }"
-                  />
-                </label>
-
-                <label class="form-field">
-                  <span>{{ t('components.main.form.labels.officialSite') }}</span>
-                  <BaseInput
-                    v-model="modalState.form.officialSite"
-                    type="text"
-                    :placeholder="t('components.main.form.placeholders.officialSite')"
-                  />
-                </label>
-
-                <label class="form-field">
-                  <span>{{ t('components.main.form.labels.apiKey') }}</span>
-                  <BaseInput
-                    v-model="modalState.form.apiKey"
-                    type="text"
-                    :placeholder="t('components.main.form.placeholders.apiKey')"
-                  />
-                </label>
-
-                <div class="form-field">
-                  <span>{{ t('components.main.form.labels.icon') }}</span>
-                  <Listbox v-model="modalState.form.icon" v-slot="{ open }">
-                    <div class="icon-select">
-                      <ListboxButton class="icon-select-button">
-                        <span class="icon-preview" v-html="iconSvg(modalState.form.icon)" aria-hidden="true"></span>
-                        <span class="icon-select-label">{{ modalState.form.icon }}</span>
-                        <svg viewBox="0 0 20 20" aria-hidden="true">
-                          <path d="M6 8l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-                        </svg>
-                      </ListboxButton>
-                      <ListboxOptions v-if="open" class="icon-select-options">
-                        <ListboxOption
-                          v-for="iconName in iconOptions"
-                          :key="iconName"
-                          :value="iconName"
-                          v-slot="{ active, selected }"
-                        >
-                          <div :class="['icon-option', { active, selected }]">
-                            <span class="icon-preview" v-html="iconSvg(iconName)" aria-hidden="true"></span>
-                            <span class="icon-name">{{ iconName }}</span>
-                          </div>
-                        </ListboxOption>
-                      </ListboxOptions>
-                    </div>
-                  </Listbox>
-                </div>
-
-                <div class="form-field">
-                  <ModelWhitelistEditor v-model="modalState.form.supportedModels" />
-                </div>
-
-                <div class="form-field">
-                  <ModelMappingEditor v-model="modalState.form.modelMapping" />
-                </div>
-
-                <div class="form-field switch-field">
-                  <span>{{ t('components.main.form.labels.enabled') }}</span>
-                  <div class="switch-inline">
-                    <label class="mac-switch">
-                      <input type="checkbox" v-model="modalState.form.enabled" />
-                      <span></span>
-                    </label>
-                    <span class="switch-text">
-                      {{ modalState.form.enabled ? t('components.main.form.switch.on') : t('components.main.form.switch.off') }}
-                    </span>
-                  </div>
-                </div>
-
-                <footer class="form-actions">
-                  <BaseButton variant="outline" type="button" @click="closeModal">
-                    {{ t('components.main.form.actions.cancel') }}
-                  </BaseButton>
-                  <BaseButton type="submit">
-                    {{ t('components.main.form.actions.save') }}
-                  </BaseButton>
-                </footer>
-      </form>
-      </BaseModal>
-      <BaseModal
-      :open="confirmState.open"
-      :title="t('components.main.form.confirmDeleteTitle')"
-      variant="confirm"
-      @close="closeConfirm"
-    >
-      <div class="confirm-body">
-        <p>
-          {{ t('components.main.form.confirmDeleteMessage', { name: confirmState.card?.name ?? '' }) }}
-        </p>
-      </div>
-      <footer class="form-actions confirm-actions">
-        <BaseButton variant="outline" type="button" @click="closeConfirm">
-          {{ t('components.main.form.actions.cancel') }}
-        </BaseButton>
-        <BaseButton variant="danger" type="button" @click="confirmRemove">
-          {{ t('components.main.form.actions.delete') }}
-        </BaseButton>
-      </footer>
-      </BaseModal>
       <footer v-if="appVersion" class="main-version">
         {{ t('components.main.versionLabel', { version: appVersion }) }}
       </footer>
@@ -465,548 +216,67 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted, onUnmounted } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
-import { Browser } from '@wailsio/runtime'
-import {
-	buildUsageHeatmapMatrix,
-	generateFallbackUsageHeatmap,
-	DEFAULT_HEATMAP_DAYS,
-	calculateHeatmapDayRange,
-	type UsageHeatmapWeek,
-	type UsageHeatmapDay,
-} from '../../data/usageHeatmap'
-import { automationCardGroups, createAutomationCards, type AutomationCard } from '../../data/cards'
-import lobeIcons from '../../icons/lobeIconMap'
-import BaseButton from '../common/BaseButton.vue'
-import BaseModal from '../common/BaseModal.vue'
-import BaseInput from '../common/BaseInput.vue'
-import ModelWhitelistEditor from '../common/ModelWhitelistEditor.vue'
-import ModelMappingEditor from '../common/ModelMappingEditor.vue'
-import { LoadProviders, SaveProviders } from '../../../bindings/codeswitch/services/providerservice'
-import { fetchProxyStatus, enableProxy, disableProxy } from '../../services/claudeSettings'
-import { fetchHeatmapStats, fetchProviderDailyStats, type ProviderDailyStat } from '../../services/logs'
-import { fetchCurrentVersion } from '../../services/version'
-import { fetchAppSettings, type AppSettings } from '../../services/appSettings'
-import { getCurrentTheme, setTheme, type ThemeMode } from '../../utils/ThemeManager'
+import ArchivedProviders from './ArchivedProviders.vue'
+import HeatmapWall from './HeatmapWall.vue'
+import ProviderDeleteModal from './ProviderDeleteModal.vue'
+import ProviderEditorModal from './ProviderEditorModal.vue'
+import ProviderCard from './ProviderCard.vue'
+import { setTheme } from '../../utils/ThemeManager'
+import { useProviderWorkbench } from './useProviderWorkbench'
 import { useRouter } from 'vue-router'
+import { useDarkMode } from '../../composables/useDarkMode'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
-const themeMode = ref<ThemeMode>(getCurrentTheme())
-const resolvedTheme = computed(() => {
-  if (themeMode.value === 'systemdefault') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return themeMode.value
+const { isDarkMode } = useDarkMode()
+const themeIcon = computed(() => (isDarkMode.value ? 'moon' : 'sun'))
+const {
+  activeTab,
+  activeCards,
+  activeProxyBusy,
+  activeProxyState,
+  appVersion,
+  archiveProvider,
+  archivedCards,
+  closeConfirm,
+  closeModal,
+  confirmRemove,
+  confirmState,
+  configure,
+  currentProxyLabel,
+  draggingId,
+  isDefaultProvider,
+  isTopProvider,
+  modalState,
+  onDragEnd,
+  onDragStart,
+  onDrop,
+  onProxyToggle,
+  onTabChange,
+  openCreateModal,
+  pinProvider,
+  providerStatDisplay,
+  requestRemove,
+  restoreProvider,
+  selectedIndex,
+  showHeatmap,
+  showHomeTitle,
+  submitModal,
+  tabs,
+  toggleDefaultProvider,
+  usageHeatmap,
+} = useProviderWorkbench({
+  t,
 })
-const themeIcon = computed(() => (resolvedTheme.value === 'dark' ? 'moon' : 'sun'))
-const releasePageUrl = 'https://github.com/daodao97/code-switch/releases'
-const releaseApiUrl = 'https://api.github.com/repos/daodao97/code-switch/releases/latest'
-
-const HEATMAP_DAYS = DEFAULT_HEATMAP_DAYS
-const usageHeatmap = ref<UsageHeatmapWeek[]>(generateFallbackUsageHeatmap(HEATMAP_DAYS))
-const heatmapContainerRef = ref<HTMLElement | null>(null)
-const tooltipRef = ref<HTMLElement | null>(null)
-const proxyStates = reactive<Record<ProviderTab, boolean>>({
-  claude: false,
-  codex: false,
-})
-const proxyBusy = reactive<Record<ProviderTab, boolean>>({
-  claude: false,
-  codex: false,
-})
-
-const providerStatsMap = reactive<Record<ProviderTab, Record<string, ProviderDailyStat>>>({
-  claude: {},
-  codex: {},
-} as Record<ProviderTab, Record<string, ProviderDailyStat>>)
-const providerStatsLoading = reactive<Record<ProviderTab, boolean>>({
-  claude: false,
-  codex: false,
-} as Record<ProviderTab, boolean>)
-const providerStatsLoaded = reactive<Record<ProviderTab, boolean>>({
-  claude: false,
-  codex: false,
-} as Record<ProviderTab, boolean>)
-let providerStatsTimer: number | undefined
-let updateTimer: number | undefined
-const showHeatmap = ref(true)
-const showHomeTitle = ref(true)
-const mcpIcon = lobeIcons['mcp'] ?? ''
-const appVersion = ref('')
-const hasUpdateAvailable = ref(false)
-
-const intensityClass = (value: number) => `gh-level-${value}`
-
-type TooltipPlacement = 'above' | 'below'
-
-const usageTooltip = reactive({
-  visible: false,
-  label: '',
-  dateKey: '',
-  left: 0,
-  top: 0,
-  placement: 'above' as TooltipPlacement,
-  requests: 0,
-  inputTokens: 0,
-  outputTokens: 0,
-  reasoningTokens: 0,
-  cost: 0,
-})
-
-const formatMetric = (value: number) => value.toLocaleString()
-
-const tooltipDateFormatter = computed(() =>
-  new Intl.DateTimeFormat(locale.value || 'en', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-)
-
-const currencyFormatter = computed(() =>
-  new Intl.NumberFormat(locale.value || 'en', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-)
-
-const formattedTooltipLabel = computed(() => {
-  if (!usageTooltip.dateKey) return usageTooltip.label
-  const date = new Date(usageTooltip.dateKey)
-  if (Number.isNaN(date.getTime())) {
-    return usageTooltip.label
-  }
-  return tooltipDateFormatter.value.format(date)
-})
-
-const formattedTooltipAmount = computed(() =>
-  currencyFormatter.value.format(Math.max(usageTooltip.cost, 0))
-)
-
-const usageTooltipMetrics = computed(() => [
-  {
-    key: 'cost',
-    label: t('components.main.heatmap.metrics.cost'),
-    value: formattedTooltipAmount.value,
-  },
-  {
-    key: 'requests',
-    label: t('components.main.heatmap.metrics.requests'),
-    value: formatMetric(usageTooltip.requests),
-  },
-  {
-    key: 'inputTokens',
-    label: t('components.main.heatmap.metrics.inputTokens'),
-    value: formatMetric(usageTooltip.inputTokens),
-  },
-  {
-    key: 'outputTokens',
-    label: t('components.main.heatmap.metrics.outputTokens'),
-    value: formatMetric(usageTooltip.outputTokens),
-  },
-  {
-    key: 'reasoningTokens',
-    label: t('components.main.heatmap.metrics.reasoningTokens'),
-    value: formatMetric(usageTooltip.reasoningTokens),
-  },
-])
-
-const clamp = (value: number, min: number, max: number) => {
-  if (max <= min) return min
-  return Math.min(Math.max(value, min), max)
-}
-
-const TOOLTIP_DEFAULT_WIDTH = 220
-const TOOLTIP_DEFAULT_HEIGHT = 120
-const TOOLTIP_VERTICAL_OFFSET = 12
-const TOOLTIP_HORIZONTAL_MARGIN = 20
-const TOOLTIP_VERTICAL_MARGIN = 24
-
-const getTooltipSize = () => {
-  const rect = tooltipRef.value?.getBoundingClientRect()
-  return {
-    width: rect?.width ?? TOOLTIP_DEFAULT_WIDTH,
-    height: rect?.height ?? TOOLTIP_DEFAULT_HEIGHT,
-  }
-}
-
-const viewportSize = () => {
-  if (typeof window !== 'undefined') {
-    return { width: window.innerWidth, height: window.innerHeight }
-  }
-  if (typeof document !== 'undefined' && document.documentElement) {
-    return {
-      width: document.documentElement.clientWidth,
-      height: document.documentElement.clientHeight,
-    }
-  }
-  return {
-    width: heatmapContainerRef.value?.clientWidth ?? 0,
-    height: heatmapContainerRef.value?.clientHeight ?? 0,
-  }
-}
-
-const showUsageTooltip = (day: UsageHeatmapDay, event: MouseEvent) => {
-  const target = event.currentTarget as HTMLElement | null
-  const cellRect = target?.getBoundingClientRect()
-  if (!cellRect) return
-  usageTooltip.label = day.label
-  usageTooltip.dateKey = day.dateKey
-  usageTooltip.requests = day.requests
-  usageTooltip.inputTokens = day.inputTokens
-  usageTooltip.outputTokens = day.outputTokens
-  usageTooltip.reasoningTokens = day.reasoningTokens
-  usageTooltip.cost = day.cost
-  const { width: tooltipWidth, height: tooltipHeight } = getTooltipSize()
-  const { width: viewportWidth, height: viewportHeight } = viewportSize()
-  const centerX = cellRect.left + cellRect.width / 2
-  const halfWidth = tooltipWidth / 2
-  const minLeft = TOOLTIP_HORIZONTAL_MARGIN + halfWidth
-  const maxLeft = viewportWidth > 0 ? viewportWidth - halfWidth - TOOLTIP_HORIZONTAL_MARGIN : centerX
-  usageTooltip.left = clamp(centerX, minLeft, maxLeft)
-
-  const anchorTop = cellRect.top
-  const anchorBottom = cellRect.bottom
-  const canShowAbove = anchorTop - tooltipHeight - TOOLTIP_VERTICAL_OFFSET >= TOOLTIP_VERTICAL_MARGIN
-  const viewportBottomLimit = viewportHeight > 0 ? viewportHeight - tooltipHeight - TOOLTIP_VERTICAL_MARGIN : anchorBottom
-  const shouldPlaceBelow = !canShowAbove
-  usageTooltip.placement = shouldPlaceBelow ? 'below' : 'above'
-  const desiredTop = shouldPlaceBelow
-    ? anchorBottom + TOOLTIP_VERTICAL_OFFSET
-    : anchorTop - tooltipHeight - TOOLTIP_VERTICAL_OFFSET
-  usageTooltip.top = clamp(desiredTop, TOOLTIP_VERTICAL_MARGIN, viewportBottomLimit)
-  usageTooltip.visible = true
-}
-
-const hideUsageTooltip = () => {
-  usageTooltip.visible = false
-}
-
-const loadAppSettings = async () => {
-  try {
-    const data: AppSettings = await fetchAppSettings()
-    showHeatmap.value = data?.show_heatmap ?? true
-    showHomeTitle.value = data?.show_home_title ?? true
-  } catch (error) {
-    console.error('failed to load app settings', error)
-    showHeatmap.value = true
-    showHomeTitle.value = true
-  }
-}
-
-const checkForUpdates = async () => {
-  try {
-    const version = await fetchCurrentVersion()
-    appVersion.value = version || ''
-  } catch (error) {
-    console.error('failed to load app version', error)
-  }
-
-  try {
-    const resp = await fetch(releaseApiUrl, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-      },
-    })
-    if (!resp.ok) {
-      return
-    }
-    const data = await resp.json()
-    const latestTag = data?.tag_name ?? ''
-    if (latestTag && compareVersions(appVersion.value || '0.0.0', latestTag) < 0) {
-      hasUpdateAvailable.value = true
-    }
-  } catch (error) {
-    console.error('failed to fetch release info', error)
-  }
-}
-
-const handleAppSettingsUpdated = () => {
-  void loadAppSettings()
-}
-
-const startUpdateTimer = () => {
-  stopUpdateTimer()
-  updateTimer = window.setInterval(() => {
-    void checkForUpdates()
-  }, 60 * 60 * 1000)
-}
-
-const stopUpdateTimer = () => {
-  if (updateTimer) {
-    clearInterval(updateTimer)
-    updateTimer = undefined
-  }
-}
-
-const normalizeProviderKey = (value: string) => value?.trim().toLowerCase() ?? ''
-
-const normalizeVersion = (value: string) => value.replace(/^v/i, '').trim()
-
-const compareVersions = (current: string, remote: string) => {
-  const curParts = normalizeVersion(current).split('.').map((part) => parseInt(part, 10) || 0)
-  const remoteParts = normalizeVersion(remote).split('.').map((part) => parseInt(part, 10) || 0)
-  const maxLen = Math.max(curParts.length, remoteParts.length)
-  for (let i = 0; i < maxLen; i++) {
-    const cur = curParts[i] ?? 0
-    const rem = remoteParts[i] ?? 0
-    if (cur === rem) continue
-    return cur < rem ? -1 : 1
-  }
-  return 0
-}
-
-const loadUsageHeatmap = async () => {
-	try {
-		const rangeDays = calculateHeatmapDayRange(HEATMAP_DAYS)
-		const stats = await fetchHeatmapStats(rangeDays)
-		usageHeatmap.value = buildUsageHeatmapMatrix(stats, HEATMAP_DAYS)
-	} catch (error) {
-		console.error('Failed to load usage heatmap stats', error)
-	}
-}
-
-const tabs = [
-  { id: 'claude', label: 'Claude Code' },
-  { id: 'codex', label: 'Codex' },
-] as const
-type ProviderTab = (typeof tabs)[number]['id']
-const providerTabIds = tabs.map((tab) => tab.id) as ProviderTab[]
-
-const cards = reactive<Record<ProviderTab, AutomationCard[]>>({
-  claude: createAutomationCards(automationCardGroups.claude),
-  codex: createAutomationCards(automationCardGroups.codex),
-})
-const draggingId = ref<number | null>(null)
-
-const serializeProviders = (providers: AutomationCard[]) => providers.map((provider) => ({ ...provider }))
-
-const persistProviders = async (tabId: ProviderTab) => {
-  try {
-    await SaveProviders(tabId, serializeProviders(cards[tabId]))
-  } catch (error) {
-    console.error('Failed to save providers', error)
-  }
-}
-
-const replaceProviders = (tabId: ProviderTab, data: AutomationCard[]) => {
-  cards[tabId].splice(0, cards[tabId].length, ...createAutomationCards(data))
-}
-
-const loadProvidersFromDisk = async () => {
-  for (const tab of providerTabIds) {
-    try {
-      const saved = await LoadProviders(tab)
-      if (Array.isArray(saved)) {
-        replaceProviders(tab, saved as AutomationCard[])
-      } else {
-        await persistProviders(tab)
-      }
-    } catch (error) {
-      console.error('Failed to load providers', error)
-    }
-  }
-}
-
-const refreshProxyState = async (tab: ProviderTab) => {
-  try {
-    const status = await fetchProxyStatus(tab)
-    proxyStates[tab] = Boolean(status?.enabled)
-  } catch (error) {
-    console.error(`Failed to fetch proxy status for ${tab}`, error)
-    proxyStates[tab] = false
-  }
-}
-
-const onProxyToggle = async () => {
-  const tab = activeTab.value
-  if (proxyBusy[tab]) return
-  proxyBusy[tab] = true
-  const nextState = !proxyStates[tab]
-  try {
-    if (nextState) {
-      await enableProxy(tab)
-    } else {
-      await disableProxy(tab)
-    }
-    proxyStates[tab] = nextState
-  } catch (error) {
-    console.error(`Failed to toggle proxy for ${tab}`, error)
-  } finally {
-    proxyBusy[tab] = false
-  }
-}
-
-const loadProviderStats = async (tab: ProviderTab) => {
-  providerStatsLoading[tab] = true
-  try {
-    const stats = await fetchProviderDailyStats(tab)
-    const mapped: Record<string, ProviderDailyStat> = {}
-    ;(stats ?? []).forEach((stat) => {
-      mapped[normalizeProviderKey(stat.provider)] = stat
-    })
-    const hadExistingStats = Object.keys(providerStatsMap[tab] ?? {}).length > 0
-    if ((stats?.length ?? 0) > 0) {
-      providerStatsMap[tab] = mapped
-    } else if (!hadExistingStats) {
-      providerStatsMap[tab] = mapped
-    }
-    providerStatsLoaded[tab] = true
-  } catch (error) {
-    console.error(`Failed to load provider stats for ${tab}`, error)
-    if (!providerStatsLoaded[tab]) {
-      providerStatsLoaded[tab] = true
-    }
-  } finally {
-    providerStatsLoading[tab] = false
-  }
-}
-
-type ProviderStatDisplay =
-  | { state: 'loading' | 'empty'; message: string }
-  | {
-      state: 'ready'
-      requests: string
-      tokens: string
-      cost: string
-      successRateLabel: string
-      successRateClass: string
-    }
-
-const SUCCESS_RATE_THRESHOLDS = {
-  healthy: 0.95,
-  warning: 0.8,
-} as const
-
-const formatSuccessRateLabel = (value: number) => {
-  const percent = clamp(value, 0, 1) * 100
-  const decimals = percent >= 99.5 || percent === 0 ? 0 : 1
-  return `${t('components.main.providers.successRate')}: ${percent.toFixed(decimals)}%`
-}
-
-const successRateClassName = (value: number) => {
-  const rate = clamp(value, 0, 1)
-  if (rate >= SUCCESS_RATE_THRESHOLDS.healthy) {
-    return 'success-good'
-  }
-  if (rate >= SUCCESS_RATE_THRESHOLDS.warning) {
-    return 'success-warn'
-  }
-  return 'success-bad'
-}
-
-const providerStatDisplay = (providerName: string): ProviderStatDisplay => {
-  const tab = activeTab.value
-  if (!providerStatsLoaded[tab]) {
-    return { state: 'loading', message: t('components.main.providers.loading') }
-  }
-  const stat = providerStatsMap[tab]?.[normalizeProviderKey(providerName)]
-  if (!stat) {
-    return { state: 'empty', message: t('components.main.providers.noData') }
-  }
-  const totalTokens = stat.input_tokens + stat.output_tokens
-  const successRateValue = Number.isFinite(stat.success_rate) ? clamp(stat.success_rate, 0, 1) : null
-  const successRateLabel = successRateValue !== null ? formatSuccessRateLabel(successRateValue) : ''
-  const successRateClass = successRateValue !== null ? successRateClassName(successRateValue) : ''
-  return {
-    state: 'ready',
-    requests: `${t('components.main.providers.requests')}: ${formatMetric(stat.total_requests)}`,
-    tokens: `${t('components.main.providers.tokens')}: ${formatMetric(totalTokens)}`,
-    cost: `${t('components.main.providers.cost')}: ${currencyFormatter.value.format(Math.max(stat.cost_total, 0))}`,
-    successRateLabel,
-    successRateClass,
-  }
-}
-
-const normalizeUrlWithScheme = (value: string) => {
-  if (!value) return ''
-  try {
-    const url = new URL(value)
-    return url.toString()
-  } catch {
-    return `https://${value}`
-  }
-}
-
-const openOfficialSite = (site: string) => {
-  const target = normalizeUrlWithScheme(site)
-  if (!target) return
-  Browser.OpenURL(target).catch(() => {
-    console.error('failed to open link', target)
-  })
-}
-
-const formatOfficialSite = (site: string) => {
-  if (!site) return ''
-  try {
-    const url = new URL(normalizeUrlWithScheme(site))
-    return url.hostname.replace(/^www\./, '')
-  } catch {
-    return site
-  }
-}
-
-const startProviderStatsTimer = () => {
-  stopProviderStatsTimer()
-  providerStatsTimer = window.setInterval(() => {
-    providerTabIds.forEach((tab) => {
-      void loadProviderStats(tab)
-    })
-  }, 60_000)
-}
-
-const stopProviderStatsTimer = () => {
-  if (providerStatsTimer) {
-    clearInterval(providerStatsTimer)
-    providerStatsTimer = undefined
-  }
-}
-
-onMounted(async () => {
-  void loadUsageHeatmap()
-  await loadProvidersFromDisk()
-  await Promise.all(providerTabIds.map(refreshProxyState))
-  await Promise.all(providerTabIds.map((tab) => loadProviderStats(tab)))
-  await loadAppSettings()
-  await checkForUpdates()
-  startProviderStatsTimer()
-  startUpdateTimer()
-  window.addEventListener('app-settings-updated', handleAppSettingsUpdated)
-})
-
-onUnmounted(() => {
-  stopProviderStatsTimer()
-  window.removeEventListener('app-settings-updated', handleAppSettingsUpdated)
-  stopUpdateTimer()
-})
-
-const selectedIndex = ref(0)
-const activeTab = computed<ProviderTab>(() => tabs[selectedIndex.value]?.id ?? tabs[0].id)
-const activeCards = computed(() => cards[activeTab.value] ?? [])
-const currentProxyLabel = computed(() =>
-  activeTab.value === 'claude'
-    ? t('components.main.relayToggle.hostClaude')
-    : t('components.main.relayToggle.hostCodex')
-)
-const activeProxyState = computed(() => proxyStates[activeTab.value])
-const activeProxyBusy = computed(() => proxyBusy[activeTab.value])
 
 const goToLogs = () => {
   router.push('/logs')
 }
 
-const goToMcp = () => {
-  router.push('/mcp')
-}
-
-const goToSkill = () => {
-  router.push('/skill')
+const goToSessions = () => {
+  router.push({ path: '/sessions', query: { platform: activeTab.value } })
 }
 
 const goToSettings = () => {
@@ -1014,214 +284,9 @@ const goToSettings = () => {
 }
 
 const toggleTheme = () => {
-  const next = resolvedTheme.value === 'dark' ? 'light' : 'dark'
-  themeMode.value = next
+  const next = isDarkMode.value ? 'light' : 'dark'
   setTheme(next)
 }
-
-const openGitHub = () => {
-  Browser.OpenURL(releasePageUrl).catch(() => {
-    console.error('failed to open github')
-  })
-}
-
-type VendorForm = {
-  name: string
-  apiUrl: string
-  apiKey: string
-  officialSite: string
-  icon: string
-  enabled: boolean
-  supportedModels?: Record<string, boolean>
-  modelMapping?: Record<string, string>
-}
-
-const iconOptions = Object.keys(lobeIcons).sort((a, b) => a.localeCompare(b))
-const defaultIconKey = iconOptions[0] ?? 'aicoding'
-
-const defaultFormValues = (): VendorForm => ({
-  name: '',
-  apiUrl: '',
-  apiKey: '',
-  officialSite: '',
-  icon: defaultIconKey,
-  enabled: true,
-  supportedModels: {},
-  modelMapping: {},
-})
-
-const modalState = reactive({
-  open: false,
-  tabId: tabs[0].id as ProviderTab,
-  editingId: null as number | null,
-  form: defaultFormValues(),
-  errors: {
-    apiUrl: '',
-  },
-})
-
-const editingCard = ref<AutomationCard | null>(null)
-const confirmState = reactive({ open: false, card: null as AutomationCard | null, tabId: tabs[0].id as ProviderTab })
-
-const openCreateModal = () => {
-  modalState.tabId = activeTab.value
-  modalState.editingId = null
-  editingCard.value = null
-  Object.assign(modalState.form, defaultFormValues())
-  modalState.errors.apiUrl = ''
-  modalState.open = true
-}
-
-const openEditModal = (card: AutomationCard) => {
-  modalState.tabId = activeTab.value
-  modalState.editingId = card.id
-  editingCard.value = card
-  Object.assign(modalState.form, {
-    name: card.name,
-    apiUrl: card.apiUrl,
-    apiKey: card.apiKey,
-    officialSite: card.officialSite,
-    icon: card.icon,
-    enabled: card.enabled,
-    supportedModels: card.supportedModels || {},
-    modelMapping: card.modelMapping || {},
-  })
-  modalState.errors.apiUrl = ''
-  modalState.open = true
-}
-
-const closeModal = () => {
-  modalState.open = false
-}
-
-const closeConfirm = () => {
-  confirmState.open = false
-  confirmState.card = null
-}
-
-const submitModal = () => {
-  const list = cards[modalState.tabId]
-  if (!list) return
-  const name = modalState.form.name.trim()
-  const apiUrl = modalState.form.apiUrl.trim()
-  const apiKey = modalState.form.apiKey.trim()
-  const officialSite = modalState.form.officialSite.trim()
-  const icon = (modalState.form.icon || defaultIconKey).toString().trim().toLowerCase() || defaultIconKey
-  modalState.errors.apiUrl = ''
-  try {
-    const parsed = new URL(apiUrl)
-    if (!/^https?:/.test(parsed.protocol)) throw new Error('protocol')
-  } catch {
-    modalState.errors.apiUrl = t('components.main.form.errors.invalidUrl')
-    return
-  }
-
-  if (editingCard.value) {
-    Object.assign(editingCard.value, {
-      apiUrl: apiUrl || editingCard.value.apiUrl,
-      apiKey,
-      officialSite,
-      icon,
-      enabled: modalState.form.enabled,
-      supportedModels: modalState.form.supportedModels || {},
-      modelMapping: modalState.form.modelMapping || {},
-    })
-    void persistProviders(modalState.tabId)
-  } else {
-    const newCard: AutomationCard = {
-      id: Date.now(),
-      name: name || 'Untitled vendor',
-      apiUrl,
-      apiKey,
-      officialSite,
-      icon,
-      accent: '#0a84ff',
-      tint: 'rgba(15, 23, 42, 0.12)',
-      enabled: modalState.form.enabled,
-      supportedModels: modalState.form.supportedModels || {},
-      modelMapping: modalState.form.modelMapping || {},
-    }
-    list.push(newCard)
-    void persistProviders(modalState.tabId)
-  }
-
-  closeModal()
-}
-
-const configure = (card: AutomationCard) => {
-  openEditModal(card)
-}
-
-const remove = (id: number, tabId: ProviderTab = activeTab.value) => {
-  const list = cards[tabId]
-  if (!list) return
-  const index = list.findIndex((card) => card.id === id)
-  if (index > -1) {
-    list.splice(index, 1)
-    void persistProviders(tabId)
-  }
-}
-
-const requestRemove = (card: AutomationCard) => {
-  confirmState.card = card
-  confirmState.tabId = activeTab.value
-  confirmState.open = true
-}
-
-const confirmRemove = () => {
-  if (!confirmState.card) return
-  remove(confirmState.card.id, confirmState.tabId)
-  closeConfirm()
-}
-
-const onDragStart = (id: number) => {
-  draggingId.value = id
-}
-
-const onDrop = (targetId: number) => {
-  if (draggingId.value === null || draggingId.value === targetId) return
-  const currentTab = activeTab.value
-  const list = cards[currentTab]
-  if (!list) return
-  const fromIndex = list.findIndex((card) => card.id === draggingId.value)
-  const toIndex = list.findIndex((card) => card.id === targetId)
-  if (fromIndex === -1 || toIndex === -1) return
-  const [moved] = list.splice(fromIndex, 1)
-  const newIndex = fromIndex < toIndex ? toIndex - 1 : toIndex
-  list.splice(newIndex, 0, moved)
-  draggingId.value = null
-  void persistProviders(currentTab)
-}
-
-const onDragEnd = () => {
-  draggingId.value = null
-}
-
-const iconSvg = (name: string) => {
-  if (!name) return ''
-  return lobeIcons[name.toLowerCase()] ?? ''
-}
-
-const vendorInitials = (name: string) => {
-  if (!name) return 'AI'
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
-
-const onTabChange = (idx: number) => {
-  selectedIndex.value = idx
-  const nextTab = tabs[idx]?.id
-  if (nextTab) {
-    void refreshProxyState(nextTab as ProviderTab)
-    void loadProviderStats(nextTab as ProviderTab)
-  }
-}
-
 </script>
 
 <style scoped>
@@ -1231,5 +296,4 @@ const onTabChange = (idx: number) => {
   color: var(--mac-text-secondary);
   font-size: 0.85rem;
 }
-
 </style>

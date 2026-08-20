@@ -26,11 +26,15 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Install frontend dependencies
-        run: cd frontend && npm install
+        run: cd frontend && pnpm install
 
       - name: Update build assets
         run: wails3 task common:update:build-assets
@@ -78,11 +82,15 @@ jobs:
         with:
           node-version: '22'
 
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Install frontend dependencies
-        run: cd frontend && npm install
+        run: cd frontend && pnpm install
 
       - name: Install NSIS
         run: choco install nsis -y

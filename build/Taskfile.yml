@@ -12,39 +12,70 @@ tasks:
     dir: frontend
     sources:
       - package.json
-      - package-lock.json
+      - pnpm-lock.yaml
     generates:
       - node_modules/*
     preconditions:
-      - sh: npm version
-        msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
+      - sh: pnpm version
+        msg: "Looks like pnpm isn't installed. Install it with: npm install -g pnpm"
     cmds:
-      - npm install
+      - pnpm install
 
   build:frontend:
     label: build:frontend (PRODUCTION={{.PRODUCTION}})
     summary: Build the frontend project
+    cmds:
+      - task: '{{if eq .PRODUCTION "true"}}build:frontend:production{{else}}build:frontend:dev{{end}}'
+        vars:
+          BINDING_FLAGS:
+            ref: .BINDING_FLAGS
+
+  build:frontend:dev:
+    label: build:frontend:dev
+    internal: true
     dir: frontend
     sources:
-      - "**/*"
+      - "bindings/**/*"
+      - "public/**/*"
+      - "src/**/*"
+      - "index.html"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "postcss.config.js"
+      - "tsconfig.json"
+      - "tsconfig.node.json"
+      - "vite.config.ts"
     generates:
       - dist/**/*
     deps:
       - task: install:frontend:deps
       - task: generate:bindings
         vars:
-          BUILD_FLAGS:
-            ref: .BUILD_FLAGS
+          BINDING_FLAGS:
+            ref: .BINDING_FLAGS
     cmds:
-      - npm run {{.BUILD_COMMAND}} -q
+      - pnpm -quiet run build:dev
     env:
-      PRODUCTION: '{{.PRODUCTION | default "false"}}'
-    vars:
-      BUILD_COMMAND: '{{if eq .PRODUCTION "true"}}build{{else}}build:dev{{end}}'
+      PRODUCTION: "false"
+
+  build:frontend:production:
+    label: build:frontend:production
+    internal: true
+    dir: frontend
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+        vars:
+          BINDING_FLAGS:
+            ref: .BINDING_FLAGS
+    cmds:
+      - pnpm -quiet run build
+    env:
+      PRODUCTION: "true"
 
 
   generate:bindings:
-    label: generate:bindings (BUILD_FLAGS={{.BUILD_FLAGS}})
+    label: generate:bindings (BINDING_FLAGS={{.BINDING_FLAGS}})
     summary: Generates bindings for the frontend
     deps:
       - task: go:mod:tidy
@@ -58,7 +89,7 @@ tasks:
     generates:
       - frontend/bindings/**/*
     cmds:
-      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true -ts
+      - wails3 generate bindings -f '{{.BINDING_FLAGS}}' -clean=true -ts
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` files from an image
@@ -77,7 +108,7 @@ tasks:
     deps:
       - task: install:frontend:deps
     cmds:
-      - npm run dev -- --port {{.VITE_PORT}} --strictPort
+      - pnpm run dev -- --port {{.VITE_PORT}} --strictPort
 
   update:build-assets:
     summary: Updates the build assets

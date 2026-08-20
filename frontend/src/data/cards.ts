@@ -1,20 +1,15 @@
-export type AutomationCard = {
-  id: number
-  name: string
-  apiUrl: string
-  apiKey: string
-  officialSite: string
-  icon: string
-  tint: string
-  accent: string
-  enabled: boolean
-  // 模型白名单：声明 provider 支持的模型（精确或通配符）
-  supportedModels?: Record<string, boolean>
-  // 模型映射：external model -> internal model
-  modelMapping?: Record<string, string>
+import type { ProviderRecord } from '../services/providers'
+
+// 以 bindings 生成的 ProviderRecord 为单一事实来源派生，后端 Provider
+// 新增字段时这里自动跟进，不再手写第二份字段清单。
+export type AutomationCard = Omit<ProviderRecord, 'position'>
+
+export type RequestBodyReplacement = {
+  path: string
+  value: string
 }
 
-export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> = {
+export const automationCardGroups: Record<'claude' | 'codex' | 'gemini', AutomationCard[]> = {
   claude: [
     {
       id: 100,
@@ -25,7 +20,6 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       icon: 'aicoding',
       tint: 'rgba(10, 132, 255, 0.14)',
       accent: '#0aff5cff',
-      enabled: false,
     },
     {
       id: 101,
@@ -36,7 +30,6 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       icon: 'aicoding',
       tint: 'rgba(10, 132, 255, 0.14)',
       accent: '#0a84ff',
-      enabled: false,
     },
     {
       id: 102,
@@ -47,7 +40,6 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       icon: 'kimi',
       tint: 'rgba(16, 185, 129, 0.16)',
       accent: '#10b981',
-      enabled: false,
     },
     {
       id: 103,
@@ -58,7 +50,6 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       icon: 'deepseek',
       tint: 'rgba(251, 146, 60, 0.18)',
       accent: '#f97316',
-      enabled: false,
     },
   ],
   codex: [
@@ -71,7 +62,24 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
       icon: 'aicoding',
       tint: 'rgba(236, 72, 153, 0.16)',
       accent: '#ec4899',
-      enabled: false,
+    },
+  ],
+  gemini: [
+    {
+      id: 301,
+      name: 'Google AI Studio',
+      apiUrl: 'https://generativelanguage.googleapis.com',
+      apiKey: '',
+      officialSite: 'https://ai.google.dev',
+      icon: 'gemini',
+      tint: 'rgba(99, 102, 241, 0.16)',
+      accent: '#6366f1',
+      supportedModels: {
+        'gemini-1.5-pro': true,
+        'gemini-1.5-flash': true,
+        'gemini-2.0-flash': true,
+        'gemini-2.0-pro': true,
+      },
     },
   ],
 }
@@ -79,6 +87,15 @@ export const automationCardGroups: Record<'claude' | 'codex', AutomationCard[]> 
 export function createAutomationCards(data: AutomationCard[] = []): AutomationCard[] {
   return data.map((item) => ({
     ...item,
+    modelMapping: { ...(item.modelMapping ?? {}) },
     officialSite: item.officialSite ?? '',
+    requestBodyReplacements: (item.requestBodyReplacements ?? []).map((replacement) => ({
+      ...replacement,
+    })),
+    supportedModels: { ...(item.supportedModels ?? {}) },
+    proxyMode: item.proxyMode ?? '',
+    proxyUrl: item.proxyUrl ?? '',
+    insecureSkipVerify: item.insecureSkipVerify ?? false,
+    archived: item.archived ?? false,
   }))
 }

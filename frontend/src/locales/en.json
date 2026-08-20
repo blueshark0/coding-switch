@@ -9,6 +9,9 @@
     "shortcut": "Shortcut key"
   },
   "components": {
+    "common": {
+      "close": "Close"
+    },
     "provider": {
       "modelWhitelist": {
         "label": "Supported Models",
@@ -36,6 +39,20 @@
           "wildcard": "Wildcard mapping, auto expands claude-sonnet-4 → anthropic/claude-sonnet-4",
           "prefix": "Prefix mapping"
         }
+      },
+      "requestBodyReplacements": {
+        "label": "Request Body Replacements",
+        "tooltip": "Replace existing JSON fields before other request body rewrites. Missing paths are skipped.",
+        "pathPlaceholder": "JSON path, e.g. metadata.user_id",
+        "valuePlaceholder": "JSON value, e.g. \"fixed-user\", 0.2, true, null, {'{\"x\":1}'}",
+        "add": "Add",
+        "remove": "Remove replacement",
+        "examples": {
+          "title": "Examples:",
+          "string": "Replace an existing string field",
+          "number": "Write a numeric JSON value",
+          "object": "Write an object JSON value"
+        }
       }
     },
     "main": {
@@ -46,6 +63,7 @@
       },
       "heatmap": {
         "ariaLabel": "Daily compute consumption heatmap",
+        "loadFailed": "Failed to load heatmap data",
         "legendLow": "Low",
         "legendHigh": "High",
         "cellTitle": "{label}: {count} requests",
@@ -62,12 +80,14 @@
         "addCard": "Add vendor card"
       },
       "relayToggle": {
-        "label": "Claude proxy",
+        "label": "Relay proxy",
         "hostClaude": "Host Claude Code",
         "hostCodex": "Host Codex",
+        "hostGemini": "Host Gemini",
         "tooltip": "Route traffic through the local relay to manage API keys centrally.",
         "statusOn": "Managed",
-        "statusOff": "Not managed"
+        "statusOff": "Not managed",
+        "toggleFailed": "Failed to toggle relay"
       },
       "logs": {
         "view": "View logs",
@@ -79,17 +99,32 @@
         "githubUpdate": "Open GitHub (update available)",
         "theme": "Toggle theme",
         "settings": "Open settings",
-        "mcp": "Open MCP panel",
-        "skill": "Open skill catalog",
-        "import": "Import cc-switch config"
+        "sessions": "Open session manager"
       },
       "versionLabel": "Version {version}",
-      "importConfig": {
-        "tooltip": "Import {providers} providers · {servers} MCP servers",
-        "success": "Imported {providers} providers and {servers} MCP servers",
-        "empty": "Everything from cc-switch is already in sync",
-        "error": "Failed to import cc-switch config"
-      },
+      "setDefault": "Set as default provider",
+      "removeDefault": "Remove default provider",
+      "pinToTop": "Pin to top",
+      "pinnedToTop": "Pinned to top",
+      "archive": "Archive",
+      "archivedSectionTitle": "Archived",
+      "restore": "Restore",
+      "archiveBlockedBecauseDefault": "This provider is the default provider. Unset it as default before archiving.",
+      "providerSaveFailed": "Failed to save providers. Your changes were reverted.",
+      "saveFailed": "Failed to save settings, please try again.",
+      "viewSessions": "View session bindings",
+      "sessionDialogTitle": "Session Bindings - {provider}",
+      "loadingSessions": "Loading...",
+      "noSessions": "No sessions are currently bound to this provider",
+      "bindTime": "Bind Time",
+      "lastSuccess": "Last Success",
+      "unbind": "Unbind",
+      "close": "Close",
+      "confirmUnbindSession": "Are you sure you want to unbind this session?",
+      "unbindSessionFailed": "Failed to unbind session, please try again",
+      "justNow": "Just now",
+      "minutesAgo": "{count} minutes ago",
+      "hoursAgo": "{count} hours ago",
       "providers": {
         "requests": "Requests",
         "tokens": "Tokens",
@@ -107,51 +142,44 @@
           "apiKey": "API key",
           "officialSite": "Official site",
           "icon": "Icon",
-          "enabled": "Enabled",
-          "level": "Priority Level"
+          "proxyMode": "Proxy mode",
+          "proxyUrl": "Proxy URL",
+          "insecureSkipVerify": "Skip TLS certificate verification (insecure)"
         },
+        "proxyMode": {
+          "inherit": "Follow global",
+          "custom": "Custom proxy",
+          "direct": "No proxy"
+        },
+        "insecureSkipVerifyWarning": "For local intercepting-proxy debugging only: requests to this provider will no longer verify server certificates, letting a man-in-the-middle steal your API key and all conversation content",
         "placeholders": {
           "name": "e.g. AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "e.g. aicoding, kimi"
-        },
-        "hints": {
-          "level": "Lower numbers = higher priority. Level 1 providers are tried first, then Level 2, etc."
+          "icon": "e.g. aicoding, kimi",
+          "proxyUrl": "e.g. socks5://127.0.0.1:1080"
         },
         "actions": {
           "cancel": "Cancel",
           "save": "Save",
           "delete": "Delete"
         },
-        "switch": {
-          "on": "Active",
-          "off": "Paused"
-        },
         "confirmDeleteTitle": "Remove vendor",
         "confirmDeleteMessage": "Are you sure you want to remove {name}? This action cannot be undone.",
         "errors": {
-          "invalidUrl": "Please enter a valid API URL"
+          "duplicateName": "Provider names must be unique within the same platform",
+          "invalidUrl": "Please enter a valid API URL",
+          "nameRequired": "Please enter a provider name",
+          "invalidProxyUrl": "Proxy URL must start with http://, https://, socks5://, or socks5h://",
+          "proxyUrlRequired": "Proxy URL is required when using custom proxy mode"
         }
-      },
-      "levelDesc": {
-        "highest": "Highest Priority",
-        "high": "High Priority",
-        "mediumHigh": "Medium-High Priority",
-        "medium": "Medium Priority",
-        "normal": "Normal Priority",
-        "mediumLow": "Medium-Low Priority",
-        "low": "Low Priority",
-        "lower": "Lower Priority",
-        "veryLow": "Very Low Priority",
-        "lowest": "Lowest Priority"
       }
     },
     "logs": {
       "eyebrow": "Request diagnostics",
       "title": "Request logs",
-      "subtitle": "Inspect recent relay activity for Claude Code and Codex providers.",
+      "subtitle": "Inspect recent relay activity for Claude Code, Codex, and Gemini providers.",
       "loading": "Loading...",
       "refresh": "Refresh",
       "applyFilters": "Apply filters",
@@ -162,12 +190,30 @@
         "allPlatforms": "All platforms",
         "provider": "Provider",
         "allProviders": "All providers",
+        "range": "Range",
+        "costTier": "Cost tier",
+        "allCostTiers": "All costs",
+        "costTiers": {
+          "low": "Low cost",
+          "medium": "Medium cost",
+          "high": "High cost"
+        },
+        "ranges": {
+          "today": "Today",
+          "last3days": "Last 3 days",
+          "last7days": "Last 7 days"
+        },
         "providerPlaceholder": "Provider name",
         "limit": "Limit"
       },
+      "pagination": {
+        "pageSize": "Rows",
+        "total": "{total} total"
+      },
       "tabs": {
-        "all": "All logs",
-        "errors": "Errors only"
+        "requests": "Request logs",
+        "app": "App log",
+        "ariaLabel": "Log type"
       },
       "summary": {
         "total": "Requests",
@@ -179,7 +225,9 @@
         "cache": "Cache reads",
         "cacheHint": "Read hits across responses",
         "costHint": "24h total cost",
-        "todayScope": "Today · {date}"
+        "todayScope": "Today · {date}",
+        "last3daysScope": "Last 3 days",
+        "last7daysScope": "Last 7 days"
       },
       "table": {
         "time": "Time",
@@ -203,14 +251,28 @@
       "streamOff": "Single response",
       "back": "Back to home",
       "nextRefresh": "Next refresh in {seconds}s",
-      "query": "Query"
+      "query": "Query",
+      "appLog": {
+        "levelLabel": "Level",
+        "levels": {
+          "all": "All levels",
+          "none": "No level"
+        },
+        "keywordPlaceholder": "Search keyword…",
+        "follow": "Follow",
+        "refresh": "Refresh",
+        "empty": "No app log entries",
+        "truncatedHint": "Log file is large; only the most recent portion is shown"
+      }
     },
     "general": {
       "title": {
         "application": "Apply settings",
+        "network": "Network",
         "exterior": "Appearance settings",
         "power": "Permission settings",
-        "update": "Application update"
+        "update": "Application update",
+        "sync": "Config sync (WebDAV)"
       },
       "label": {
         "assistant_access": "Accessibility permissions",
@@ -222,157 +284,76 @@
         "theme": "Theme mode",
         "heatmap": "Show dashboard heatmap",
         "homeTitle": "Show home title",
-        "autoStart": "Launch at login"
+        "proxy": "HTTP Proxy"
       },
-      "subLabel": {
+      "sublabel": {
         "sb_assistant_access": "Accessibility permission is required to operate clipboard contents",
         "sb_disk_access": "Full disk access is required to implement file preview"
+      },
+      "placeholder": {
+        "proxy": "e.g. http://127.0.0.1:7890"
       },
       "buttons": {
         "authorized": "Auth",
         "go_authorized": "Auth now",
-        "back": "Back to home"
-      },
-      "import": {
-        "label": "Import cc-switch data",
-        "path": "Config file: {path}",
-        "detail": "{providers} providers · {servers} MCP servers ready to import",
-        "synced": "All providers and MCP servers are already synced",
-        "cta": "Import now",
-        "syncedButton": "Up to date",
-        "importing": "Importing...",
-        "upload": "Upload JSON",
-        "uploadTitle": "Select cc-switch JSON file",
-        "confirm": "Confirm import",
-        "noFile": "No config file selected",
-        "loadError": "Failed to read selected config",
-        "clear": "Clear selection",
-        "reupload": "Upload another JSON",
-        "missingDefault": "No cc-switch config detected. Upload a JSON manually to import."
-      }
-    },
-    "mcp": {
-      "hero": {
-        "eyebrow": "MCP Manager",
-        "title": "Manage MCP Servers",
-        "lead": "Keep every stdio or HTTP MCP server in one place and track which platform currently loads it."
-      },
-      "controls": {
         "back": "Back to home",
-        "settings": "Open settings",
-        "refresh": "Refresh",
-        "create": "New server"
+        "save": "Save"
       },
-      "section": {
-        "title": "Registered servers",
-        "subtitle": "Synced from ~/.code-switch/mcp.json and saved immediately"
+      "messages": {
+        "loadFailed": "Failed to load settings",
+        "saveFailed": "Failed to save settings, please try again.",
+        "invalidProxyUrl": "Proxy URL must start with http://, https://, socks5://, or socks5h://"
       },
-      "list": {
-        "loading": "Loading servers...",
-        "empty": "No MCP servers yet. Use the button below to create one.",
-        "loadError": "Failed to load MCP servers",
-        "saveError": "Failed to save MCP servers",
-        "edit": "Edit server",
-        "delete": "Delete server",
-        "placeholderWarning": "Replace placeholders first: {vars}"
-      },
-      "toast": {
-        "placeholder": "Replace placeholders first: {vars}"
-      },
-      "status": {
-        "active": "Enabled",
-        "inactive": "Disabled"
-      },
-      "types": {
-        "stdio": "Local stdio process",
-        "stdioShort": "Local process",
-        "http": "Remote HTTP",
-        "httpShort": "HTTP service"
-      },
-      "platforms": {
-        "claude": "Claude Code",
-        "codex": "Codex"
-      },
-      "form": {
-        "createTitle": "Create MCP server",
-        "editTitle": "Edit MCP server",
-        "name": "Server name",
-        "type": "Type",
-        "command": "Command",
-        "args": "Arguments",
-        "argsHint": "One argument per line. They will be passed in order.",
-        "url": "Service URL",
-        "website": "Website",
-        "tips": "Helper note",
-        "tipsHint": "Example: Visit ref.tools to get your API key",
-        "env": "Environment variables",
-        "envKey": "Key",
-        "envValue": "Value",
-        "envAdd": "Add variable",
-        "envRemove": "Delete variable",
-        "platforms": {
-          "title": "Target platforms"
+      "sync": {
+        "hint": "Sync provider configuration and appearance preferences to a WebDAV server. Data is end-to-end encrypted with your sync passphrase before upload.",
+        "fields": {
+          "endpoint": "WebDAV server URL",
+          "username": "Username",
+          "remotePath": "Remote path",
+          "appPassword": "WebDAV / app password",
+          "syncPassphrase": "Sync passphrase (encryption)"
         },
         "actions": {
-          "cancel": "Cancel",
           "save": "Save",
-          "delete": "Delete"
+          "saving": "Saving…",
+          "test": "Test connection",
+          "testing": "Testing…",
+          "viewMeta": "View remote snapshot",
+          "loadingMeta": "Fetching…",
+          "upload": "Upload to cloud",
+          "uploading": "Uploading…",
+          "restore": "Restore from cloud",
+          "restoring": "Restoring…",
+          "show": "Show",
+          "hide": "Hide"
         },
-        "errors": {
-          "name": "Please enter a server name",
-          "command": "Command is required for stdio servers",
-          "url": "HTTP servers require a URL",
-          "duplicate": "This name already exists"
+        "meta": {
+          "title": "Remote snapshot",
+          "summary": "{updatedAt} · {deviceName} · {appVersion}",
+          "empty": "Not queried yet, or remote has no snapshot.",
+          "unknown": "Unknown"
         },
-        "deleteTitle": "Delete MCP server",
-        "deleteMessage": "Are you sure you want to delete {name}? This action cannot be undone."
-      }
-    },
-    "skill": {
-      "hero": {
-        "eyebrow": "Skill Library",
-        "title": "Claude Skill",
-        "lead": "Fetch Claude skills from the managed repositories. Click the top-right button to add more sources."
-      },
-      "actions": {
-        "back": "Back to home",
-        "loading": "Processing...",
-        "refresh": "Refresh list",
-        "view": "View on GitHub",
-        "install": "Install to Claude Code",
-        "uninstall": "Uninstall",
-        "installError": "Failed to install {name}. Please retry",
-        "uninstallError": "Failed to uninstall {name}. Please retry"
-      },
-      "list": {
-        "title": "Available skills",
-        "subtitle": "Metadata is parsed from each SKILL.md front matter.",
-        "loading": "Loading skills...",
-        "empty": "No skills detected in the repository.",
-        "error": "Failed to load skills. Please check your network and retry.",
-        "noDescription": "SKILL.md does not include a description",
-        "missingRepo": "Missing repository information for this skill"
-      },
-      "repos": {
-        "open": "Manage repositories",
-        "title": "Skill sources",
-        "subtitle": "Add GitHub repositories to control where skills are fetched from.",
-        "urlPlaceholder": "https://github.com/owner/repo",
-        "branchPlaceholder": "Branch",
-        "addLabel": "Add repository",
-        "viewLabel": "Open on GitHub",
-        "removeLabel": "Remove repository",
-        "loadError": "Failed to load repositories",
-        "addError": "Failed to add repository",
-        "removeError": "Failed to remove repository",
-        "formError": "Owner and repository are required",
-        "loading": "Loading repositories...",
-        "empty": "No repositories configured.",
-        "branchLabel": "Branch: {branch}"
+        "messages": {
+          "loadFailed": "Failed to load sync settings",
+          "saveSuccess": "Sync settings saved",
+          "saveFailed": "Failed to save sync settings",
+          "saveBeforeAction": "Please save your settings before running this action",
+          "connectionSuccess": "WebDAV connection succeeded",
+          "connectionFailed": "WebDAV connection failed",
+          "remoteEmpty": "No configuration snapshot on the remote yet",
+          "inspectFailed": "Failed to fetch remote snapshot",
+          "uploadSuccess": "Uploaded to cloud",
+          "uploadFailed": "Failed to upload to cloud",
+          "restoreConfirm": "Overwrite local configuration with the cloud snapshot? A local rollback snapshot will be created automatically.",
+          "restoreSuccess": "Restored from cloud. Rollback snapshot: {rollback}",
+          "restoreFailed": "Failed to restore from cloud",
+          "restoreFailedWithRollback": "Failed to restore from cloud. Rollback snapshot saved: {rollback}"
+        }
       }
     },
     "themesetting": {
       "select": {
+        "opt_system": "Follow system",
         "opt_dark": "Dark Mode",
         "opt_light": "Bright Mode"
       }
@@ -393,7 +374,35 @@
         "failed": "Failed to save shortcut",
         "invalid": "Invalid combination, include a modifier"
       },
-      "placeholder": "Press keys to record"
+      "placeholder": "Press keys to record",
+      "clearAriaLabel": "Clear shortcut"
+    },
+    "sessions": {
+      "hero": {
+        "eyebrow": "Session bindings overview",
+        "title": "Session management",
+        "lead": "View active session-to-provider bindings grouped by provider and platform."
+      },
+      "actions": {
+        "back": "Back to home",
+        "refresh": "Refresh"
+      },
+      "platforms": {
+        "ariaLabel": "Session platform selector"
+      },
+      "loading": "Loading sessions...",
+      "noSessions": "No active session bindings on this platform",
+      "groupCount": "{count} sessions",
+      "unknownProvider": "Unknown provider",
+      "bindTime": "Bind Time",
+      "lastSuccess": "Last Success",
+      "unbind": "Unbind",
+      "confirmUnbindSession": "Are you sure you want to unbind this session?",
+      "unbindSessionFailed": "Failed to unbind session, please try again",
+      "dateUnknown": "Unknown time",
+      "justNow": "Just now",
+      "minutesAgo": "{count} minutes ago",
+      "hoursAgo": "{count} hours ago"
     }
   }
 }

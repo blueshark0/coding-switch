@@ -9,6 +9,9 @@
     "about": "关于"
   },
   "components": {
+    "common": {
+      "close": "关闭"
+    },
     "home": {},
     "provider": {
       "modelWhitelist": {
@@ -37,6 +40,20 @@
           "wildcard": "通配符映射，自动展开 claude-sonnet-4 → anthropic/claude-sonnet-4",
           "prefix": "前缀映射"
         }
+      },
+      "requestBodyReplacements": {
+        "label": "请求体替换",
+        "tooltip": "在其他请求体改写前替换已有 JSON 字段。路径不存在时会跳过。",
+        "pathPlaceholder": "JSON 路径，如 metadata.user_id",
+        "valuePlaceholder": "JSON 值，如 \"fixed-user\"、0.2、true、null、{'{\"x\":1}'}",
+        "add": "添加",
+        "remove": "删除替换规则",
+        "examples": {
+          "title": "示例：",
+          "string": "替换已有字符串字段",
+          "number": "写入数字 JSON 值",
+          "object": "写入对象 JSON 值"
+        }
       }
     },
     "main": {
@@ -47,6 +64,7 @@
       },
       "heatmap": {
         "ariaLabel": "每日算力消耗热力图",
+        "loadFailed": "热力图数据加载失败",
         "legendLow": "低",
         "legendHigh": "高",
         "cellTitle": "{label}：{count} 次请求",
@@ -63,12 +81,14 @@
         "addCard": "新增供应商卡片"
       },
       "relayToggle": {
-        "label": "Claude proxy",
+        "label": "本地代理",
         "hostClaude": "托管 Claude Code",
         "hostCodex": "托管 Codex",
+        "hostGemini": "托管 Gemini",
         "tooltip": "通过本地转发托管 API 访问，统一管理密钥与配额。",
         "statusOn": "已托管",
-        "statusOff": "未托管"
+        "statusOff": "未托管",
+        "toggleFailed": "切换托管状态失败"
       },
       "logs": {
         "view": "查看日志",
@@ -80,17 +100,32 @@
         "githubUpdate": "打开 GitHub（发现新版本）",
         "theme": "切换主题",
         "settings": "打开设置",
-        "mcp": "打开 MCP 面板",
-        "skill": "打开 Skill 列表",
-        "import": "导入 cc-switch 配置"
+        "sessions": "打开会话管理"
       },
       "versionLabel": "版本 {version}",
-      "importConfig": {
-        "tooltip": "导入 {providers} 个供应商 · {servers} 个 MCP 服务器",
-        "success": "已导入 {providers} 个供应商与 {servers} 个 MCP 服务器",
-        "empty": "cc-switch 中的供应商与 MCP 均已同步",
-        "error": "导入 cc-switch 配置失败"
-      },
+      "setDefault": "设为默认供应商",
+      "removeDefault": "取消默认供应商",
+      "pinToTop": "置顶到最前",
+      "pinnedToTop": "已置顶",
+      "archive": "归档",
+      "archivedSectionTitle": "已归档",
+      "restore": "恢复",
+      "archiveBlockedBecauseDefault": "该供应商是当前默认供应商，请先取消其默认状态",
+      "providerSaveFailed": "保存供应商失败，已回滚本次修改。",
+      "saveFailed": "保存设置失败，请重试。",
+      "viewSessions": "查看会话绑定",
+      "sessionDialogTitle": "供应商会话绑定 - {provider}",
+      "loadingSessions": "加载中...",
+      "noSessions": "当前没有会话绑定到此供应商",
+      "bindTime": "绑定时间",
+      "lastSuccess": "最后成功",
+      "unbind": "解绑",
+      "close": "关闭",
+      "confirmUnbindSession": "确认解除此会话绑定吗？",
+      "unbindSessionFailed": "解绑失败，请重试",
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
       "providers": {
         "requests": "请求数",
         "tokens": "Tokens",
@@ -108,51 +143,44 @@
           "apiKey": "API 密钥",
           "officialSite": "官网地址",
           "icon": "图标",
-          "enabled": "启用状态",
-          "level": "优先级分组"
+          "proxyMode": "代理模式",
+          "proxyUrl": "代理地址",
+          "insecureSkipVerify": "跳过 TLS 证书校验（不安全）"
         },
+        "proxyMode": {
+          "inherit": "跟随全局",
+          "custom": "自定义代理",
+          "direct": "禁用代理"
+        },
+        "insecureSkipVerifyWarning": "仅用于本地抓包代理调试：开启后该供应商的请求不再校验服务器证书，中间人可窃取 API 密钥与全部对话内容",
         "placeholders": {
           "name": "例如：AICoding.sh",
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "例如：aicoding、kimi"
-        },
-        "hints": {
-          "level": "数字越小优先级越高，Level 1 会被优先尝试，失败后依次尝试 Level 2、Level 3 等"
+          "icon": "例如：aicoding、kimi",
+          "proxyUrl": "例如 socks5://127.0.0.1:1080"
         },
         "actions": {
           "cancel": "取消",
           "save": "保存",
           "delete": "删除"
         },
-        "switch": {
-          "on": "已启用",
-          "off": "未启用"
-        },
         "confirmDeleteTitle": "删除供应商",
         "confirmDeleteMessage": "确认删除 {name} 吗？操作不可撤销",
         "errors": {
-          "invalidUrl": "请输入合法的 API 地址"
+          "duplicateName": "同一平台下的供应商名称必须唯一",
+          "invalidUrl": "请输入合法的 API 地址",
+          "nameRequired": "请输入供应商名称",
+          "invalidProxyUrl": "代理地址必须以 http://、https://、socks5:// 或 socks5h:// 开头",
+          "proxyUrlRequired": "自定义代理模式下代理地址不能为空"
         }
-      },
-      "levelDesc": {
-        "highest": "最高优先级",
-        "high": "高优先级",
-        "mediumHigh": "中高优先级",
-        "medium": "中等优先级",
-        "normal": "普通优先级",
-        "mediumLow": "中低优先级",
-        "low": "低优先级",
-        "lower": "较低优先级",
-        "veryLow": "很低优先级",
-        "lowest": "最低优先级"
       }
     },
     "logs": {
       "eyebrow": "请求追踪",
       "title": "代理请求日志",
-      "subtitle": "查看 Claude Code 与 Codex 代理的最新访问记录。",
+      "subtitle": "查看 Claude Code、Codex 与 Gemini 代理的最新访问记录。",
       "loading": "加载中...",
       "refresh": "刷新",
       "applyFilters": "应用筛选",
@@ -163,12 +191,30 @@
         "allPlatforms": "全部平台",
         "provider": "供应商",
         "allProviders": "全部供应商",
+        "range": "时间范围",
+        "costTier": "金额等级",
+        "allCostTiers": "全部金额",
+        "costTiers": {
+          "low": "低金额",
+          "medium": "中金额",
+          "high": "高金额"
+        },
+        "ranges": {
+          "today": "今天",
+          "last3days": "近三天",
+          "last7days": "近一周"
+        },
         "providerPlaceholder": "输入供应商名称",
         "limit": "条数上限"
       },
+      "pagination": {
+        "pageSize": "每页",
+        "total": "共 {total} 条"
+      },
       "tabs": {
-        "all": "全部日志",
-        "errors": "仅错误"
+        "requests": "请求日志",
+        "app": "应用日志",
+        "ariaLabel": "日志类型"
       },
       "summary": {
         "total": "请求量",
@@ -180,7 +226,9 @@
         "cache": "缓存命中",
         "cacheHint": "响应中的读取命中数",
         "costHint": "近 24 小时总花费",
-        "todayScope": "今日 · {date}"
+        "todayScope": "今日 · {date}",
+        "last3daysScope": "近三天",
+        "last7daysScope": "近一周"
       },
       "table": {
         "time": "时间",
@@ -204,14 +252,28 @@
       "streamOff": "非流",
       "back": "返回主页",
       "nextRefresh": "距离下次刷新 {seconds}s",
-      "query": "查询"
+      "query": "查询",
+      "appLog": {
+        "levelLabel": "级别",
+        "levels": {
+          "all": "全部级别",
+          "none": "无级别"
+        },
+        "keywordPlaceholder": "搜索关键字…",
+        "follow": "自动跟随",
+        "refresh": "刷新",
+        "empty": "暂无应用日志",
+        "truncatedHint": "日志文件较大，仅显示最近部分内容"
+      }
     },
     "general": {
       "title": {
         "power": "权限设置",
         "application": "应用设置",
+        "network": "网络设置",
         "exterior": "外观设置",
-        "update": "应用更新"
+        "update": "应用更新",
+        "sync": "配置同步（WebDAV）"
       },
       "label": {
         "assistant_access": "辅助功能访问权限",
@@ -221,159 +283,78 @@
         "theme": "主题模式",
         "heatmap": "显示主界面热力墙",
         "homeTitle": "显示首页标题",
-        "autoStart": "开机自启动",
         "automatic_up": "自动检查更新",
-        "next_up": "下次启动自动检查更新"
+        "next_up": "下次启动自动检查更新",
+        "proxy": "HTTP 代理"
       },
-      "subLabel": {
+      "sublabel": {
         "sb_assistant_access": "需要无障碍访问权限来操作剪切板内容",
         "sb_disk_access": "需要完全磁盘访问权限来实现文件预览"
+      },
+      "placeholder": {
+        "proxy": "例如 http://127.0.0.1:7890"
       },
       "buttons": {
         "authorized": "已授权",
         "go_authorized": "去授权",
-        "back": "返回首页"
+        "back": "返回首页",
+        "save": "保存"
       },
-      "import": {
-        "label": "导入 cc-switch 配置",
-        "path": "配置文件：{path}",
-        "detail": "可导入 {providers} 个服务商 · {servers} 个 MCP 服务",
-        "synced": "当前服务商与 MCP 服务已同步",
-        "cta": "立即导入",
-        "syncedButton": "已同步",
-        "importing": "正在导入...",
-        "upload": "上传 JSON",
-        "uploadTitle": "选择自定义 cc-switch JSON 文件",
-        "confirm": "确认导入",
-        "noFile": "尚未选择配置文件",
-        "loadError": "读取配置文件失败",
-        "clear": "清除选择",
-        "reupload": "重新上传",
-        "missingDefault": "未检测到 cc-switch 配置文件，可手动上传 JSON 进行导入"
-      }
-    },
-    "mcp": {
-      "hero": {
-        "eyebrow": "MCP 管理",
-        "title": "管理 MCP 服务器",
-        "lead": "集中维护本地 / 远程 MCP Servers，了解各平台的启用状态并快速编辑配置。"
+      "messages": {
+        "loadFailed": "加载设置失败",
+        "saveFailed": "保存设置失败，请重试。",
+        "invalidProxyUrl": "代理地址必须以 http://、https://、socks5:// 或 socks5h:// 开头"
       },
-      "controls": {
-        "back": "返回主页",
-        "settings": "打开设置",
-        "refresh": "刷新列表",
-        "create": "新增服务器"
-      },
-      "section": {
-        "title": "已注册服务器",
-        "subtitle": "数据来自 ~/.code-switch/mcp.json，修改后立即保存"
-      },
-      "list": {
-        "loading": "正在载入服务器...",
-        "empty": "暂无 MCP 服务器，点击下方按钮快速创建",
-        "loadError": "加载 MCP 服务器失败",
-        "saveError": "保存 MCP 服务器失败",
-        "edit": "编辑服务器",
-        "delete": "删除服务器",
-        "placeholderWarning": "请先替换变量：{vars}"
-      },
-      "toast": {
-        "placeholder": "请先替换变量：{vars}"
-      },
-      "status": {
-        "active": "已启用",
-        "inactive": "未启用"
-      },
-      "types": {
-        "stdio": "本地进程 (stdio)",
-        "stdioShort": "本地进程",
-        "http": "远程 HTTP",
-        "httpShort": "HTTP 服务"
-      },
-      "platforms": {
-        "claude": "Claude Code",
-        "codex": "Codex"
-      },
-      "form": {
-        "createTitle": "新增 MCP 服务器",
-        "editTitle": "编辑 MCP 服务器",
-        "name": "服务器名称",
-        "type": "类型",
-        "command": "执行命令",
-        "args": "命令参数",
-        "argsHint": "每行一个参数，保存时会自动按顺序传入",
-        "url": "服务地址",
-        "website": "官网地址",
-        "tips": "提示信息",
-        "tipsHint": "例如：请前往 ref.tools 获取 API Key",
-        "env": "环境变量",
-        "envKey": "变量名",
-        "envValue": "变量值",
-        "envAdd": "新增变量",
-        "envRemove": "删除变量",
-        "platforms": {
-          "title": "目标平台"
+      "sync": {
+        "hint": "通过 WebDAV 将供应商配置与外观偏好同步到云端。配置在本地通过同步口令端到端加密，云端服务商无法读取明文。",
+        "fields": {
+          "endpoint": "WebDAV 服务器地址",
+          "username": "用户名",
+          "remotePath": "远端路径",
+          "appPassword": "WebDAV 密码 / 应用密码",
+          "syncPassphrase": "同步口令（用于加密）"
         },
         "actions": {
-          "cancel": "取消",
           "save": "保存",
-          "delete": "删除"
+          "saving": "保存中…",
+          "test": "测试连接",
+          "testing": "测试中…",
+          "viewMeta": "查看云端版本",
+          "loadingMeta": "查询中…",
+          "upload": "上传到云端",
+          "uploading": "上传中…",
+          "restore": "从云端恢复",
+          "restoring": "恢复中…",
+          "show": "显示",
+          "hide": "隐藏"
         },
-        "errors": {
-          "name": "请输入服务器名称",
-          "command": "stdio 类型需要提供 command",
-          "url": "http 类型需要提供 URL",
-          "duplicate": "名称已存在，请使用其他名称"
+        "meta": {
+          "title": "云端快照",
+          "summary": "{updatedAt} · {deviceName} · {appVersion}",
+          "empty": "尚未查询，或云端暂无快照。",
+          "unknown": "未知"
         },
-        "deleteTitle": "删除 MCP 服务器",
-        "deleteMessage": "确认删除 {name} 吗？操作不可撤销"
-      }
-    },
-    "skill": {
-      "hero": {
-        "eyebrow": "Skill 仓库",
-        "title": "Claude Skill",
-        "lead": "从 Skill 仓库中获取 Claude Skill，点击右上角按钮可添加更多 Skill 仓库。"
-      },
-      "actions": {
-        "back": "返回首页",
-        "loading": "处理中...",
-        "refresh": "刷新列表",
-        "view": "查看 GitHub",
-        "install": "安装到 Claude Code",
-        "uninstall": "卸载",
-        "installError": "安装 {name} 失败，请重试",
-        "uninstallError": "卸载 {name} 失败，请重试"
-      },
-      "list": {
-        "title": "可用技能",
-        "subtitle": "描述信息来源于各目录内 SKILL.md 的 front matter。",
-        "loading": "正在加载技能...",
-        "empty": "仓库中没有可用技能。",
-        "error": "技能列表加载失败，请检查网络后重试。",
-        "noDescription": "SKILL.md 未提供描述",
-        "missingRepo": "缺少对应的仓库信息，无法安装"
-      },
-      "repos": {
-        "open": "管理仓库",
-        "title": "技能仓库",
-        "subtitle": "维护 GitHub 仓库以加载更多技能来源。",
-        "urlPlaceholder": "https://github.com/owner/repo",
-        "branchPlaceholder": "分支",
-        "addLabel": "新增仓库",
-        "viewLabel": "打开 GitHub",
-        "removeLabel": "删除仓库",
-        "loadError": "仓库列表加载失败",
-        "addError": "新增仓库失败",
-        "removeError": "删除仓库失败",
-        "formError": "请填写所有者和仓库名称",
-        "loading": "正在加载仓库...",
-        "empty": "当前没有配置任何仓库。",
-        "branchLabel": "分支：{branch}"
+        "messages": {
+          "loadFailed": "加载同步设置失败",
+          "saveSuccess": "已保存同步设置",
+          "saveFailed": "保存同步设置失败",
+          "saveBeforeAction": "请先点击保存按钮再执行该操作",
+          "connectionSuccess": "WebDAV 连接成功",
+          "connectionFailed": "WebDAV 连接失败",
+          "remoteEmpty": "云端暂未上传过配置快照",
+          "inspectFailed": "查询云端快照失败",
+          "uploadSuccess": "已上传到云端",
+          "uploadFailed": "上传到云端失败",
+          "restoreConfirm": "确认用云端配置覆盖本地配置吗？本地将自动生成回滚快照。",
+          "restoreSuccess": "已从云端恢复，回滚快照：{rollback}",
+          "restoreFailed": "从云端恢复失败",
+          "restoreFailedWithRollback": "从云端恢复失败，已生成回滚快照：{rollback}"
+        }
       }
     },
     "themesetting": {
       "select": {
+        "opt_system": "跟随系统",
         "opt_light": "亮色模式",
         "opt_dark": "暗色模式"
       }
@@ -394,7 +375,35 @@
         "failed": "快捷键保存失败",
         "invalid": "组合无效，请包含修饰键"
       },
-      "placeholder": "点击并按下组合键"
+      "placeholder": "点击并按下组合键",
+      "clearAriaLabel": "清除快捷键"
+    },
+    "sessions": {
+      "hero": {
+        "eyebrow": "会话绑定总览",
+        "title": "会话管理",
+        "lead": "按平台和供应商分组查看当前活跃的会话绑定关系。"
+      },
+      "actions": {
+        "back": "返回主页",
+        "refresh": "刷新"
+      },
+      "platforms": {
+        "ariaLabel": "会话平台切换"
+      },
+      "loading": "加载会话中...",
+      "noSessions": "当前平台暂无活跃会话绑定",
+      "groupCount": "{count} 个会话",
+      "unknownProvider": "未知供应商",
+      "bindTime": "绑定时间",
+      "lastSuccess": "最后成功",
+      "unbind": "解绑",
+      "confirmUnbindSession": "确认解除此会话绑定吗？",
+      "unbindSessionFailed": "解绑失败，请重试",
+      "dateUnknown": "时间未知",
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前"
     }
   }
 }

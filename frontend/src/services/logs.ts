@@ -1,106 +1,112 @@
-import { Call } from '@wailsio/runtime'
+import {
+  HeatmapStats,
+  ListProviders,
+  ListRequestLogs,
+  ProviderDailyStats,
+  StatsSince,
+} from '../../bindings/codeswitch/internal/interfaces/wails/observabilityfacade'
+import type {
+  HeatmapStat,
+  LogStats,
+  LogStatsSeries,
+  ProviderDailyStat,
+  RequestLog,
+  RequestLogPage,
+} from '../../bindings/codeswitch/internal/observability/domain/models'
 
-export type RequestLog = {
-  id: number
-  platform: string
-  model: string
-  provider: string
-  http_code: number
-  input_tokens: number
-  output_tokens: number
-  cache_create_tokens: number
-  cache_read_tokens: number
-  reasoning_tokens: number
-  is_stream?: boolean | number
-  duration_sec?: number
-  created_at: string
-  total_cost?: number
-  input_cost?: number
-  output_cost?: number
-  cache_create_cost?: number
-  cache_read_cost?: number
-  ephemeral_5m_cost?: number
-  ephemeral_1h_cost?: number
-  has_pricing?: boolean
+export type {
+  HeatmapStat,
+  LogStats,
+  LogStatsSeries,
+  ProviderDailyStat,
+  RequestLog,
+  RequestLogPage,
+}
+
+export const LOG_RANGE_OPTIONS = ['today', 'last3days', 'last7days'] as const
+export const LOG_COST_TIER_OPTIONS = ['all', 'low', 'medium', 'high'] as const
+export const LOG_PAGE_SIZE_OPTIONS = [15, 30, 50, 100] as const
+export const DEFAULT_LOG_PAGE_SIZE = 15
+
+export type LogRangeKey = (typeof LOG_RANGE_OPTIONS)[number]
+export type LogCostTier = (typeof LOG_COST_TIER_OPTIONS)[number]
+export type LogPageSize = (typeof LOG_PAGE_SIZE_OPTIONS)[number]
+
+export const DEFAULT_LOG_RANGE: LogRangeKey = 'today'
+
+export const normalizeLogRangeKey = (value?: string): LogRangeKey => {
+  switch (value) {
+    case 'last3days':
+      return 'last3days'
+    case 'last7days':
+      return 'last7days'
+    default:
+      return DEFAULT_LOG_RANGE
+  }
+}
+
+export const normalizeLogCostTier = (value?: string): LogCostTier => {
+  switch (value) {
+    case 'low':
+      return 'low'
+    case 'medium':
+      return 'medium'
+    case 'high':
+      return 'high'
+    default:
+      return 'all'
+  }
+}
+
+export const normalizeLogPageSize = (value?: number): LogPageSize => {
+  return LOG_PAGE_SIZE_OPTIONS.includes(value as LogPageSize)
+    ? (value as LogPageSize)
+    : DEFAULT_LOG_PAGE_SIZE
 }
 
 type RequestLogQuery = {
   platform?: string
   provider?: string
-  limit?: number
+  rangeKey?: LogRangeKey
+  costTier?: LogCostTier
+  page?: number
+  pageSize?: number
 }
 
-export const fetchRequestLogs = async (query: RequestLogQuery = {}): Promise<RequestLog[]> => {
+export const fetchRequestLogs = async (query: RequestLogQuery = {}): Promise<RequestLogPage> => {
   const platform = query.platform ?? ''
   const provider = query.provider ?? ''
-  const limit = query.limit ?? 100
-  return Call.ByName('codeswitch/services.LogService.ListRequestLogs', platform, provider, limit)
+  const rangeKey = normalizeLogRangeKey(query.rangeKey)
+  const costTier = normalizeLogCostTier(query.costTier)
+  const page = Math.max(1, Math.floor(query.page ?? 1))
+  const pageSize = normalizeLogPageSize(query.pageSize)
+  return ListRequestLogs(platform, provider, rangeKey, costTier, page, pageSize)
 }
 
 export const fetchLogProviders = async (platform = ''): Promise<string[]> => {
-  return Call.ByName('codeswitch/services.LogService.ListProviders', platform)
+  return ListProviders(platform)
 }
 
-export type LogStatsSeries = {
-  day: string
-  total_requests: number
-  input_tokens: number
-  output_tokens: number
-  reasoning_tokens: number
-  cache_create_tokens: number
-  cache_read_tokens: number
-  total_cost: number
+type LogStatsQuery = {
+  platform?: string
+  provider?: string
+  rangeKey?: LogRangeKey
+  costTier?: LogCostTier
 }
 
-export type LogStats = {
-  total_requests: number
-  input_tokens: number
-  output_tokens: number
-  reasoning_tokens: number
-  cache_create_tokens: number
-  cache_read_tokens: number
-  cost_total: number
-  cost_input: number
-  cost_output: number
-  cost_cache_create: number
-  cost_cache_read: number
-  series: LogStatsSeries[]
+export const fetchLogStats = async (query: LogStatsQuery = {}): Promise<LogStats> => {
+  const platform = query.platform ?? ''
+  const provider = query.provider ?? ''
+  const rangeKey = normalizeLogRangeKey(query.rangeKey)
+  const costTier = normalizeLogCostTier(query.costTier)
+  return StatsSince(platform, provider, rangeKey, costTier)
 }
 
-export const fetchLogStats = async (platform = ''): Promise<LogStats> => {
-  return Call.ByName('codeswitch/services.LogService.StatsSince', platform)
-}
-
-export type ProviderDailyStat = {
-  provider: string
-  total_requests: number
-  successful_requests: number
-  failed_requests: number
-  success_rate: number
-  input_tokens: number
-  output_tokens: number
-  reasoning_tokens: number
-  cache_create_tokens: number
-  cache_read_tokens: number
-  cost_total: number
-}
-
-export const fetchProviderDailyStats = async (
-  platform = '',
-): Promise<ProviderDailyStat[]> => {
-  return Call.ByName('codeswitch/services.LogService.ProviderDailyStats', platform)
-}
-
-export type HeatmapStat = {
-  day: string
-  total_requests: number
-  input_tokens: number
-  output_tokens: number
-  reasoning_tokens: number
-  total_cost: number
+export const fetchProviderDailyStats = async (platform = ''): Promise<ProviderDailyStat[]> => {
+  return ProviderDailyStats(platform)
 }
 
 export const fetchHeatmapStats = async (days: number): Promise<HeatmapStat[]> => {
   const range = Number.isFinite(days) && days > 0 ? Math.floor(days) : 30
-  return Call.ByName('codeswitch/services.LogService.HeatmapStats', range)
+  return HeatmapStats(range)
 }

@@ -1,0 +1,16 @@
+.general-page {
+  width: 100%;
+  margin: 0;
+  padding: 32px 48px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.general-page section {
+  width: 100%;
+}
+
+.general-page .mac-panel {
+  width: 100%;
+}

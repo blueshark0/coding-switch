@@ -33,6 +33,9 @@
         "valuePlaceholder": "Internal model (e.g., anthropic/claude-*)",
         "add": "Add",
         "remove": "Remove mapping",
+        "edit": "Edit mapping",
+        "confirm": "Save",
+        "cancel": "Cancel",
         "examples": {
           "title": "Examples:",
           "exact": "Exact mapping",

@@ -2,8 +2,10 @@
   <div class="request-body-replacement-editor">
     <div class="editor-header">
       <FieldHelpLabel
+        v-model:open="examplesOpen"
         :label="$t('components.provider.requestBodyReplacements.label')"
         :tooltip="$t('components.provider.requestBodyReplacements.tooltip')"
+        expandable
       />
     </div>
 
@@ -63,7 +65,7 @@
       </BaseButton>
     </div>
 
-    <EditorHelpBox :title="$t('components.provider.requestBodyReplacements.examples.title')">
+    <EditorHelpBox v-show="examplesOpen" :title="$t('components.provider.requestBodyReplacements.examples.title')">
       <ul class="help-list">
         <li>
           <code>metadata.user_id</code> → <code>"fixed-user"</code><br />
@@ -107,6 +109,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
 const replacementList = computed(() => props.modelValue ?? [])
+const examplesOpen = ref(false)
 const newPath = ref('')
 const newValue = ref('')
 const valueInputRef = ref<{ focus: () => void } | null>(null)

@@ -34,6 +34,9 @@
         "valuePlaceholder": "内部模型名（如 anthropic/claude-*）",
         "add": "添加",
         "remove": "删除映射",
+        "edit": "编辑映射",
+        "confirm": "保存",
+        "cancel": "取消",
         "examples": {
           "title": "示例：",
           "exact": "精确映射",

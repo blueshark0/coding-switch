@@ -2,8 +2,10 @@
   <div class="model-whitelist-editor">
     <div class="editor-header">
       <FieldHelpLabel
+        v-model:open="examplesOpen"
         :label="$t('components.provider.modelWhitelist.label')"
         :tooltip="$t('components.provider.modelWhitelist.tooltip')"
+        expandable
       />
     </div>
 
@@ -48,7 +50,7 @@
       </BaseButton>
     </div>
 
-    <EditorHelpBox :title="$t('components.provider.modelWhitelist.examples.title')">
+    <EditorHelpBox v-show="examplesOpen" :title="$t('components.provider.modelWhitelist.examples.title')">
       <ul class="help-list">
         <li>
           <code>claude-sonnet-4</code> - {{ $t('components.provider.modelWhitelist.examples.exact') }}
@@ -90,6 +92,7 @@ const modelList = computed(() => {
   return Object.keys(recordValue.value).filter((key) => recordValue.value[key])
 })
 
+const examplesOpen = ref(false)
 const newModel = ref('')
 
 const isWildcard = (model: string) => model.includes('*')

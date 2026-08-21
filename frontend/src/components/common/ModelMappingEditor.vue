@@ -2,50 +2,134 @@
   <div class="model-mapping-editor">
     <div class="editor-header">
       <FieldHelpLabel
+        v-model:open="examplesOpen"
         :label="$t('components.provider.modelMapping.label')"
         :tooltip="$t('components.provider.modelMapping.tooltip')"
+        expandable
       />
     </div>
 
     <div v-if="mappingList.length > 0" class="mapping-list">
       <div
-        v-for="(mapping, index) in mappingList"
-        :key="index"
+        v-for="mapping in mappingList"
+        :key="mapping.key"
         class="mapping-row"
       >
-        <div class="mapping-content">
-          <code class="mapping-key" :class="{ wildcard: isWildcard(mapping.key) }">
-            {{ mapping.key }}
-          </code>
-          <svg class="mapping-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <path
-              d="M6 4l4 4-4 4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+        <template v-if="editingKey === mapping.key">
+          <div class="mapping-content">
+            <BaseInput
+              ref="editKeyInputRefs"
+              v-model="editKey"
+              type="text"
+              @keydown.enter.prevent="saveEdit"
+              @keydown.esc.prevent="cancelEdit"
             />
-          </svg>
-          <code class="mapping-value" :class="{ wildcard: isWildcard(mapping.value) }">
-            {{ mapping.value }}
-          </code>
-        </div>
-        <button
-          type="button"
-          class="mapping-remove"
-          :aria-label="$t('components.provider.modelMapping.remove')"
-          @click="removeMapping(index)"
-        >
-          <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
-            <path
-              d="M3 3l6 6M9 3l-6 6"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
+            <svg class="mapping-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M6 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <BaseInput
+              v-model="editValue"
+              type="text"
+              @keydown.enter.prevent="saveEdit"
+              @keydown.esc.prevent="cancelEdit"
             />
-          </svg>
-        </button>
+          </div>
+          <div class="mapping-actions">
+            <button
+              type="button"
+              class="mapping-icon-btn mapping-confirm"
+              :aria-label="$t('components.provider.modelMapping.confirm')"
+              @click="saveEdit"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <path
+                  d="M20 6L9 17l-5-5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="mapping-icon-btn mapping-cancel"
+              :aria-label="$t('components.provider.modelMapping.cancel')"
+              @click="cancelEdit"
+            >
+              <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                <path
+                  d="M3 3l6 6M9 3l-6 6"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div class="mapping-content">
+            <code class="mapping-key" :class="{ wildcard: isWildcard(mapping.key) }">
+              {{ mapping.key }}
+            </code>
+            <svg class="mapping-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M6 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <code class="mapping-value" :class="{ wildcard: isWildcard(mapping.value) }">
+              {{ mapping.value }}
+            </code>
+          </div>
+          <div class="mapping-actions">
+            <button
+              type="button"
+              class="mapping-icon-btn mapping-edit"
+              :aria-label="$t('components.provider.modelMapping.edit')"
+              @click="startEdit(mapping)"
+            >
+              <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                <path
+                  d="M17 3a2.85 2.85 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="mapping-icon-btn mapping-remove"
+              :aria-label="$t('components.provider.modelMapping.remove')"
+              @click="removeMapping(mapping.key)"
+            >
+              <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+                <path
+                  d="M3 3l6 6M9 3l-6 6"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -82,7 +166,7 @@
       </BaseButton>
     </div>
 
-    <EditorHelpBox :title="$t('components.provider.modelMapping.examples.title')">
+    <EditorHelpBox v-show="examplesOpen" :title="$t('components.provider.modelMapping.examples.title')">
       <ul class="help-list">
         <li>
           <code>claude-sonnet-4</code> → <code>anthropic/claude-sonnet-4</code><br />
@@ -102,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import BaseInput from './BaseInput.vue'
 import BaseButton from './BaseButton.vue'
 import EditorHelpBox from './EditorHelpBox.vue'
@@ -125,14 +209,49 @@ const mappingList = computed(() => {
   return Object.entries(recordValue.value).map(([key, value]) => ({ key, value }))
 })
 
+const examplesOpen = ref(false)
 const newKey = ref('')
 const newValue = ref('')
 const valueInputRef = ref<{ focus: () => void } | null>(null)
+
+// 行内编辑：editingKey 记录正在编辑的条目键，避免依赖会随增删变化的下标。
+const editingKey = ref<string | null>(null)
+const editKey = ref('')
+const editValue = ref('')
+const editKeyInputRefs = ref<{ focus: () => void }[]>([])
 
 const isWildcard = (text: string) => text.includes('*')
 
 const focusValueInput = () => {
   valueInputRef.value?.focus()
+}
+
+const startEdit = (mapping: { key: string; value: string }) => {
+  editingKey.value = mapping.key
+  editKey.value = mapping.key
+  editValue.value = mapping.value
+  nextTick(() => editKeyInputRefs.value[0]?.focus())
+}
+
+const saveEdit = () => {
+  const oldKey = editingKey.value
+  if (!oldKey) return
+  const key = editKey.value.trim()
+  const value = editValue.value.trim()
+  if (!key || !value) return
+
+  // 与新增一致：目标键已存在时覆盖；改键时删除旧键（条目会移到列表末尾）。
+  updateRecord((updated) => {
+    if (key !== oldKey) {
+      delete updated[oldKey]
+    }
+    updated[key] = value
+  })
+  editingKey.value = null
+}
+
+const cancelEdit = () => {
+  editingKey.value = null
 }
 
 const addMapping = () => {
@@ -148,12 +267,9 @@ const addMapping = () => {
   newValue.value = ''
 }
 
-const removeMapping = (index: number) => {
-  const mapping = mappingList.value[index]
-  if (!mapping) return
-
+const removeMapping = (key: string) => {
   updateRecord((updated) => {
-    delete updated[mapping.key]
+    delete updated[key]
   })
 }
 </script>
@@ -227,7 +343,20 @@ const removeMapping = (index: number) => {
   color: var(--foreground-muted);
 }
 
-.mapping-remove {
+.mapping-content :deep(input) {
+  flex: 1;
+  min-width: 0;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+}
+
+.mapping-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mapping-icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -237,13 +366,23 @@ const removeMapping = (index: number) => {
   color: var(--foreground-muted);
   cursor: pointer;
   border-radius: 3px;
-  flex-shrink: 0;
   transition: all 0.2s;
+}
+
+.mapping-edit:hover,
+.mapping-confirm:hover {
+  color: var(--accent-primary);
+  background-color: var(--background-hover);
 }
 
 .mapping-remove:hover {
   color: var(--error);
   background-color: var(--error-bg);
+}
+
+.mapping-cancel:hover {
+  color: var(--foreground);
+  background-color: var(--background-hover);
 }
 
 .mapping-input-row {

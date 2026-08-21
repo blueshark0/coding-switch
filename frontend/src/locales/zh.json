@@ -137,6 +137,7 @@
       "form": {
         "createTitle": "新增供应商",
         "editTitle": "编辑供应商",
+        "advancedSettings": "高级设置",
         "labels": {
           "name": "供应商名称",
           "apiUrl": "API 地址",

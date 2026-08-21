@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@headlessui/vue": "^1.7.23",
-    "@lobehub/icons-static-svg": "^1.73.0",
     "@wailsio/runtime": "^3.0.0-alpha.72",
     "chart.js": "^4.5.1",
     "vue": "^3.5.23",

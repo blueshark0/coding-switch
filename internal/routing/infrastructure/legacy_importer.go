@@ -84,7 +84,6 @@ func (i *LegacyImporter) EnsureImported(ctx context.Context) error {
 				APIURL:          provider.APIURL,
 				APIKey:          provider.APIKey,
 				OfficialSite:    provider.OfficialSite,
-				Icon:            provider.Icon,
 				Tint:            provider.Tint,
 				Accent:          provider.Accent,
 				Position:        position,
@@ -114,7 +113,6 @@ type legacyProvider struct {
 	APIURL          string            `json:"apiUrl"`
 	APIKey          string            `json:"apiKey"`
 	OfficialSite    string            `json:"officialSite"`
-	Icon            string            `json:"icon"`
 	Tint            string            `json:"tint"`
 	Accent          string            `json:"accent"`
 	Enabled         bool              `json:"enabled"`

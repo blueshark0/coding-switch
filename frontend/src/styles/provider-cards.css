@@ -31,28 +31,7 @@
 .card-leading {
   display: flex;
   align-items: center;
-  gap: 16px;
   flex: 1;
-}
-
-.card-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.card-icon .async-icon-fallback {
-  text-transform: uppercase;
-}
-
-.card-icon .async-icon svg {
-  width: 24px;
-  height: 24px;
 }
 
 .card-text {

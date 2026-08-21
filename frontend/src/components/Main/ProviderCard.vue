@@ -8,10 +8,6 @@
     @drop="$emit('drop', card.id)"
   >
     <div class="card-leading">
-      <div class="card-icon" :style="{ backgroundColor: card.tint, color: card.accent }">
-        <AsyncIcon :icon="card.icon" :fallback-text="fallbackInitials" />
-      </div>
-
       <div class="card-text">
         <div class="card-title-row">
           <p class="card-title">{{ card.name }}</p>
@@ -157,7 +153,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Browser } from '@wailsio/runtime'
 import type { AutomationCard } from '../../data/cards'
-import AsyncIcon from '../common/AsyncIcon.vue'
 import type { ProviderStatDisplay } from './types'
 
 const props = defineProps<{
@@ -180,17 +175,6 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const fallbackInitials = computed(() => {
-  if (!props.card.name) return 'AI'
-  return props.card.name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-})
 
 const normalizeUrlWithScheme = (value: string) => {
   if (!value) return ''

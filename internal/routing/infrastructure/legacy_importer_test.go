@@ -138,7 +138,7 @@ func TestLegacyImporterEnsureImported_MigratesLegacyFiles(t *testing.T) {
 		t.Fatalf("unexpected second claude provider: %+v", alpha)
 	}
 	if alpha.APIURL != "https://alpha.example/api" || alpha.APIKey != "sk-alpha" ||
-		alpha.OfficialSite != "https://alpha.example" || alpha.Icon != "alpha.png" ||
+		alpha.OfficialSite != "https://alpha.example" ||
 		alpha.Tint != "#112233" || alpha.Accent != "#445566" {
 		t.Fatalf("unexpected Alpha fields: %+v", alpha)
 	}

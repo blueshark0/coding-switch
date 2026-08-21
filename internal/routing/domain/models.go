@@ -54,7 +54,6 @@ type Provider struct {
 	APIURL                  string                   `json:"apiUrl"`
 	APIKey                  string                   `json:"apiKey"`
 	OfficialSite            string                   `json:"officialSite"`
-	Icon                    string                   `json:"icon"`
 	Tint                    string                   `json:"tint"`
 	Accent                  string                   `json:"accent"`
 	Position                int                      `json:"position"`

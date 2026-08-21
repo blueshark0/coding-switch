@@ -142,7 +142,6 @@
           "apiUrl": "API 地址",
           "apiKey": "API 密钥",
           "officialSite": "官网地址",
-          "icon": "图标",
           "proxyMode": "代理模式",
           "proxyUrl": "代理地址",
           "insecureSkipVerify": "跳过 TLS 证书校验（不安全）"
@@ -158,7 +157,6 @@
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "例如：aicoding、kimi",
           "proxyUrl": "例如 socks5://127.0.0.1:1080"
         },
         "actions": {

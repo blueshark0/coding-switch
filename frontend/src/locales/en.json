@@ -141,7 +141,6 @@
           "apiUrl": "API endpoint",
           "apiKey": "API key",
           "officialSite": "Official site",
-          "icon": "Icon",
           "proxyMode": "Proxy mode",
           "proxyUrl": "Proxy URL",
           "insecureSkipVerify": "Skip TLS certificate verification (insecure)"
@@ -157,7 +156,6 @@
           "apiUrl": "https://api.aicoding.sh",
           "apiKey": "sk-xxxxx",
           "officialSite": "https://vendor.com",
-          "icon": "e.g. aicoding, kimi",
           "proxyUrl": "e.g. socks5://127.0.0.1:1080"
         },
         "actions": {

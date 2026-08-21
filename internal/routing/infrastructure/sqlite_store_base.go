@@ -47,7 +47,6 @@ func (s *SQLiteStore) EnsureSchema() error {
 				api_url TEXT NOT NULL DEFAULT '',
 				api_key TEXT NOT NULL DEFAULT '',
 				official_site TEXT NOT NULL DEFAULT '',
-				icon TEXT NOT NULL DEFAULT '',
 				tint TEXT NOT NULL DEFAULT '',
 				accent TEXT NOT NULL DEFAULT '',
 				enabled INTEGER NOT NULL DEFAULT 0,

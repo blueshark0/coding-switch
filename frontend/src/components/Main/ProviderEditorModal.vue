@@ -100,40 +100,6 @@
       </div>
 
       <div class="form-field">
-        <span>{{ t('components.main.form.labels.icon') }}</span>
-        <Listbox v-model="form.icon" v-slot="{ open: optionsOpen }">
-          <div class="icon-select">
-            <ListboxButton class="icon-select-button">
-              <AsyncIcon :icon="form.icon" class="icon-preview" aria-hidden="true" />
-              <span class="icon-select-label">{{ form.icon }}</span>
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path
-                  d="M6 8l4 4 4-4"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  fill="none"
-                />
-              </svg>
-            </ListboxButton>
-            <ListboxOptions v-if="optionsOpen" class="icon-select-options">
-              <ListboxOption
-                v-for="iconName in iconOptions"
-                :key="iconName"
-                :value="iconName"
-                v-slot="{ active, selected }"
-              >
-                <div :class="['icon-option', { active, selected }]">
-                  <span class="icon-name">{{ iconName }}</span>
-                </div>
-              </ListboxOption>
-            </ListboxOptions>
-          </div>
-        </Listbox>
-      </div>
-
-      <div class="form-field">
         <ModelWhitelistEditor v-model="form.supportedModels" />
       </div>
 
@@ -158,11 +124,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Listbox, ListboxButton, ListboxOptions, ListboxOption } from '@headlessui/vue'
-import { getIconOptions } from '../../icons/lobeIconMap'
-import AsyncIcon from '../common/AsyncIcon.vue'
 import BaseButton from '../common/BaseButton.vue'
 import BaseInput from '../common/BaseInput.vue'
 import BaseModal from '../common/BaseModal.vue'
@@ -188,6 +150,4 @@ defineEmits<{
 }>()
 
 const { t } = useI18n()
-
-const iconOptions = computed(() => getIconOptions())
 </script>

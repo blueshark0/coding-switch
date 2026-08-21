@@ -21,9 +21,6 @@
 
     <div v-show="expanded" class="archived-list">
       <div v-for="card in cards" :key="card.id" class="archived-row">
-        <div class="archived-icon" :style="{ backgroundColor: card.tint, color: card.accent }">
-          <AsyncIcon :icon="card.icon" :fallback-text="fallbackInitials(card.name)" />
-        </div>
         <span class="archived-name">{{ card.name }}</span>
 
         <div class="card-actions">
@@ -73,7 +70,6 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AutomationCard } from '../../data/cards'
-import AsyncIcon from '../common/AsyncIcon.vue'
 
 defineProps<{
   cards: AutomationCard[]
@@ -86,17 +82,6 @@ defineEmits<{
 
 const { t } = useI18n()
 const expanded = ref(false)
-
-const fallbackInitials = (name: string) => {
-  if (!name) return 'AI'
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 </script>
 
 <style scoped>
@@ -148,21 +133,6 @@ const fallbackInitials = (name: string) => {
   border-radius: 14px;
   background: var(--mac-surface);
   opacity: 0.85;
-}
-
-.archived-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: grid;
-  place-items: center;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.archived-icon :deep(.async-icon svg) {
-  width: 18px;
-  height: 18px;
 }
 
 .archived-name {

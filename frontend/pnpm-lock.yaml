@@ -11,9 +11,6 @@ importers:
       '@headlessui/vue':
         specifier: ^1.7.23
         version: 1.7.23(vue@3.5.24(typescript@5.9.3))
-      '@lobehub/icons-static-svg':
-        specifier: ^1.73.0
-        version: 1.73.0
       '@wailsio/runtime':
         specifier: ^3.0.0-alpha.72
         version: 3.0.0-alpha.73
@@ -273,9 +270,6 @@ packages:
 
   '@kurkle/color@0.3.4':
     resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
-
-  '@lobehub/icons-static-svg@1.73.0':
-    resolution: {integrity: sha512-ydKUCDoopdmulbjDZo/gppaODd5Ju5nPneVcN9A5dAz9IJZUMkLms8bqostMLrqcdMQ8resKjLuV9RhJaWhaag==}
 
   '@rolldown/pluginutils@1.0.0-beta.29':
     resolution: {integrity: sha512-NIJgOsMjbxAXvoGq/X0gD7VPMQ8j9g0BiDaNjVNVjvl+iKXxL3Jre0v31RmBYeLEmkbj2s02v8vFTbUXi5XS2Q==}
@@ -950,8 +944,6 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.5.5
 
   '@kurkle/color@0.3.4': {}
-
-  '@lobehub/icons-static-svg@1.73.0': {}
 
   '@rolldown/pluginutils@1.0.0-beta.29': {}
 

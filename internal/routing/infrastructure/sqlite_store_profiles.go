@@ -28,7 +28,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 		profile.DefaultProviderID = &value
 	}
 
-	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, icon, tint, accent,
+	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, tint, accent,
 		position, supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived
 		FROM providers
 		WHERE platform = ?
@@ -51,7 +51,6 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 			&provider.APIURL,
 			&provider.APIKey,
 			&provider.OfficialSite,
-			&provider.Icon,
 			&provider.Tint,
 			&provider.Accent,
 			&provider.Position,
@@ -189,15 +188,14 @@ func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile)
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
-			platform, id, name, api_url, api_key, official_site, icon, tint, accent, position,
+			platform, id, name, api_url, api_key, official_site, tint, accent, position,
 			supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, id) DO UPDATE SET
 			name = excluded.name,
 			api_url = excluded.api_url,
 			api_key = excluded.api_key,
 			official_site = excluded.official_site,
-			icon = excluded.icon,
 			tint = excluded.tint,
 			accent = excluded.accent,
 			position = excluded.position,
@@ -214,7 +212,6 @@ func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile)
 			provider.APIURL,
 			provider.APIKey,
 			provider.OfficialSite,
-			provider.Icon,
 			provider.Tint,
 			provider.Accent,
 			provider.Position,

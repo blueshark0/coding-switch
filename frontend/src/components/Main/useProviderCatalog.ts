@@ -1,7 +1,6 @@
 import { computed, reactive, ref, type ComputedRef } from 'vue'
 import { automationCardGroups, createAutomationCards, type AutomationCard } from '../../data/cards'
 import { providerTabs, providerTabIds, type ProviderTab } from '../../constants/platforms'
-import { getIconOptions } from '../../icons/lobeIconMap'
 import { loadProviders, saveProviders } from '../../services/providers'
 import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
@@ -37,7 +36,6 @@ const moveCardToFrontInList = (providers: AutomationCard[], cardId: number) => {
 export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) => {
   const cards = buildDefaultCards()
   const draggingId = ref<number | null>(null)
-  const defaultIconKey = getIconOptions()[0] ?? 'aicoding'
   const savingTabs = reactive<Record<ProviderTab, boolean>>({
     claude: false,
     codex: false,
@@ -49,7 +47,6 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     apiUrl: '',
     apiKey: '',
     officialSite: '',
-    icon: defaultIconKey,
     supportedModels: {},
     modelMapping: {},
     requestBodyReplacements: [],
@@ -113,16 +110,11 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     modalState.errors.proxyUrl = ''
   }
 
-  const normalizeIconKey = (icon: string) => {
-    return icon.toString().trim().toLowerCase() || defaultIconKey
-  }
-
   const normalizeProviderName = (name: string) => name.trim().toLowerCase()
 
   const buildCardValues = (form: VendorForm) => ({
     apiKey: form.apiKey.trim(),
     apiUrl: form.apiUrl.trim(),
-    icon: normalizeIconKey(form.icon || defaultIconKey),
     modelMapping: { ...(form.modelMapping ?? {}) },
     officialSite: form.officialSite.trim(),
     requestBodyReplacements: (form.requestBodyReplacements ?? []).map((replacement) => ({

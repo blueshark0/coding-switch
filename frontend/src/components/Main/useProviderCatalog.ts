@@ -119,6 +119,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     officialSite: form.officialSite.trim(),
     requestBodyReplacements: (form.requestBodyReplacements ?? []).map((replacement) => ({
       path: replacement.path.trim(),
+      matchValue: replacement.matchValue?.trim() || undefined,
       value: replacement.value.trim(),
     })).filter((replacement) => replacement.path && replacement.value),
     supportedModels: { ...(form.supportedModels ?? {}) },

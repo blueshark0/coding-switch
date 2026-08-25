@@ -45,17 +45,25 @@
         }
       },
       "requestBodyReplacements": {
-        "label": "请求体替换",
-        "tooltip": "在其他请求体改写前替换已有 JSON 字段。路径不存在时会跳过。",
+        "overrideLabel": "请求体覆写",
+        "overrideTooltip": "无论字段当前值是什么，都改写为目标值。路径不存在时会跳过。",
+        "replaceLabel": "请求体替换",
+        "replaceTooltip": "仅当字段当前值与匹配值一致时，才将其改写为目标值。路径不存在时会跳过。",
         "pathPlaceholder": "JSON 路径，如 metadata.user_id",
+        "matchValuePlaceholder": "匹配值（JSON），如 \"old-value\"、0.2",
         "valuePlaceholder": "JSON 值，如 \"fixed-user\"、0.2、true、null、{'{\"x\":1}'}",
         "add": "添加",
-        "remove": "删除替换规则",
-        "examples": {
+        "remove": "删除规则",
+        "overrideExamples": {
           "title": "示例：",
-          "string": "替换已有字符串字段",
+          "string": "覆写已有字符串字段",
           "number": "写入数字 JSON 值",
           "object": "写入对象 JSON 值"
+        },
+        "replaceExamples": {
+          "title": "示例：",
+          "hint": "仅当字段当前值等于匹配值时才改写",
+          "string": "当 model 等于指定值时替换为其他模型"
         }
       }
     },

@@ -6,6 +6,8 @@ export type AutomationCard = Omit<ProviderRecord, 'position'>
 
 export type RequestBodyReplacement = {
   path: string
+  // matchValue 非空表示条件替换（需当前值匹配才改写）；为空表示覆写。
+  matchValue?: string
   value: string
 }
 

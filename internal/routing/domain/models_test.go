@@ -218,3 +218,22 @@ func TestGetEffectiveModelPrefersMostSpecificWildcardDeterministically(t *testin
 		}
 	}
 }
+
+func TestNormalizeRequestBodyReplacements(t *testing.T) {
+	normalized := normalizeRequestBodyReplacements([]RequestBodyReplacement{
+		{Path: " model ", Value: ` "vendor/model" `},
+		{Path: "metadata.tier", MatchValue: ` "pro" `, Value: `"enterprise"`},
+		{Path: "   ", Value: `"dropped"`},
+		{Path: "temperature", Value: "   "},
+	})
+
+	if len(normalized) != 2 {
+		t.Fatalf("expected 2 normalized replacements, got %d: %+v", len(normalized), normalized)
+	}
+	if normalized[0].Path != "model" || normalized[0].MatchValue != "" || normalized[0].Value != `"vendor/model"` {
+		t.Fatalf("expected override entry with trimmed fields, got %+v", normalized[0])
+	}
+	if normalized[1].Path != "metadata.tier" || normalized[1].MatchValue != `"pro"` || normalized[1].Value != `"enterprise"` {
+		t.Fatalf("expected conditional entry with trimmed match value, got %+v", normalized[1])
+	}
+}

@@ -1,86 +1,183 @@
 <template>
   <div class="request-body-replacement-editor">
-    <div class="editor-header">
-      <FieldHelpLabel
-        v-model:open="examplesOpen"
-        :label="$t('components.provider.requestBodyReplacements.label')"
-        :tooltip="$t('components.provider.requestBodyReplacements.tooltip')"
-        expandable
-      />
-    </div>
-
-    <div v-if="replacementList.length > 0" class="replacement-list">
-      <div
-        v-for="(replacement, index) in replacementList"
-        :key="index"
-        class="replacement-row"
-      >
-        <div class="replacement-content">
-          <code class="replacement-path">{{ replacement.path }}</code>
-          <svg class="replacement-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-            <path
-              d="M6 4l4 4-4 4"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <code class="replacement-value">{{ replacement.value }}</code>
-        </div>
-        <button
-          type="button"
-          class="replacement-remove"
-          :aria-label="$t('components.provider.requestBodyReplacements.remove')"
-          @click="removeReplacement(index)"
-        >
-          <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
-            <path
-              d="M3 3l6 6M9 3l-6 6"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-            />
-          </svg>
-        </button>
+    <div class="editor-section">
+      <div class="editor-header">
+        <FieldHelpLabel
+          v-model:open="overrideExamplesOpen"
+          :label="$t('components.provider.requestBodyReplacements.overrideLabel')"
+          :tooltip="$t('components.provider.requestBodyReplacements.overrideTooltip')"
+          expandable
+        />
       </div>
+
+      <div v-if="overrideEntries.length > 0" class="replacement-list">
+        <div
+          v-for="{ entry, index } in overrideEntries"
+          :key="index"
+          class="replacement-row"
+        >
+          <div class="replacement-content">
+            <code class="replacement-path">{{ entry.path }}</code>
+            <svg class="replacement-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M6 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <code class="replacement-value">{{ entry.value }}</code>
+          </div>
+          <button
+            type="button"
+            class="replacement-remove"
+            :aria-label="$t('components.provider.requestBodyReplacements.remove')"
+            @click="removeEntry(index)"
+          >
+            <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+              <path
+                d="M3 3l6 6M9 3l-6 6"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="replacement-inputs">
+        <BaseInput
+          v-model="newOverridePath"
+          type="text"
+          :placeholder="$t('components.provider.requestBodyReplacements.pathPlaceholder')"
+          @keydown.enter.prevent="focusOverrideValueInput"
+        />
+        <BaseTextarea
+          ref="overrideValueInputRef"
+          v-model="newOverrideValue"
+          rows="3"
+          :placeholder="$t('components.provider.requestBodyReplacements.valuePlaceholder')"
+        />
+        <BaseButton type="button" variant="outline" @click="addOverride">
+          {{ $t('components.provider.requestBodyReplacements.add') }}
+        </BaseButton>
+      </div>
+
+      <EditorHelpBox
+        v-show="overrideExamplesOpen"
+        :title="$t('components.provider.requestBodyReplacements.overrideExamples.title')"
+      >
+        <ul class="help-list">
+          <li>
+            <code>metadata.user_id</code> → <code>"fixed-user"</code><br />
+            <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.overrideExamples.string') }}</span>
+          </li>
+          <li>
+            <code>temperature</code> → <code>0.2</code><br />
+            <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.overrideExamples.number') }}</span>
+          </li>
+          <li>
+            <code>thinking</code> → <code>{"type":"disabled"}</code><br />
+            <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.overrideExamples.object') }}</span>
+          </li>
+        </ul>
+      </EditorHelpBox>
     </div>
 
-    <div class="replacement-inputs">
-      <BaseInput
-        v-model="newPath"
-        type="text"
-        :placeholder="$t('components.provider.requestBodyReplacements.pathPlaceholder')"
-        @keydown.enter.prevent="focusValueInput"
-      />
-      <BaseTextarea
-        ref="valueInputRef"
-        v-model="newValue"
-        rows="3"
-        :placeholder="$t('components.provider.requestBodyReplacements.valuePlaceholder')"
-      />
-      <BaseButton type="button" variant="outline" @click="addReplacement">
-        {{ $t('components.provider.requestBodyReplacements.add') }}
-      </BaseButton>
-    </div>
+    <div class="editor-section">
+      <div class="editor-header">
+        <FieldHelpLabel
+          v-model:open="replaceExamplesOpen"
+          :label="$t('components.provider.requestBodyReplacements.replaceLabel')"
+          :tooltip="$t('components.provider.requestBodyReplacements.replaceTooltip')"
+          expandable
+        />
+      </div>
 
-    <EditorHelpBox v-show="examplesOpen" :title="$t('components.provider.requestBodyReplacements.examples.title')">
-      <ul class="help-list">
-        <li>
-          <code>metadata.user_id</code> → <code>"fixed-user"</code><br />
-          <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.examples.string') }}</span>
-        </li>
-        <li>
-          <code>temperature</code> → <code>0.2</code><br />
-          <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.examples.number') }}</span>
-        </li>
-        <li>
-          <code>thinking</code> → <code>{"type":"disabled"}</code><br />
-          <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.examples.object') }}</span>
-        </li>
-      </ul>
-    </EditorHelpBox>
+      <div v-if="replaceEntries.length > 0" class="replacement-list">
+        <div
+          v-for="{ entry, index } in replaceEntries"
+          :key="index"
+          class="replacement-row"
+        >
+          <div class="replacement-content">
+            <code class="replacement-path">{{ entry.path }}</code>
+            <span class="replacement-match-op">==</span>
+            <code class="replacement-match">{{ entry.matchValue }}</code>
+            <svg class="replacement-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M6 4l4 4-4 4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <code class="replacement-value">{{ entry.value }}</code>
+          </div>
+          <button
+            type="button"
+            class="replacement-remove"
+            :aria-label="$t('components.provider.requestBodyReplacements.remove')"
+            @click="removeEntry(index)"
+          >
+            <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true">
+              <path
+                d="M3 3l6 6M9 3l-6 6"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="replacement-inputs">
+        <BaseInput
+          v-model="newReplacePath"
+          type="text"
+          :placeholder="$t('components.provider.requestBodyReplacements.pathPlaceholder')"
+          @keydown.enter.prevent="focusReplaceMatchInput"
+        />
+        <BaseInput
+          ref="replaceMatchInputRef"
+          v-model="newReplaceMatch"
+          type="text"
+          :placeholder="$t('components.provider.requestBodyReplacements.matchValuePlaceholder')"
+          @keydown.enter.prevent="focusReplaceValueInput"
+        />
+        <BaseTextarea
+          ref="replaceValueInputRef"
+          v-model="newReplaceValue"
+          rows="3"
+          :placeholder="$t('components.provider.requestBodyReplacements.valuePlaceholder')"
+        />
+        <BaseButton type="button" variant="outline" @click="addReplace">
+          {{ $t('components.provider.requestBodyReplacements.add') }}
+        </BaseButton>
+      </div>
+
+      <EditorHelpBox
+        v-show="replaceExamplesOpen"
+        :title="$t('components.provider.requestBodyReplacements.replaceExamples.title')"
+      >
+        <ul class="help-list">
+          <li>
+            <code>temperature</code> == <code>1</code> → <code>0.2</code><br />
+            <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.replaceExamples.hint') }}</span>
+          </li>
+          <li>
+            <code>model</code> == <code>"claude-sonnet-4"</code> → <code>"vendor/claude-sonnet-4"</code><br />
+            <span class="help-desc">{{ $t('components.provider.requestBodyReplacements.replaceExamples.string') }}</span>
+          </li>
+        </ul>
+      </EditorHelpBox>
+    </div>
   </div>
 </template>
 
@@ -91,11 +188,7 @@ import BaseInput from './BaseInput.vue'
 import BaseTextarea from './BaseTextarea.vue'
 import EditorHelpBox from './EditorHelpBox.vue'
 import FieldHelpLabel from './FieldHelpLabel.vue'
-
-export type RequestBodyReplacement = {
-  path: string
-  value: string
-}
+import type { RequestBodyReplacement } from '../../data/cards'
 
 interface Props {
   modelValue?: RequestBodyReplacement[]
@@ -108,33 +201,78 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const replacementList = computed(() => props.modelValue ?? [])
-const examplesOpen = ref(false)
-const newPath = ref('')
-const newValue = ref('')
-const valueInputRef = ref<{ focus: () => void } | null>(null)
+const entries = computed(() => props.modelValue ?? [])
+// matchValue 非空为条件替换，为空为覆写；带原始下标供删除用。
+const withIndex = computed(() => entries.value.map((entry, index) => ({ entry, index })))
+const overrideEntries = computed(() => withIndex.value.filter(({ entry }) => !entry.matchValue))
+const replaceEntries = computed(() => withIndex.value.filter(({ entry }) => !!entry.matchValue))
 
-const focusValueInput = () => {
-  valueInputRef.value?.focus()
+const overrideExamplesOpen = ref(false)
+const replaceExamplesOpen = ref(false)
+
+const newOverridePath = ref('')
+const newOverrideValue = ref('')
+const overrideValueInputRef = ref<{ focus: () => void } | null>(null)
+
+const newReplacePath = ref('')
+const newReplaceMatch = ref('')
+const newReplaceValue = ref('')
+const replaceMatchInputRef = ref<{ focus: () => void } | null>(null)
+const replaceValueInputRef = ref<{ focus: () => void } | null>(null)
+
+const focusOverrideValueInput = () => {
+  overrideValueInputRef.value?.focus()
+}
+const focusReplaceMatchInput = () => {
+  replaceMatchInputRef.value?.focus()
+}
+const focusReplaceValueInput = () => {
+  replaceValueInputRef.value?.focus()
 }
 
-const addReplacement = () => {
-  const path = newPath.value.trim()
-  const value = newValue.value.trim()
+// 覆写在前、替换在后稳定分区，保证存储顺序与两个分区的展示顺序一致。
+const emitEntries = (next: RequestBodyReplacement[]) => {
+  emit('update:modelValue', [
+    ...next.filter((entry) => !entry.matchValue),
+    ...next.filter((entry) => !!entry.matchValue),
+  ])
+}
+
+const addOverride = () => {
+  const path = newOverridePath.value.trim()
+  const value = newOverrideValue.value.trim()
   if (!path || !value) return
 
-  emit('update:modelValue', [...replacementList.value, { path, value }])
-  newPath.value = ''
-  newValue.value = ''
+  emitEntries([...entries.value, { path, value }])
+  newOverridePath.value = ''
+  newOverrideValue.value = ''
 }
 
-const removeReplacement = (index: number) => {
-  emit('update:modelValue', replacementList.value.filter((_, itemIndex) => itemIndex !== index))
+const addReplace = () => {
+  const path = newReplacePath.value.trim()
+  const matchValue = newReplaceMatch.value.trim()
+  const value = newReplaceValue.value.trim()
+  if (!path || !matchValue || !value) return
+
+  emitEntries([...entries.value, { path, matchValue, value }])
+  newReplacePath.value = ''
+  newReplaceMatch.value = ''
+  newReplaceValue.value = ''
+}
+
+const removeEntry = (index: number) => {
+  emitEntries(entries.value.filter((_, itemIndex) => itemIndex !== index))
 }
 </script>
 
 <style scoped>
 .request-body-replacement-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.editor-section {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -180,7 +318,8 @@ const removeReplacement = (index: number) => {
 }
 
 .replacement-path,
-.replacement-value {
+.replacement-value,
+.replacement-match {
   padding: 3px 7px;
   background-color: var(--background-secondary);
   border: 1px solid var(--border);
@@ -196,8 +335,20 @@ const removeReplacement = (index: number) => {
   font-weight: 500;
 }
 
+.replacement-match {
+  max-width: 35%;
+  color: var(--warning, #d97706);
+}
+
 .replacement-value {
-  max-width: 60%;
+  max-width: 45%;
+}
+
+.replacement-match-op {
+  flex-shrink: 0;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: var(--foreground-muted);
 }
 
 .replacement-arrow {

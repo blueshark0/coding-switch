@@ -85,8 +85,12 @@ func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string 
 }
 
 type RequestBodyReplacement struct {
-	Path  string `json:"path"`
-	Value string `json:"value"`
+	Path string `json:"path"`
+	// MatchValue 非空表示条件替换：仅当路径当前值与该 JSON 字面量语义相等时才
+	// 改写为 Value；为空（或缺省）表示覆写：无条件改写。旧数据无此字段，自动
+	// 视为覆写。
+	MatchValue string `json:"matchValue,omitempty"`
+	Value      string `json:"value"`
 }
 
 type RouteProfile struct {
@@ -149,6 +153,7 @@ func normalizeRequestBodyReplacements(input []RequestBodyReplacement) []RequestB
 		if replacement.Value == "" {
 			continue
 		}
+		replacement.MatchValue = strings.TrimSpace(replacement.MatchValue)
 		normalized = append(normalized, replacement)
 	}
 	return normalized

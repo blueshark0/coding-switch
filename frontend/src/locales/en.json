@@ -44,17 +44,25 @@
         }
       },
       "requestBodyReplacements": {
-        "label": "Request Body Replacements",
-        "tooltip": "Replace existing JSON fields before other request body rewrites. Missing paths are skipped.",
+        "overrideLabel": "Request Body Overrides",
+        "overrideTooltip": "Rewrite the field to the target value regardless of its current value. Missing paths are skipped.",
+        "replaceLabel": "Request Body Replace",
+        "replaceTooltip": "Rewrite the field only when its current value equals the match value. Missing paths are skipped.",
         "pathPlaceholder": "JSON path, e.g. metadata.user_id",
+        "matchValuePlaceholder": "Match value (JSON), e.g. \"old-value\", 0.2",
         "valuePlaceholder": "JSON value, e.g. \"fixed-user\", 0.2, true, null, {'{\"x\":1}'}",
         "add": "Add",
-        "remove": "Remove replacement",
-        "examples": {
+        "remove": "Remove rule",
+        "overrideExamples": {
           "title": "Examples:",
-          "string": "Replace an existing string field",
+          "string": "Override an existing string field",
           "number": "Write a numeric JSON value",
           "object": "Write an object JSON value"
+        },
+        "replaceExamples": {
+          "title": "Examples:",
+          "hint": "Rewrite only when the current value equals the match value",
+          "string": "Swap the model when it equals the given value"
         }
       }
     },

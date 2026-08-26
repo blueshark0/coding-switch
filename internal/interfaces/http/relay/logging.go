@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"bytes"
 	"log"
 	"os"
 	"strings"
@@ -9,6 +10,10 @@ import (
 	observabilitydomain "codeswitch/internal/observability/domain"
 	"codeswitch/internal/shared/kernel"
 )
+
+// maxUpstreamErrorBodyBytes 限制写入应用日志的上游错误体大小，避免超大 HTML
+// 错误页撑爆单条日志（app_log_reader 的回扫窗口为 2MB）。
+const maxUpstreamErrorBodyBytes = 8 * 1024
 
 var relayDebugEnabled = os.Getenv("CODE_SWITCH_DEBUG_RELAY") == "1"
 
@@ -21,6 +26,41 @@ func relayDebugf(format string, args ...any) {
 
 func relayWarnf(format string, args ...any) {
 	log.Printf("[WARN] [relay] "+format, args...)
+}
+
+// upstreamErrorCollector 收集非 2xx 响应体用于应用日志：只保留一份截断副本，
+// hook 始终原样放行数据，不影响透传给客户端的内容。
+type upstreamErrorCollector struct {
+	buf       bytes.Buffer
+	truncated bool
+}
+
+func (c *upstreamErrorCollector) hook(data []byte) (bool, []byte) {
+	if remaining := maxUpstreamErrorBodyBytes - c.buf.Len(); remaining > 0 {
+		if len(data) > remaining {
+			c.buf.Write(data[:remaining])
+			c.truncated = true
+		} else {
+			c.buf.Write(data)
+		}
+	} else if len(data) > 0 {
+		c.truncated = true
+	}
+	return true, data
+}
+
+// logWith 把状态码与错误体打成一条 [WARN] 日志（应用日志页可按级别筛出），
+// 紧邻"请求失败"行、时间戳相邻，便于与请求日志对照。
+func (c *upstreamErrorCollector) logWith(providerName, model string, status int) {
+	body := strings.TrimSpace(c.buf.String())
+	if body == "" {
+		relayWarnf("上游错误响应: provider=%s model=%s status=%d (无响应体)", providerName, model, status)
+		return
+	}
+	if c.truncated {
+		body += "...(已截断)"
+	}
+	relayWarnf("上游错误响应: provider=%s model=%s status=%d body=%s", providerName, model, status, body)
 }
 
 func (s *Server) startRequestLogRetentionTask() {

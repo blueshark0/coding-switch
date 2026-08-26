@@ -201,10 +201,13 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	}
 	// 非 2xx：把上游状态码、响应头与错误体原样透传给客户端（400 的参数
 	// 错误详情、429 的限流原因与 Retry-After 都不能丢），同时返回失败，
-	// 让会话粘滞不绑定该供应商。
-	if _, copyErr := resp.ToHttpResponseWriter(c.Writer); copyErr != nil {
+	// 让会话粘滞不绑定该供应商。错误体另经 collector 截断后打进应用日志，
+	// 否则 UI 里只剩一个状态码，排查不到真实原因。
+	var errBody upstreamErrorCollector
+	if _, copyErr := resp.ToHttpResponseWriter(c.Writer, errBody.hook); copyErr != nil {
 		relayWarnf("透传上游错误响应失败: %v", copyErr)
 	}
+	errBody.logWith(provider.Name, fwdCtx.Model, status)
 	return false, fmt.Errorf("upstream status %d", status)
 }
 

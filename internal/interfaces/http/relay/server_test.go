@@ -1,11 +1,14 @@
 package relay
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -399,6 +402,10 @@ func TestRouteToManualProviderRewritesMappedModelAndInjectsCredentials(t *testin
 func TestRouteToManualProviderPassesThroughUpstreamError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
+	var logBuf bytes.Buffer
+	log.SetOutput(&logBuf)
+	defer log.SetOutput(os.Stderr)
+
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Retry-After", "17")
@@ -447,6 +454,13 @@ func TestRouteToManualProviderPassesThroughUpstreamError(t *testing.T) {
 	}
 	if !strings.Contains(recorder.Body.String(), "rate_limit_error") {
 		t.Fatalf("upstream error body lost: %s", recorder.Body.String())
+	}
+	// 错误体须同步落入应用日志（WARN 级别），供 UI"应用日志"页查看。
+	logged := logBuf.String()
+	for _, want := range []string{"[WARN] [relay]", "provider=p", "status=429", "slow down"} {
+		if !strings.Contains(logged, want) {
+			t.Fatalf("应用日志缺少 %q: %s", want, logged)
+		}
 	}
 }
 

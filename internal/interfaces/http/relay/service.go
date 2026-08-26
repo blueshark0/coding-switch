@@ -19,7 +19,7 @@ import (
 const (
 	requestLogBufferSize      = 4096
 	requestLogBatchSize       = 100
-	requestLogFlushInterval   = 250 * time.Millisecond
+	requestLogFlushInterval   = time.Second
 	requestLogCleanupInterval = 6 * time.Hour
 
 	sessionUpdateBufferSize    = 512

@@ -5,10 +5,17 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"codeswitch/internal/shared/storage"
 
 	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+const (
+	appLogQueueSize     = 512
+	appLogBufferSize    = 64 * 1024
+	appLogFlushInterval = time.Second
 )
 
 // Setup configures the global logger to write to stdout and a rotating file.
@@ -30,9 +37,10 @@ func Setup() io.WriteCloser {
 		MaxAge:     14,
 		Compress:   true,
 	}
+	bufferedLogger := newAsyncWriter(logger, appLogQueueSize, appLogBufferSize, appLogFlushInterval)
 
-	log.SetOutput(io.MultiWriter(os.Stdout, logger))
+	log.SetOutput(io.MultiWriter(os.Stdout, bufferedLogger))
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.Printf("日志系统初始化成功，日志文件: %s", logger.Filename)
-	return logger
+	return bufferedLogger
 }

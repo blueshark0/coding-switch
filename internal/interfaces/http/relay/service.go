@@ -132,7 +132,10 @@ func (s *Server) Start() error {
 		log.Println("========================================")
 	}
 	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
+	// The relay has its own request statistics and warning logs. Avoid Gin's
+	// per-request access log, which otherwise writes once for every proxied call.
+	router := gin.New()
+	router.Use(gin.Recovery())
 	s.registerRoutes(router)
 	listener, err := net.Listen("tcp", s.addr)
 	if err != nil {

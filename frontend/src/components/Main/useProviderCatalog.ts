@@ -9,6 +9,8 @@ import type { TranslateFn, VendorForm } from './types'
 type UseProviderCatalogOptions = {
   activeTab: ComputedRef<ProviderTab>
   t: TranslateFn
+  // 跨平台复制确认后由外层把主界面切到目标 Tab（selectedIndex 持有在 workbench）
+  selectTab?: (tabId: ProviderTab) => void
 }
 
 const buildDefaultCards = () =>
@@ -33,7 +35,7 @@ const moveCardToFrontInList = (providers: AutomationCard[], cardId: number) => {
   return true
 }
 
-export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) => {
+export const useProviderCatalog = ({ activeTab, t, selectTab }: UseProviderCatalogOptions) => {
   const cards = buildDefaultCards()
   const draggingId = ref<number | null>(null)
   const savingTabs = reactive<Record<ProviderTab, boolean>>({
@@ -72,6 +74,11 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     open: false,
     card: null as AutomationCard | null,
     tabId: providerTabs[0].id as ProviderTab,
+  })
+
+  const copyState = reactive({
+    open: false,
+    card: null as AutomationCard | null,
   })
 
   const activeCards = computed(() => (cards[activeTab.value] ?? []).filter((card) => !card.archived))
@@ -298,6 +305,37 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     openEditModal(card)
   }
 
+  const requestCopy = (card: AutomationCard) => {
+    copyState.card = card
+    copyState.open = true
+  }
+
+  const closeCopy = () => {
+    copyState.open = false
+    copyState.card = null
+  }
+
+  // 跨平台复制：把源卡片预填为目标平台的新增表单（名称沿用，可改），
+  // 保存仍走 submitModal 的创建路径；请求体替换仅对 claude 平台有意义，
+  // 复制到其他平台时清空以免留下不可见的隐性配置。
+  const confirmCopy = (targetTab: ProviderTab) => {
+    const source = copyState.card
+    if (!source) {
+      return
+    }
+    const values = buildCardValues(source)
+    if (targetTab !== 'claude') {
+      values.requestBodyReplacements = []
+    }
+    modalState.tabId = targetTab
+    modalState.editingId = null
+    resetModalForm()
+    Object.assign(modalState.form, { name: source.name, ...values })
+    closeCopy()
+    selectTab?.(targetTab)
+    modalState.open = true
+  }
+
   const remove = async (id: number, tabId: ProviderTab = activeTab.value) => {
     await saveMutation(tabId, (providers) => {
       const index = providers.findIndex((card) => card.id === id)
@@ -378,10 +416,13 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     activeCards,
     archivedCards,
     closeConfirm,
+    closeCopy,
     closeModal,
+    confirmCopy,
     confirmRemove,
     confirmState,
     configure,
+    copyState,
     draggingId,
     initializeProviderCatalog,
     isTopProvider,
@@ -391,6 +432,7 @@ export const useProviderCatalog = ({ activeTab, t }: UseProviderCatalogOptions) 
     onDrop,
     openCreateModal,
     pinProvider,
+    requestCopy,
     requestRemove,
     submitModal,
     toggleArchive,

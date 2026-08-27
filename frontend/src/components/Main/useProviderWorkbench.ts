@@ -24,10 +24,13 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     activeCards,
     archivedCards,
     closeConfirm,
+    closeCopy,
     closeModal,
+    confirmCopy,
     confirmRemove,
     confirmState,
     configure,
+    copyState,
     draggingId,
     initializeProviderCatalog,
     isTopProvider,
@@ -37,12 +40,19 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     onDrop,
     openCreateModal,
     pinProvider,
+    requestCopy,
     requestRemove,
     submitModal,
     toggleArchive,
   } = useProviderCatalog({
     activeTab,
     t,
+    selectTab: (tabId) => {
+      const idx = tabs.findIndex((tab) => tab.id === tabId)
+      if (idx >= 0) {
+        onTabChange(idx)
+      }
+    },
   })
   const {
     activeProxyBusy,
@@ -116,10 +126,13 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     archiveProvider,
     archivedCards,
     closeConfirm,
+    closeCopy,
     closeModal,
+    confirmCopy,
     confirmRemove,
     confirmState,
     configure,
+    copyState,
     currentProxyLabel,
     draggingId,
     isDefaultProvider,
@@ -133,6 +146,7 @@ export const useProviderWorkbench = ({ t }: UseProviderWorkbenchOptions) => {
     openCreateModal,
     pinProvider,
     providerStatDisplay,
+    requestCopy,
     requestRemove,
     restoreProvider,
     selectedIndex,

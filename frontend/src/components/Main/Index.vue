@@ -174,6 +174,7 @@
           :provider-stats="providerStatDisplay(card.name)"
           @archive="archiveProvider"
           @configure="configure"
+          @copy-to="requestCopy"
           @drag-end="onDragEnd"
           @dragstart="onDragStart"
           @drop="onDrop"
@@ -207,6 +208,13 @@
         @close="closeConfirm"
         @confirm="confirmRemove"
       />
+      <ProviderCopyModal
+        :card-name="copyState.card?.name ?? ''"
+        :open="copyState.open"
+        :source-tab="activeTab"
+        @close="closeCopy"
+        @confirm="confirmCopy"
+      />
 
       <footer v-if="appVersion" class="main-version">
         {{ t('components.main.versionLabel', { version: appVersion }) }}
@@ -220,6 +228,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ArchivedProviders from './ArchivedProviders.vue'
 import HeatmapWall from './HeatmapWall.vue'
+import ProviderCopyModal from './ProviderCopyModal.vue'
 import ProviderDeleteModal from './ProviderDeleteModal.vue'
 import ProviderEditorModal from './ProviderEditorModal.vue'
 import ProviderCard from './ProviderCard.vue'
@@ -241,10 +250,13 @@ const {
   archiveProvider,
   archivedCards,
   closeConfirm,
+  closeCopy,
   closeModal,
+  confirmCopy,
   confirmRemove,
   confirmState,
   configure,
+  copyState,
   currentProxyLabel,
   draggingId,
   isDefaultProvider,
@@ -258,6 +270,7 @@ const {
   openCreateModal,
   pinProvider,
   providerStatDisplay,
+  requestCopy,
   requestRemove,
   restoreProvider,
   selectedIndex,

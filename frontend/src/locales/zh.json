@@ -118,6 +118,7 @@
       "removeDefault": "取消默认供应商",
       "pinToTop": "置顶到最前",
       "pinnedToTop": "已置顶",
+      "copyToPlatform": "复制到其他平台",
       "archive": "归档",
       "archivedSectionTitle": "已归档",
       "restore": "恢复",
@@ -174,10 +175,13 @@
         "actions": {
           "cancel": "取消",
           "save": "保存",
-          "delete": "删除"
+          "delete": "删除",
+          "confirm": "确认"
         },
         "confirmDeleteTitle": "删除供应商",
         "confirmDeleteMessage": "确认删除 {name} 吗？操作不可撤销",
+        "confirmCopyTitle": "复制供应商到其他平台",
+        "confirmCopyMessage": "将「{name}」的配置复制为所选平台的新供应商，保存前可继续编辑",
         "errors": {
           "duplicateName": "同一平台下的供应商名称必须唯一",
           "invalidUrl": "请输入合法的 API 地址",

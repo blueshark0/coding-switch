@@ -117,6 +117,7 @@
       "removeDefault": "Remove default provider",
       "pinToTop": "Pin to top",
       "pinnedToTop": "Pinned to top",
+      "copyToPlatform": "Copy to another platform",
       "archive": "Archive",
       "archivedSectionTitle": "Archived",
       "restore": "Restore",
@@ -173,10 +174,13 @@
         "actions": {
           "cancel": "Cancel",
           "save": "Save",
-          "delete": "Delete"
+          "delete": "Delete",
+          "confirm": "Confirm"
         },
         "confirmDeleteTitle": "Remove vendor",
         "confirmDeleteMessage": "Are you sure you want to remove {name}? This action cannot be undone.",
+        "confirmCopyTitle": "Copy vendor to another platform",
+        "confirmCopyMessage": "\"{name}\" will be copied as a new provider on the selected platform. You can review and edit it before saving.",
         "errors": {
           "duplicateName": "Provider names must be unique within the same platform",
           "invalidUrl": "Please enter a valid API URL",

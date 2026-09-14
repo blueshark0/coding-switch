@@ -8,7 +8,7 @@ import (
 	"github.com/daodao97/xgo/xdb"
 )
 
-func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeKey string, costTier string, page int, pageSize int) (observabilitydomain.RequestLogPage, error) {
+func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeKey string, costTier string, httpStatus string, page int, pageSize int) (observabilitydomain.RequestLogPage, error) {
 	page, pageSize = normalizeRequestLogPagination(page, pageSize)
 	result := observabilitydomain.RequestLogPage{
 		Items:    []observabilitydomain.RequestLog{},
@@ -28,6 +28,7 @@ func (q *SQLiteQueries) ListRequestLogs(platform string, provider string, rangeK
 	}
 
 	options = append(options, costTierWhereOptions(normalizeRequestLogCostTier(costTier))...)
+	options = append(options, httpStatusWhereOptions(normalizeRequestLogHTTPStatus(httpStatus))...)
 
 	total, records, err := requestLogModel().Page(page, pageSize, append(options, xdb.OrderByDesc("id"))...)
 	if err != nil {

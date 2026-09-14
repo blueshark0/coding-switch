@@ -57,6 +57,14 @@
             </option>
           </select>
         </label>
+        <label class="filter-field">
+          <span>{{ t('components.logs.filters.httpStatus') }}</span>
+          <select v-model="filters.httpStatus" class="mac-select">
+            <option v-for="option in httpStatusOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
       </div>
       <div class="filter-actions">
         <BaseButton type="submit" :disabled="loading">
@@ -160,6 +168,7 @@ const {
   formatStream,
   formatTime,
   httpCodeClass,
+  httpStatusOptions,
   loading,
   manualRefresh,
   nextPage,

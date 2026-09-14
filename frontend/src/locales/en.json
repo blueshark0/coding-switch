@@ -207,6 +207,9 @@
         "range": "Range",
         "costTier": "Cost tier",
         "allCostTiers": "All costs",
+        "httpStatus": "HTTP status",
+        "allHttpStatus": "All statuses",
+        "httpStatus200": "200 only",
         "costTiers": {
           "low": "Low cost",
           "medium": "Medium cost",

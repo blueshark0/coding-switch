@@ -8,9 +8,9 @@ import (
 // observability/infrastructure.SQLiteQueries 满足）。读路径没有用例逻辑，
 // facade 直接依赖查询接口，不再经过逐字转发的 application 层。
 type ObservabilityQueries interface {
-	ListRequestLogs(platform string, provider string, rangeKey string, costTier string, page int, pageSize int) (observabilitydomain.RequestLogPage, error)
+	ListRequestLogs(platform string, provider string, rangeKey string, costTier string, httpStatus string, page int, pageSize int) (observabilitydomain.RequestLogPage, error)
 	ListProviders(platform string) ([]string, error)
-	StatsSince(platform string, provider string, rangeKey string, costTier string) (observabilitydomain.LogStats, error)
+	StatsSince(platform string, provider string, rangeKey string, costTier string, httpStatus string) (observabilitydomain.LogStats, error)
 	ProviderDailyStats(platform string) ([]observabilitydomain.ProviderDailyStat, error)
 	HeatmapStats(days int) ([]observabilitydomain.HeatmapStat, error)
 }
@@ -23,16 +23,16 @@ func NewObservabilityFacade(queries ObservabilityQueries) *ObservabilityFacade {
 	return &ObservabilityFacade{queries: queries}
 }
 
-func (f *ObservabilityFacade) ListRequestLogs(platform string, provider string, rangeKey string, costTier string, page int, pageSize int) (observabilitydomain.RequestLogPage, error) {
-	return f.queries.ListRequestLogs(platform, provider, rangeKey, costTier, page, pageSize)
+func (f *ObservabilityFacade) ListRequestLogs(platform string, provider string, rangeKey string, costTier string, httpStatus string, page int, pageSize int) (observabilitydomain.RequestLogPage, error) {
+	return f.queries.ListRequestLogs(platform, provider, rangeKey, costTier, httpStatus, page, pageSize)
 }
 
 func (f *ObservabilityFacade) ListProviders(platform string) ([]string, error) {
 	return f.queries.ListProviders(platform)
 }
 
-func (f *ObservabilityFacade) StatsSince(platform string, provider string, rangeKey string, costTier string) (observabilitydomain.LogStats, error) {
-	return f.queries.StatsSince(platform, provider, rangeKey, costTier)
+func (f *ObservabilityFacade) StatsSince(platform string, provider string, rangeKey string, costTier string, httpStatus string) (observabilitydomain.LogStats, error) {
+	return f.queries.StatsSince(platform, provider, rangeKey, costTier, httpStatus)
 }
 
 func (f *ObservabilityFacade) ProviderDailyStats(platform string) ([]observabilitydomain.ProviderDailyStat, error) {

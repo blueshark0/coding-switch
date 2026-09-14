@@ -27,7 +27,7 @@ func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
 
 	queries := NewSQLiteQueries()
 
-	todayLogs, err := queries.ListRequestLogs("", "", "today", "all", 1, 100)
+	todayLogs, err := queries.ListRequestLogs("", "", "today", "all", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs today: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
 		t.Fatalf("expected today total 1, got %d", todayLogs.Total)
 	}
 
-	last3DaysLogs, err := queries.ListRequestLogs("", "", "last3days", "all", 1, 100)
+	last3DaysLogs, err := queries.ListRequestLogs("", "", "last3days", "all", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs last3days: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
 		t.Fatalf("expected 3 logs in last3days, got %d", got)
 	}
 
-	last7DaysLogs, err := queries.ListRequestLogs("", "", "last7days", "all", 1, 100)
+	last7DaysLogs, err := queries.ListRequestLogs("", "", "last7days", "all", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs last7days: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
 		t.Fatalf("expected 4 logs in last7days, got %d", got)
 	}
 
-	filteredLogs, err := queries.ListRequestLogs("claude", "alpha", "last3days", "all", 1, 100)
+	filteredLogs, err := queries.ListRequestLogs("claude", "alpha", "last3days", "all", "all", 1, 100)
 	if err != nil {
 		t.Fatalf("ListRequestLogs filtered last3days: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestListRequestLogs_PaginatesWithTotal(t *testing.T) {
 	}
 
 	queries := NewSQLiteQueries()
-	page, err := queries.ListRequestLogs("", "", "today", "all", 2, 2)
+	page, err := queries.ListRequestLogs("", "", "today", "all", "all", 2, 2)
 	if err != nil {
 		t.Fatalf("ListRequestLogs page 2: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestListRequestLogs_PaginatesWithTotal(t *testing.T) {
 		t.Fatalf("expected invalid page size to normalize to page=2 pageSize=15, got page=%d pageSize=%d", page.Page, page.PageSize)
 	}
 
-	page, err = queries.ListRequestLogs("", "", "today", "all", 2, 30)
+	page, err = queries.ListRequestLogs("", "", "today", "all", "all", 2, 30)
 	if err != nil {
 		t.Fatalf("ListRequestLogs normalized page 2: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestListRequestLogs_PaginatesWithTotal(t *testing.T) {
 		t.Fatalf("expected empty second page with total 5, got total=%d items=%d", page.Total, len(page.Items))
 	}
 
-	page, err = queries.ListRequestLogs("", "", "today", "all", 1, 30)
+	page, err = queries.ListRequestLogs("", "", "today", "all", "all", 1, 30)
 	if err != nil {
 		t.Fatalf("ListRequestLogs page 1: %v", err)
 	}
@@ -117,7 +117,7 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 	if err := backfillRequestLogCosts(db, queries.pricing); err != nil {
 		t.Fatalf("backfillRequestLogCosts: %v", err)
 	}
-	highLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "high", 1, 15)
+	highLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "high", "all", 1, 15)
 	if err != nil {
 		t.Fatalf("ListRequestLogs high: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 		t.Fatalf("expected cost_tier high, got %q", highLogs.Items[0].CostTier)
 	}
 
-	lowLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "low", 1, 15)
+	lowLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "low", "all", 1, 15)
 	if err != nil {
 		t.Fatalf("ListRequestLogs low: %v", err)
 	}
@@ -139,12 +139,64 @@ func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
 		t.Fatalf("expected one low-cost log, got total=%d items=%d", lowLogs.Total, len(lowLogs.Items))
 	}
 
-	highStats, err := queries.StatsSince("claude", "alpha", "today", "high")
+	highStats, err := queries.StatsSince("claude", "alpha", "today", "high", "all")
 	if err != nil {
 		t.Fatalf("StatsSince high: %v", err)
 	}
 	if highStats.TotalRequests != 1 {
 		t.Fatalf("expected high-cost stats total 1, got %d", highStats.TotalRequests)
+	}
+}
+
+func TestListRequestLogs_FiltersByHTTPStatus(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
+	db := setupRangeQueryTestDB(t)
+	setRangeTestClock(t, now)
+
+	seedRequestLogWithHTTPCode(t, db, time.Date(2026, time.March, 16, 9, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 1, 0, false, 200)
+	seedRequestLogWithHTTPCode(t, db, time.Date(2026, time.March, 16, 10, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 0, 0, 0, false, 500)
+
+	queries := newRangeTestQueriesWithPricing(t)
+
+	successLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "all", "success", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs success: %v", err)
+	}
+	if successLogs.Total != 1 || len(successLogs.Items) != 1 || successLogs.Items[0].HttpCode != 200 {
+		t.Fatalf("expected one 200 log, got total=%d items=%d", successLogs.Total, len(successLogs.Items))
+	}
+
+	// 空串/非法值都按默认的 success 处理。
+	defaultLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "all", "", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs default: %v", err)
+	}
+	if defaultLogs.Total != 1 {
+		t.Fatalf("expected default filter to keep only 200 logs, got total=%d", defaultLogs.Total)
+	}
+
+	allLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "all", "all", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs all: %v", err)
+	}
+	if allLogs.Total != 2 || len(allLogs.Items) != 2 {
+		t.Fatalf("expected two logs with all filter, got total=%d items=%d", allLogs.Total, len(allLogs.Items))
+	}
+
+	successStats, err := queries.StatsSince("claude", "alpha", "today", "all", "success")
+	if err != nil {
+		t.Fatalf("StatsSince success: %v", err)
+	}
+	if successStats.TotalRequests != 1 {
+		t.Fatalf("expected success stats total 1, got %d", successStats.TotalRequests)
+	}
+	allStats, err := queries.StatsSince("claude", "alpha", "today", "all", "all")
+	if err != nil {
+		t.Fatalf("StatsSince all: %v", err)
+	}
+	if allStats.TotalRequests != 2 {
+		t.Fatalf("expected all stats total 2, got %d", allStats.TotalRequests)
 	}
 }
 
@@ -159,7 +211,7 @@ func TestListRequestLogs_FastCostDoublesBaseCost(t *testing.T) {
 	seedFastRequestLogWithUsage(t, db, createdAt.Add(time.Minute), "codex", "alpha", "gpt-5", 100, 50, 0)
 
 	queries := newRangeTestQueriesWithPricing(t)
-	page, err := queries.ListRequestLogs("codex", "alpha", "today", "all", 1, 15)
+	page, err := queries.ListRequestLogs("codex", "alpha", "today", "all", "all", 1, 15)
 	if err != nil {
 		t.Fatalf("ListRequestLogs: %v", err)
 	}
@@ -182,7 +234,7 @@ func TestListRequestLogs_FastCostDoublesBaseCost(t *testing.T) {
 		t.Fatalf("expected fast cost to double normal cost, normal=%.8f fast=%.8f", normalCost, fastCost)
 	}
 
-	stats, err := queries.StatsSince("codex", "alpha", "today", "all")
+	stats, err := queries.StatsSince("codex", "alpha", "today", "all", "all")
 	if err != nil {
 		t.Fatalf("StatsSince: %v", err)
 	}
@@ -205,7 +257,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 
 	queries := NewSQLiteQueries()
 
-	todayStats, err := queries.StatsSince("claude", "alpha", "today", "all")
+	todayStats, err := queries.StatsSince("claude", "alpha", "today", "all", "all")
 	if err != nil {
 		t.Fatalf("StatsSince today: %v", err)
 	}
@@ -222,7 +274,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 		t.Fatalf("expected 09:00 bucket to have 2 requests, got %d", bucket.TotalRequests)
 	}
 
-	last3DaysStats, err := queries.StatsSince("claude", "", "last3days", "all")
+	last3DaysStats, err := queries.StatsSince("claude", "", "last3days", "all", "all")
 	if err != nil {
 		t.Fatalf("StatsSince last3days: %v", err)
 	}
@@ -239,7 +291,7 @@ func TestStatsSince_UsesAdaptiveBucketsForRange(t *testing.T) {
 		t.Fatalf("unexpected last3days bucket counts: %+v", last3DaysStats.Series)
 	}
 
-	last7DaysStats, err := queries.StatsSince("claude", "alpha", "last7days", "all")
+	last7DaysStats, err := queries.StatsSince("claude", "alpha", "last7days", "all", "all")
 	if err != nil {
 		t.Fatalf("StatsSince last7days: %v", err)
 	}
@@ -348,6 +400,23 @@ func seedRequestLogWithUsageAndFast(
 	isFast bool,
 ) {
 	t.Helper()
+	seedRequestLogWithHTTPCode(t, db, createdAt, platform, provider, model, inputTokens, outputTokens, reasoningTokens, isFast, 200)
+}
+
+func seedRequestLogWithHTTPCode(
+	t *testing.T,
+	db *sql.DB,
+	createdAt time.Time,
+	platform string,
+	provider string,
+	model string,
+	inputTokens int,
+	outputTokens int,
+	reasoningTokens int,
+	isFast bool,
+	httpCode int,
+) {
+	t.Helper()
 
 	_, err := db.Exec(
 		`INSERT INTO request_log (
@@ -368,7 +437,7 @@ func seedRequestLogWithUsageAndFast(
 		platform,
 		model,
 		provider,
-		200,
+		httpCode,
 		inputTokens,
 		outputTokens,
 		0,

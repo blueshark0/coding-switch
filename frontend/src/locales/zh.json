@@ -208,6 +208,9 @@
         "range": "时间范围",
         "costTier": "金额等级",
         "allCostTiers": "全部金额",
+        "httpStatus": "响应码",
+        "allHttpStatus": "全部响应码",
+        "httpStatus200": "仅 200",
         "costTiers": {
           "low": "低金额",
           "medium": "中金额",

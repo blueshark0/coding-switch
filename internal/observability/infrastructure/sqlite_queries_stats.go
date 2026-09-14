@@ -107,10 +107,11 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 	return q.heatmapCache.Set(cacheKey, stats), nil
 }
 
-func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey string, costTier string) (observabilitydomain.LogStats, error) {
+func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey string, costTier string, httpStatus string) (observabilitydomain.LogStats, error) {
 	rangeSpec := buildLogRangeSpec(rangeKey, timeNow())
 	normalizedCostTier := normalizeRequestLogCostTier(costTier)
-	cacheKey := fmt.Sprintf("platform:%s|provider:%s|range:%s|cost:%s", platform, provider, rangeSpec.key, normalizedCostTier)
+	normalizedHTTPStatus := normalizeRequestLogHTTPStatus(httpStatus)
+	cacheKey := fmt.Sprintf("platform:%s|provider:%s|range:%s|cost:%s|http:%s", platform, provider, rangeSpec.key, normalizedCostTier, normalizedHTTPStatus)
 	if cached, ok := q.statsCache.Get(cacheKey); ok {
 		return cached, nil
 	}
@@ -138,6 +139,9 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	tierClause, tierArgs := costTierSQLClause(normalizedCostTier)
 	filterClause += tierClause
 	args = append(args, tierArgs...)
+	httpClause, httpArgs := httpStatusSQLClause(normalizedHTTPStatus)
+	filterClause += httpClause
+	args = append(args, httpArgs...)
 
 	rows, err := db.Query(fmt.Sprintf(`SELECT strftime('%s', created_at, 'localtime') AS bucket,
 			model,

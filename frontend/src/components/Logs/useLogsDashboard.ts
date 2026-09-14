@@ -1,6 +1,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
 import {
   DEFAULT_LOG_RANGE,
+  DEFAULT_LOG_HTTP_STATUS,
   DEFAULT_LOG_PAGE_SIZE,
   fetchRequestLogs,
   fetchLogProviders,
@@ -10,6 +11,7 @@ import {
   normalizeLogPageSize,
   normalizeLogRangeKey,
   type LogStats,
+  type LogHttpStatus,
   type LogRangeKey,
   type RequestLog,
 } from '../../services/logs'
@@ -38,11 +40,13 @@ export const useLogsDashboard = ({
     provider: string
     rangeKey: LogRangeKey
     costTier: CostTier
+    httpStatus: LogHttpStatus
   }>({
     platform: '',
     provider: '',
     rangeKey: DEFAULT_LOG_RANGE,
     costTier: 'all',
+    httpStatus: DEFAULT_LOG_HTTP_STATUS,
   })
   const page = ref(1)
   const pageSize = ref(DEFAULT_LOG_PAGE_SIZE)
@@ -75,6 +79,16 @@ export const useLogsDashboard = ({
     {
       value: 'high',
       label: t('components.logs.filters.costTiers.high'),
+    },
+  ])
+  const httpStatusOptions = computed<Array<{ value: LogHttpStatus; label: string }>>(() => [
+    {
+      value: 'success',
+      label: t('components.logs.filters.httpStatus200'),
+    },
+    {
+      value: 'all',
+      label: t('components.logs.filters.allHttpStatus'),
     },
   ])
 
@@ -122,6 +136,7 @@ export const useLogsDashboard = ({
               provider: filters.provider,
               rangeKey: selectedRangeKey.value,
               costTier: filters.costTier,
+              httpStatus: filters.httpStatus,
               page: requestedPage,
               pageSize: requestedPageSize,
             }),
@@ -130,6 +145,7 @@ export const useLogsDashboard = ({
               provider: filters.provider,
               rangeKey: selectedRangeKey.value,
               costTier: filters.costTier,
+              httpStatus: filters.httpStatus,
             }),
           ])
           const nextLogs = logData?.items ?? []
@@ -267,6 +283,7 @@ export const useLogsDashboard = ({
     formatStream,
     formatTime,
     httpCodeClass,
+    httpStatusOptions,
     loading,
     manualRefresh,
     nextPage,

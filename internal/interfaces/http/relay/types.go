@@ -58,7 +58,9 @@ func cloneHeaders(header http.Header) map[string]string {
 	cloned := make(map[string]string, len(header))
 	for key, values := range header {
 		if len(values) > 0 {
-			cloned[key] = values[len(values)-1]
+			// 同名多值头按 HTTP/1.1 语义逗号连接（Cookie 会在转发前剥离，
+			// 不受影响），避免 anthropic-beta 这类 list-valued 头丢值。
+			cloned[key] = strings.Join(values, ", ")
 		}
 	}
 	return cloned

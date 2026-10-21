@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	configsyncinfra "codeswitch/internal/configsync/infrastructure"
+	mcpgatewayinfra "codeswitch/internal/mcpgateway/infrastructure"
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	routinginfra "codeswitch/internal/routing/infrastructure"
 	sessionsinfra "codeswitch/internal/sessions/infrastructure"
@@ -62,6 +63,9 @@ func (i *Initializer) ensureSchemas() error {
 	}
 	if err := sessionsinfra.NewSQLiteRepository(storage.SessionDBName).EnsureSchema(); err != nil {
 		return fmt.Errorf("初始化 session_provider_binding 表失败: %w", err)
+	}
+	if err := mcpgatewayinfra.NewSQLiteStore().EnsureSchema(); err != nil {
+		return fmt.Errorf("初始化 mcp_servers 表失败: %w", err)
 	}
 	return nil
 }

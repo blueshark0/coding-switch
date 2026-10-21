@@ -110,7 +110,8 @@
         "githubUpdate": "Open GitHub (update available)",
         "theme": "Toggle theme",
         "settings": "Open settings",
-        "sessions": "Open session manager"
+        "sessions": "Open session manager",
+        "mcp": "MCP Gateway"
       },
       "versionLabel": "Version {version}",
       "setDefault": "Set as default provider",
@@ -420,6 +421,97 @@
       "justNow": "Just now",
       "minutesAgo": "{count} minutes ago",
       "hoursAgo": "{count} hours ago"
+    },
+    "mcp": {
+      "hero": {
+        "eyebrow": "MCP GATEWAY",
+        "title": "MCP Servers",
+        "lead": "Aggregate multiple MCP servers behind one local endpoint; once injected, Claude Code / Codex discover all tools automatically."
+      },
+      "actions": {
+        "back": "Back to home",
+        "refresh": "Refresh"
+      },
+      "cli": {
+        "title": "CLI Access",
+        "endpoint": "Endpoint",
+        "copy": "Copy",
+        "inject": "Inject",
+        "remove": "Remove",
+        "injected": "Injected",
+        "notInjected": "Not injected",
+        "helpTitle": "Notes & manual setup",
+        "helpRestart": "Restart the CLI (or /mcp reconnect in Claude Code) after injection for it to take effect.",
+        "helpRefresh": "When servers change at runtime: Claude Code refreshes tools automatically; Codex needs a restart.",
+        "helpContext": "With model traffic routed through this gateway, Claude Code loads full tool schemas upfront — keep the tool set small.",
+        "helpCodexBackend": "Codex MCP tools only work when routed to an OpenAI/Azure-compatible upstream.",
+        "manualTitle": "Manual setup (equivalent commands)"
+      },
+      "servers": {
+        "title": "MCP Servers",
+        "totalTools": "{count} tools",
+        "add": "Add server",
+        "empty": "No MCP servers yet — add one from the top right",
+        "toolCount": "{count} tools",
+        "toggle": "Enable/disable",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "status": {
+        "connected": "Connected",
+        "connecting": "Connecting",
+        "failed": "Failed",
+        "disabled": "Disabled"
+      },
+      "form": {
+        "titleNew": "Add MCP Server",
+        "titleEdit": "Edit MCP Server",
+        "name": "Name (tool namespace prefix)",
+        "namePlaceholder": "Start with a letter or digit; may contain - and _, e.g. github",
+        "type": "Type",
+        "typeStdio": "stdio (local process)",
+        "typeHttp": "HTTP (remote server)",
+        "command": "Command",
+        "args": "Args (space-separated)",
+        "argsPlaceholder": "-y @modelcontextprotocol/server-filesystem /tmp",
+        "env": "Environment variables (KEY=VALUE per line)",
+        "url": "Server URL",
+        "headers": "Headers (KEY=VALUE per line)",
+        "kvPlaceholder": "KEY=VALUE\nANOTHER=...",
+        "timeout": "Call timeout (seconds)",
+        "test": "Test connection",
+        "testing": "Testing...",
+        "testOk": "Connected, {count} tools discovered ({ms}ms)",
+        "testErr": "Connection failed: {error}",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving...",
+        "errors": {
+          "name": "Name must start with a letter or digit, contain only letters, digits, - and _ (no consecutive __), max 32 chars",
+          "command": "stdio type requires a command",
+          "url": "HTTP type requires a URL"
+        }
+      },
+      "confirm": {
+        "title": "Delete MCP server",
+        "body": "Delete \"{name}\"? Its tools will be removed from the gateway immediately.",
+        "delete": "Delete"
+      },
+      "messages": {
+        "loadFailed": "Failed to load MCP config",
+        "statusLoadFailed": "Failed to refresh statuses",
+        "saved": "Saved",
+        "saveFailed": "Save failed",
+        "deleted": "Deleted",
+        "deleteFailed": "Delete failed",
+        "toggleFailed": "Failed to toggle enabled state",
+        "testFailed": "Connection test failed",
+        "injected": "Injected — restart the CLI to take effect",
+        "injectionRemoved": "Injection removed",
+        "injectionFailed": "Injection operation failed",
+        "copied": "Endpoint copied",
+        "copyFailed": "Copy failed"
+      }
     }
   }
 }

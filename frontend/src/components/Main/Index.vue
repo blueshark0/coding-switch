@@ -147,6 +147,22 @@
           </button>
           <button
             class="ghost-icon"
+            :data-tooltip="t('components.main.controls.mcp')"
+            @click="goToMcp"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M9 7V3.5M15 7V3.5M7 7h10v4a5 5 0 01-5 5 5 5 0 01-5-5V7zM12 16v4.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            class="ghost-icon"
             :data-tooltip="t('components.main.tabs.addCard')"
             @click="openCreateModal"
           >
@@ -294,6 +310,10 @@ const goToSessions = () => {
 
 const goToSettings = () => {
   router.push('/settings')
+}
+
+const goToMcp = () => {
+  router.push('/mcp')
 }
 
 const toggleTheme = () => {

@@ -51,6 +51,12 @@ type TokenUsageParser interface {
 	Parse(data string, usage *observabilitydomain.RequestLog)
 }
 
+// MCPGateway 聚合 MCP 端点（mcpgateway.Aggregator 结构性满足）；nil 时不挂 /mcp。
+type MCPGateway interface {
+	Handler() http.Handler
+	Close(ctx context.Context) error
+}
+
 // Options 汇集 relay 的出上下文依赖，由 app/bootstrap 组合根装配。
 type Options struct {
 	// SessionCache 提供会话-供应商粘滞绑定。
@@ -61,6 +67,8 @@ type Options struct {
 	TokenParserFor func(platform kernel.Platform) TokenUsageParser
 	// RetentionCleanup 执行请求日志保留期清理；nil 时不启动定时任务。
 	RetentionCleanup func() error
+	// MCPGateway 聚合 MCP 网关；nil 时不暴露 /mcp。
+	MCPGateway MCPGateway
 }
 
 type Server struct {
@@ -75,6 +83,7 @@ type Server struct {
 	addr                string
 	requestLogWorker    *worker.BackgroundWorker[*observabilitydomain.RequestLog]
 	sessionUpdateWorker *worker.BackgroundWorker[sessionUpdateRequest]
+	mcpGateway          MCPGateway
 	shutdownCh          chan struct{}
 	backgroundWG        sync.WaitGroup
 	shutdownOnce        sync.Once
@@ -96,6 +105,7 @@ func NewServer(routingService *routingapp.Service, sessionService *sessionapp.Se
 		tokenParserFor:   opts.TokenParserFor,
 		retentionCleanup: opts.RetentionCleanup,
 		requestLogSink:   opts.RequestLogSink,
+		mcpGateway:       opts.MCPGateway,
 		addr:             addr,
 		shutdownCh:       make(chan struct{}),
 	}
@@ -162,6 +172,14 @@ func (s *Server) Stop() error {
 		defer cancel()
 		err = s.server.Shutdown(ctx)
 		s.listener = nil
+	}
+	// 先停收新请求，再关闭 MCP 上游会话/stdio 子进程
+	if s.mcpGateway != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if closeErr := s.mcpGateway.Close(ctx); closeErr != nil {
+			log.Printf("mcp gateway close: %v\n", closeErr)
+		}
 	}
 	s.stopBackgroundWorkers()
 	return err

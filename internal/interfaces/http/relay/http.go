@@ -36,6 +36,11 @@ func (s *Server) registerRoutes(router gin.IRouter) {
 	router.POST("/responses/compact", s.proxyHandler(kernel.PlatformCodex, "/responses/compact"))
 	router.POST("/gemini/v1beta/*proxyPath", s.proxyHandler(kernel.PlatformGemini, ""))
 	router.POST("/gemini/v1/*proxyPath", s.proxyHandler(kernel.PlatformGemini, ""))
+	if s.mcpGateway != nil {
+		// MCP streamable HTTP 使用 POST（消息）/GET（SSE 流）/DELETE（会话终止）；
+		// SDK handler 自管 body 与 SSE 写出，不走 readRequestBody/proxyHandler。
+		router.Any("/mcp", gin.WrapH(s.mcpGateway.Handler()))
+	}
 }
 
 func (s *Server) proxyHandler(platform kernel.Platform, defaultEndpoint string) gin.HandlerFunc {

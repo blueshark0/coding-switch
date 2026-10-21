@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,7 +103,7 @@ func (m *CodexManager) EnableProxy() error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(settingsPath, stripModelProvidersHeader(data), 0o600); err != nil {
+	if err := os.WriteFile(settingsPath, stripRedundantTableHeaders(data, "model_providers", "mcp_servers"), 0o600); err != nil {
 		return err
 	}
 	return m.writeAuthFile(alreadyProxied)
@@ -113,6 +114,14 @@ func (m *CodexManager) DisableProxy() error {
 	if err != nil {
 		return err
 	}
+	// MCP 条目与模型代理配置同住 config.toml，而下方是整文件备份恢复——
+	// 备份里的 MCP 状态与当前可能不一致（启用后用户可能注入过、也可能
+	// 注入后又移除了）。MCP 条目当前的存在性是唯一事实来源：恢复备份后
+	// 按它调和，两个方向都要处理（有则重注入，无则确保删除）。
+	hadMcpEntry := false
+	if present, statusErr := m.McpStatus(); statusErr == nil {
+		hadMcpEntry = present
+	}
 	if err := os.Remove(settingsPath); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
@@ -120,6 +129,13 @@ func (m *CodexManager) DisableProxy() error {
 		if err := os.Rename(backupPath, settingsPath); err != nil {
 			return err
 		}
+	}
+	if hadMcpEntry {
+		if err := m.InjectMcp(); err != nil {
+			log.Printf("platformproxy: 恢复 codex MCP 条目失败: %v", err)
+		}
+	} else if err := m.RemoveMcp(); err != nil {
+		log.Printf("platformproxy: 清理备份恢复的 codex MCP 条目失败: %v", err)
 	}
 	return m.restoreAuthFile()
 }
@@ -174,11 +190,17 @@ type codexProvider struct {
 	BaseURL string `toml:"base_url"`
 }
 
-func stripModelProvidersHeader(data []byte) []byte {
+// stripRedundantTableHeaders 剔除 go-toml v2 序列化嵌套 map 时多产生的
+// 空父表头（如裸的 [model_providers] / [mcp_servers] 行）。
+func stripRedundantTableHeaders(data []byte, tables ...string) []byte {
+	redundant := make(map[string]bool, len(tables))
+	for _, table := range tables {
+		redundant["["+table+"]"] = true
+	}
 	lines := strings.Split(string(data), "\n")
 	result := make([]string, 0, len(lines))
 	for _, line := range lines {
-		if strings.TrimSpace(line) == "[model_providers]" {
+		if redundant[strings.TrimSpace(line)] {
 			continue
 		}
 		result = append(result, line)

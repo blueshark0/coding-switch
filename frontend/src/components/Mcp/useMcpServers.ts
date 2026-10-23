@@ -195,11 +195,11 @@ export function useMcpServers(t: (key: string, ...args: unknown[]) => string) {
     editorState.open = false
   }
 
-  const submitEditor = async () => {
+  const submitEditor = async (): Promise<McpServerRecord | null> => {
     const error = validateForm(editorState.form)
     if (error) {
       editorState.error = error
-      return
+      return null
     }
     editorState.saving = true
     editorState.error = ''
@@ -213,11 +213,33 @@ export function useMcpServers(t: (key: string, ...args: unknown[]) => string) {
       editorState.open = false
       showToast(t('components.mcp.messages.saved'), 'success')
       void refreshStatuses()
+      return saved
     } catch (err) {
       editorState.error = getErrorMessage(err, t('components.mcp.messages.saveFailed'))
+      return null
     } finally {
       editorState.saving = false
     }
+  }
+
+  // 保存并测试：先落库关闭弹窗，再对已保存配置做连接探测并以 toast 报告结果。
+  const submitEditorAndTest = async (): Promise<void> => {
+    const saved = await submitEditor()
+    if (!saved) return
+    editorState.testing = true
+    try {
+      const result = await testMcpConnection(saved)
+      if (result.success) {
+        showToast(t('components.mcp.form.testOk', { count: result.toolCount, ms: result.durationMs }))
+      } else {
+        showToast(t('components.mcp.form.testErr', { error: result.error ?? '' }), 'error')
+      }
+    } catch (err) {
+      showToast(getErrorMessage(err, t('components.mcp.messages.testFailed')), 'error')
+    } finally {
+      editorState.testing = false
+    }
+    void refreshStatuses()
   }
 
   const runTest = async () => {
@@ -323,6 +345,7 @@ export function useMcpServers(t: (key: string, ...args: unknown[]) => string) {
     openEdit,
     closeEditor,
     submitEditor,
+    submitEditorAndTest,
     runTest,
     toggleEnabled,
     askDelete,

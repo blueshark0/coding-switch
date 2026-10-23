@@ -1,217 +1,20 @@
-<template>
-  <div class="main-shell">
-    <div class="global-actions">
-      <p class="global-eyebrow">{{ t('components.mcp.hero.eyebrow') }}</p>
-      <button class="ghost-icon" :data-tooltip="t('components.mcp.actions.back')" @click="goHome">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M15 18l-6-6 6-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-      <button
-        class="ghost-icon"
-        :data-tooltip="t('components.mcp.actions.refresh')"
-        :disabled="loading"
-        @click="loadAll"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" :class="{ spin: loading }">
-          <path
-            d="M20.5 8a8.5 8.5 0 10-2.38 7.41"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M20.5 4v4h-4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <div class="contrib-page mcp-page">
-      <section class="contrib-hero">
-        <h1>{{ t('components.mcp.hero.title') }}</h1>
-        <p class="lead">{{ t('components.mcp.hero.lead') }}</p>
-      </section>
-
-      <!-- CLI 接入区 -->
-      <section class="automation-section">
-        <h2 class="mac-section-title">{{ t('components.mcp.cli.title') }}</h2>
-        <div class="mac-panel">
-          <div class="mcp-endpoint-row">
-            <span class="mcp-endpoint-label">{{ t('components.mcp.cli.endpoint') }}</span>
-            <code class="mcp-endpoint-value">{{ endpoint }}</code>
-            <BaseButton variant="outline" size="sm" @click="copyEndpoint">
-              {{ t('components.mcp.cli.copy') }}
-            </BaseButton>
-          </div>
-          <div v-for="platform in platforms" :key="platform.id" class="mcp-cli-row">
-            <span class="mcp-cli-name">{{ platform.label }}</span>
-            <span
-              class="mcp-inject-badge"
-              :class="{ injected: injections[platform.id] === true }"
-            >
-              {{
-                injections[platform.id] === null
-                  ? '...'
-                  : injections[platform.id]
-                    ? t('components.mcp.cli.injected')
-                    : t('components.mcp.cli.notInjected')
-              }}
-            </span>
-            <BaseButton
-              variant="outline"
-              size="sm"
-              :disabled="injecting[platform.id]"
-              @click="toggleInjection(platform.id)"
-            >
-              {{
-                injections[platform.id]
-                  ? t('components.mcp.cli.remove')
-                  : t('components.mcp.cli.inject')
-              }}
-            </BaseButton>
-          </div>
-          <details class="mcp-help">
-            <summary>{{ t('components.mcp.cli.helpTitle') }}</summary>
-            <ul>
-              <li>{{ t('components.mcp.cli.helpRestart') }}</li>
-              <li>{{ t('components.mcp.cli.helpRefresh') }}</li>
-              <li>{{ t('components.mcp.cli.helpContext') }}</li>
-              <li>{{ t('components.mcp.cli.helpCodexBackend') }}</li>
-            </ul>
-            <p class="mcp-help-manual">{{ t('components.mcp.cli.manualTitle') }}</p>
-            <pre>claude mcp add --transport http code-switch {{ endpoint }} --header "Authorization: Bearer code-switch"</pre>
-            <pre>[mcp_servers.code-switch]
-url = "{{ endpoint }}"
-
-[mcp_servers.code-switch.http_headers]
-Authorization = "Bearer code-switch"</pre>
-          </details>
-        </div>
-      </section>
-
-      <!-- 服务列表区 -->
-      <section class="automation-section">
-        <div class="section-header">
-          <h2 class="mac-section-title">
-            {{ t('components.mcp.servers.title') }}
-            <span v-if="totalTools > 0" class="mcp-total-tools">
-              {{ t('components.mcp.servers.totalTools', { count: totalTools }) }}
-            </span>
-          </h2>
-          <div class="section-controls">
-            <BaseButton variant="outline" size="sm" @click="openCreate">
-              {{ t('components.mcp.servers.add') }}
-            </BaseButton>
-          </div>
-        </div>
-        <div class="mac-panel">
-          <p v-if="servers.length === 0" class="mcp-empty">{{ t('components.mcp.servers.empty') }}</p>
-          <div v-for="server in servers" :key="server.id" class="mcp-server-row">
-            <span class="mcp-status-dot" :class="statusClass(server.id)" :data-tooltip="statusTip(server.id)"></span>
-            <div class="mcp-server-main">
-              <div class="mcp-server-title">
-                <span class="mcp-server-name">{{ server.name }}</span>
-                <span class="mcp-type-badge">{{ server.type }}</span>
-                <span v-if="statusOf(server.id)?.toolCount" class="mcp-tool-count">
-                  {{ t('components.mcp.servers.toolCount', { count: statusOf(server.id)?.toolCount }) }}
-                </span>
-              </div>
-              <div class="mcp-server-target">{{ targetOf(server) }}</div>
-            </div>
-            <label class="mac-switch sm" :data-tooltip="t('components.mcp.servers.toggle')">
-              <input
-                type="checkbox"
-                :checked="server.enabled"
-                @change="toggleEnabled(server)"
-              />
-              <span></span>
-            </label>
-            <button class="ghost-icon" :data-tooltip="t('components.mcp.servers.edit')" @click="openEdit(server)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M16.5 4.5l3 3L8 19l-4 1 1-4L16.5 4.5z"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-            <button class="ghost-icon danger" :data-tooltip="t('components.mcp.servers.delete')" @click="askDelete(server)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <McpEditorModal
-      :open="editorState.open"
-      :editing="editorState.form.id !== 0"
-      :form="editorState.form"
-      :error="editorState.error"
-      :saving="editorState.saving"
-      :testing="editorState.testing"
-      :test-result="editorState.testResult"
-      @close="closeEditor"
-      @submit="submitEditor"
-      @test="runTest"
-    />
-
-    <BaseModal
-      :open="confirmState.open"
-      variant="confirm"
-      :title="t('components.mcp.confirm.title')"
-      @close="confirmState.open = false"
-    >
-      <p>{{ t('components.mcp.confirm.body', { name: confirmState.target?.name ?? '' }) }}</p>
-      <div class="confirm-actions">
-        <BaseButton variant="outline" size="sm" :disabled="confirmState.busy" @click="confirmState.open = false">
-          {{ t('components.mcp.form.cancel') }}
-        </BaseButton>
-        <BaseButton variant="danger" size="sm" :disabled="confirmState.busy" @click="confirmDelete">
-          {{ t('components.mcp.confirm.delete') }}
-        </BaseButton>
-      </div>
-    </BaseModal>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import BaseButton from '../common/BaseButton.vue'
 import BaseModal from '../common/BaseModal.vue'
 import McpEditorModal from './McpEditorModal.vue'
-import { MCP_PLATFORMS, useMcpServers } from './useMcpServers'
+import { useMcpServers } from './useMcpServers'
+import {
+  ServerType,
+  fetchMcpTools,
+  testMcpConnection,
+  type McpServerRecord,
+  type ToolInfo,
+} from '../../services/mcp'
+import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
-import type { McpServerRecord } from '../../services/mcp'
+import { runWithToast } from '../../utils/runWithToast'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -219,251 +22,458 @@ const router = useRouter()
 const {
   servers,
   statuses,
-  endpoint,
-  loading,
-  injections,
-  injecting,
   editorState,
   confirmState,
-  totalTools,
   loadAll,
   refreshStatuses,
   openCreate,
   openEdit,
   closeEditor,
   submitEditor,
-  runTest,
+  submitEditorAndTest,
   toggleEnabled,
   askDelete,
   confirmDelete,
-  toggleInjection,
 } = useMcpServers(t)
 
-const platforms = MCP_PLATFORMS
+const tools = ref<ToolInfo[]>([])
+const selectedId = ref<number | null>(null)
+const menuFor = ref(0)
+const testingId = ref(0)
 
-const goHome = () => {
-  void router.push('/')
+const refreshTools = async () => {
+  const list = await runWithToast(() => fetchMcpTools(), {
+    fallback: t('mcpPage.messages.toolsLoadFailed'),
+    silent: true,
+  })
+  tools.value = list ?? []
 }
 
-const copyEndpoint = async () => {
+onMounted(async () => {
+  await loadAll()
+  await refreshTools()
+  window.addEventListener('click', closeMenu)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeMenu)
+})
+
+const statusMap = computed(() => statuses.value)
+
+const statusOf = (server: McpServerRecord) => {
+  if (!server.enabled) return { tone: 'warning', label: t('mcpPage.status.disabled') }
+  const state = statusMap.value[server.id]?.state
+  if (state === 'connected') return { tone: 'success', label: t('mcpPage.status.connected') }
+  if (state === 'failed') return { tone: 'danger', label: t('mcpPage.status.failed') }
+  return { tone: 'muted', label: t('mcpPage.status.connecting') }
+}
+
+const toolCountOf = (server: McpServerRecord) => statusMap.value[server.id]?.toolCount ?? 0
+
+const enabledCount = computed(() => servers.value.filter((s) => s.enabled).length)
+const totalTools = computed(() =>
+  servers.value.reduce((sum, s) => sum + (s.enabled ? toolCountOf(s) : 0), 0),
+)
+
+const selectedServer = computed(
+  () => servers.value.find((s) => s.id === selectedId.value) ?? servers.value[0] ?? null,
+)
+
+const selectedTools = computed(() =>
+  selectedServer.value ? tools.value.filter((tool) => tool.serverId === selectedServer.value!.id) : [],
+)
+
+const transportLabel = (server: McpServerRecord) =>
+  server.type === ServerType.ServerTypeStdio ? 'stdio' : 'Streamable HTTP'
+
+const serverSubtitle = (server: McpServerRecord) =>
+  [
+    transportLabel(server),
+    server.type === ServerType.ServerTypeStdio ? t('mcpPage.localProcess') : t('mcpPage.remoteService'),
+    t('mcpPage.toolCount', { count: toolCountOf(server) }),
+  ].join(' · ')
+
+const serverCommand = (server: McpServerRecord) => {
+  if (server.type === ServerType.ServerTypeStdio) {
+    return [server.command, ...(server.args ?? [])].filter(Boolean).join(' ')
+  }
+  return server.url ?? ''
+}
+
+const closeMenu = () => {
+  menuFor.value = 0
+}
+
+const toggleMenu = (id: number) => {
+  menuFor.value = menuFor.value === id ? 0 : id
+}
+
+const runTest = async (server: McpServerRecord) => {
+  if (testingId.value) return
+  testingId.value = server.id
   try {
-    await navigator.clipboard.writeText(endpoint.value)
-    showToast(t('components.mcp.messages.copied'), 'success')
-  } catch {
-    showToast(t('components.mcp.messages.copyFailed'), 'error')
+    const result = await testMcpConnection(server)
+    if (result.success) {
+      showToast(t('mcpPage.messages.testOk', { count: result.toolCount, ms: result.durationMs }))
+    } else {
+      showToast(t('mcpPage.messages.testErr', { error: result.error ?? '' }), 'error')
+    }
+  } catch (error) {
+    showToast(getErrorMessage(error, t('mcpPage.messages.testFailed')), 'error')
+  } finally {
+    testingId.value = 0
   }
 }
 
-const statusOf = (id: number) => statuses.value[id]
-
-const statusClass = (id: number) => {
-  const st = statuses.value[id]
-  if (!st) return 'unknown'
-  return st.state // connected / connecting / failed / disabled
+const openDiagnostics = (server?: McpServerRecord) => {
+  if (server) {
+    void router.push({ path: '/mcp/diagnostics', query: { view: 'upstream', server: String(server.id) } })
+  } else {
+    void router.push({ path: '/mcp/diagnostics' })
+  }
 }
 
-const statusTip = (id: number) => {
-  const st = statuses.value[id]
-  if (!st) return ''
-  const key = `components.mcp.status.${st.state}`
-  const label = t(key)
-  return st.error ? `${label}: ${st.error}` : label
+const onSaved = async () => {
+  await refreshStatuses()
+  await refreshTools()
 }
 
-const targetOf = (server: McpServerRecord) =>
-  server.type === 'stdio'
-    ? [server.command, ...(server.args ?? [])].join(' ')
-    : server.url
+const onSubmitEditor = async () => {
+  const saved = await submitEditor()
+  if (saved) await onSaved()
+}
 
-let pollTimer: ReturnType<typeof setInterval> | undefined
-onMounted(() => {
-  void loadAll()
-  // 状态轮询：聚合器重连退避语义下 5s 粒度足够（全仓前端无 EventsOn 使用，与 Sessions 页一致）
-  pollTimer = setInterval(() => void refreshStatuses(), 5000)
-})
-onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
-})
+const onSubmitAndTest = async () => {
+  await submitEditorAndTest()
+  await onSaved()
+}
 </script>
 
+<template>
+  <div class="cs-page" @click="closeMenu">
+    <div class="cs-page-head">
+      <div>
+        <h1 class="cs-page-title">{{ t('mcpPage.title') }}</h1>
+        <p class="cs-page-sub">{{ t('mcpPage.subtitle') }}</p>
+      </div>
+      <div class="cs-page-actions">
+        <button type="button" class="cs-btn" @click="openDiagnostics()">
+          {{ t('mcpPage.actions.diagnostics') }}
+        </button>
+        <button type="button" class="cs-btn cs-btn--primary" @click="openCreate">
+          ＋&nbsp;{{ t('mcpPage.actions.create') }}
+        </button>
+      </div>
+    </div>
+
+    <div class="mcp-grid">
+      <div class="cs-card cs-card-pad mcp-list">
+        <h2 class="cs-card-title">{{ t('mcpPage.list.title') }}</h2>
+        <p class="cs-section-sub">
+          {{ t('mcpPage.list.summary', { enabled: enabledCount, tools: totalTools }) }}
+        </p>
+
+        <div v-if="servers.length === 0" class="cs-empty">{{ t('mcpPage.list.empty') }}</div>
+
+        <button
+          v-for="server in servers"
+          :key="server.id"
+          type="button"
+          class="mcp-row"
+          :class="{ selected: selectedServer?.id === server.id }"
+          @click.stop="selectedId = server.id"
+        >
+          <span class="mcp-avatar cs-mono">{{ server.name.slice(0, 1).toUpperCase() }}</span>
+          <span class="mcp-main">
+            <span class="mcp-name cs-mono">{{ server.name }}</span>
+            <span class="mcp-sub">{{ serverSubtitle(server) }}</span>
+          </span>
+          <span class="cs-pill" :class="`cs-pill--${statusOf(server).tone}`">
+            {{ statusOf(server).label }}
+          </span>
+          <span class="cs-menu-anchor" @click.stop>
+            <button type="button" class="mcp-kebab" @click="toggleMenu(server.id)">⋯</button>
+            <div v-if="menuFor === server.id" class="cs-menu">
+              <button type="button" class="cs-menu-item" @click="openEdit(server); closeMenu()">
+                {{ t('mcpPage.menu.edit') }}
+              </button>
+              <button type="button" class="cs-menu-item" @click="toggleEnabled(server); closeMenu()">
+                {{ server.enabled ? t('mcpPage.menu.disable') : t('mcpPage.menu.enable') }}
+              </button>
+              <button type="button" class="cs-menu-item cs-menu-item--danger" @click="askDelete(server); closeMenu()">
+                {{ t('mcpPage.menu.delete') }}
+              </button>
+            </div>
+          </span>
+        </button>
+      </div>
+
+      <div v-if="selectedServer" class="cs-card cs-card-pad mcp-detail">
+        <h2 class="mcp-detail-name cs-mono">{{ selectedServer.name }}</h2>
+        <span class="cs-pill" :class="selectedServer.enabled ? 'cs-pill--success' : 'cs-pill--warning'">
+          {{ selectedServer.enabled ? t('mcpPage.detail.enabled') : t('mcpPage.detail.disabled') }}
+        </span>
+
+        <p class="mcp-detail-label">{{ t('mcpPage.detail.transport') }}</p>
+        <p class="mcp-detail-value cs-mono">{{ transportLabel(selectedServer) }}</p>
+
+        <p class="mcp-detail-label">
+          {{ selectedServer.type === ServerType.ServerTypeStdio ? t('mcpPage.detail.command') : t('mcpPage.detail.url') }}
+        </p>
+        <div class="mcp-command cs-mono">{{ serverCommand(selectedServer) }}</div>
+
+        <template v-if="statusMap[selectedServer.id]?.error">
+          <p class="mcp-detail-label">{{ t('mcpPage.detail.lastError') }}</p>
+          <p class="mcp-detail-error">{{ statusMap[selectedServer.id].error }}</p>
+        </template>
+
+        <h3 class="mcp-tools-title">{{ t('mcpPage.detail.toolsTitle') }}</h3>
+        <hr class="cs-divider" />
+        <div v-if="selectedTools.length === 0" class="mcp-tools-empty">
+          {{ t('mcpPage.detail.toolsEmpty') }}
+        </div>
+        <div v-for="tool in selectedTools.slice(0, 8)" :key="tool.publicName" class="mcp-tool-row">
+          <span class="cs-mono">{{ tool.upstreamName }}</span>
+        </div>
+        <p v-if="selectedTools.length > 8" class="mcp-tools-more">
+          {{ t('mcpPage.detail.toolsMore', { count: selectedTools.length - 8 }) }}
+        </p>
+
+        <div class="mcp-detail-actions">
+          <button type="button" class="cs-btn" @click="openEdit(selectedServer)">
+            {{ t('mcpPage.actions.edit') }}
+          </button>
+          <button
+            type="button"
+            class="cs-btn cs-btn--primary"
+            :disabled="testingId === selectedServer.id"
+            @click="runTest(selectedServer)"
+          >
+            {{ testingId === selectedServer.id ? t('mcpPage.actions.testing') : t('mcpPage.actions.test') }}
+          </button>
+        </div>
+        <button type="button" class="cs-btn cs-btn--tint mcp-diag-btn" @click="openDiagnostics(selectedServer)">
+          ◉&nbsp;&nbsp;{{ t('mcpPage.actions.openDiagnostics') }}
+        </button>
+      </div>
+    </div>
+
+    <McpEditorModal
+      :state="editorState"
+      @close="closeEditor"
+      @submit="onSubmitEditor"
+      @submit-and-test="onSubmitAndTest"
+    />
+
+    <BaseModal
+      :open="confirmState.open"
+      :title="t('mcpPage.delete.title')"
+      width="narrow"
+      @close="confirmState.open = false"
+    >
+      <p class="mcp-delete-body">
+        {{ t('mcpPage.delete.body', { name: confirmState.target?.name ?? '' }) }}
+      </p>
+      <template #footer>
+        <button type="button" class="cs-btn" @click="confirmState.open = false">
+          {{ t('common.cancel') }}
+        </button>
+        <button
+          type="button"
+          class="cs-btn cs-btn--danger"
+          :disabled="confirmState.busy"
+          @click="confirmDelete().then(onSaved)"
+        >
+          {{ t('mcpPage.delete.confirm') }}
+        </button>
+      </template>
+    </BaseModal>
+  </div>
+</template>
+
 <style scoped>
-.mcp-page {
+.mcp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr);
   gap: 18px;
+  align-items: start;
 }
 
-.mcp-endpoint-row,
-.mcp-cli-row {
+.mcp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mcp-list .cs-section-sub {
+  margin-bottom: 8px;
+}
+
+.mcp-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 4px;
+  gap: 14px;
+  min-height: 88px;
+  padding: 12px 14px;
+  border-radius: var(--cs-r-row);
+  border: 1px solid var(--cs-border);
+  background: var(--cs-surface);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
-.mcp-cli-row + .mcp-cli-row,
-.mcp-endpoint-row + .mcp-cli-row {
-  border-top: 1px solid var(--mac-border, rgba(0, 0, 0, 0.06));
+.mcp-row.selected {
+  background: var(--cs-brand-tint);
+  border-color: var(--cs-brand-tint-border);
 }
 
-.mcp-endpoint-label {
-  color: var(--mac-text-secondary);
-  font-size: 0.85rem;
-}
-
-.mcp-endpoint-value {
-  flex: 1;
-  font-size: 0.85rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mcp-cli-name {
-  width: 110px;
-  font-weight: 500;
-}
-
-.mcp-inject-badge {
-  flex: 1;
-  font-size: 0.8rem;
-  color: var(--mac-text-secondary);
-}
-
-.mcp-inject-badge.injected {
-  color: var(--mac-success, #1a7f37);
-}
-
-.mcp-help {
-  padding: 10px 4px;
-  border-top: 1px solid var(--mac-border, rgba(0, 0, 0, 0.06));
-  font-size: 0.82rem;
-  color: var(--mac-text-secondary);
-}
-
-.mcp-help pre {
-  background: var(--mac-panel-alt, rgba(0, 0, 0, 0.04));
-  padding: 8px;
-  border-radius: 6px;
-  overflow-x: auto;
-  font-size: 0.78rem;
-}
-
-.mcp-help-manual {
-  margin: 8px 0 4px;
-  font-weight: 600;
-}
-
-.mcp-total-tools {
-  font-size: 0.78rem;
-  font-weight: 400;
-  color: var(--mac-text-secondary);
-  margin-left: 8px;
-}
-
-.mcp-empty {
-  padding: 18px 4px;
-  color: var(--mac-text-secondary);
+.mcp-avatar {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--cs-brand);
+  flex-shrink: 0;
+  width: 20px;
   text-align: center;
 }
 
-.mcp-server-row {
+.mcp-main {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 4px;
-}
-
-.mcp-server-row + .mcp-server-row {
-  border-top: 1px solid var(--mac-border, rgba(0, 0, 0, 0.06));
-}
-
-.mcp-status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--mac-text-secondary);
-  flex-shrink: 0;
-}
-
-.mcp-status-dot.connected {
-  background: var(--mac-success, #1a7f37);
-}
-
-.mcp-status-dot.connecting {
-  background: #d29922;
-  animation: pulse 1.2s ease-in-out infinite;
-}
-
-.mcp-status-dot.failed {
-  background: var(--mac-danger, #d0342c);
-}
-
-.mcp-status-dot.disabled {
-  background: var(--mac-text-secondary);
-  opacity: 0.5;
-}
-
-.mcp-server-main {
-  flex: 1;
+  flex-direction: column;
+  gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
-.mcp-server-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mcp-server-name {
+.mcp-name {
+  font-size: 12px;
   font-weight: 500;
+  color: var(--cs-text);
 }
 
-.mcp-type-badge {
-  font-size: 0.72rem;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--mac-panel-alt, rgba(0, 0, 0, 0.05));
-  color: var(--mac-text-secondary);
+.mcp-sub {
+  font-size: 10px;
+  color: var(--cs-text-secondary);
 }
 
-.mcp-tool-count {
-  font-size: 0.78rem;
-  color: var(--mac-text-secondary);
+.mcp-kebab {
+  border: none;
+  background: transparent;
+  color: var(--cs-text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
 }
 
-.mcp-server-target {
-  font-size: 0.78rem;
-  color: var(--mac-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.mcp-kebab:hover {
+  background: var(--cs-row-hover);
 }
 
-.ghost-icon.danger:hover {
-  color: var(--mac-danger, #d0342c);
-}
-
-.confirm-actions {
+.mcp-detail {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 16px;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 0;
 }
 
-.spin {
-  animation: spin 1s linear infinite;
+.mcp-detail-name {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--cs-text);
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
+.mcp-detail .cs-pill {
+  align-self: flex-start;
+}
+
+.mcp-detail-label {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--cs-text-secondary);
+}
+
+.mcp-detail-value {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cs-text);
+}
+
+.mcp-command {
+  background: var(--cs-field);
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-r-field);
+  padding: 12px 10px;
+  font-size: 10px;
+  color: var(--cs-text);
+  word-break: break-all;
+  user-select: text;
+}
+
+.mcp-detail-error {
+  margin: 0;
+  font-size: 11px;
+  color: var(--cs-danger);
+  word-break: break-all;
+}
+
+.mcp-tools-title {
+  margin: 14px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cs-text);
+}
+
+.mcp-tools-empty {
+  font-size: 11px;
+  color: var(--cs-text-secondary);
+  padding: 10px 0;
+}
+
+.mcp-tool-row {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cs-border);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--cs-text);
+}
+
+.mcp-tools-more {
+  margin: 8px 0 0;
+  font-size: 10px;
+  color: var(--cs-text-secondary);
+}
+
+.mcp-detail-actions {
+  display: flex;
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.mcp-diag-btn {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.mcp-delete-body {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--cs-text);
+  line-height: 1.7;
+}
+
+@media (max-width: 1100px) {
+  .mcp-grid {
+    grid-template-columns: 1fr;
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
-@keyframes pulse {
-  50% {
-    opacity: 0.4;
+  .mcp-detail {
+    position: static;
   }
 }
 </style>

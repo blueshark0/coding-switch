@@ -4,6 +4,7 @@ import {
   GetInjectionStatus,
   Inject,
   List,
+  ListTools,
   RemoveInjection,
   Save,
   SetEnabled,
@@ -15,10 +16,10 @@ import {
   ServerType,
   type TestResult,
 } from '../../bindings/codeswitch/internal/mcpgateway/domain/models'
-import type { UpstreamStatus } from '../../bindings/codeswitch/internal/mcpgateway/application/models'
+import type { ToolInfo, UpstreamStatus } from '../../bindings/codeswitch/internal/mcpgateway/application/models'
 
 export type McpServerRecord = McpServer
-export type { TestResult, UpstreamStatus }
+export type { TestResult, ToolInfo, UpstreamStatus }
 export { McpServer, ServerType }
 
 export const fetchMcpServers = (): Promise<McpServer[]> => List()
@@ -33,3 +34,5 @@ export const fetchInjectionStatus = (platform: string): Promise<boolean> =>
   GetInjectionStatus(platform)
 export const injectMcp = (platform: string): Promise<void> => Inject(platform)
 export const removeMcpInjection = (platform: string): Promise<void> => RemoveInjection(platform)
+
+export const fetchMcpTools = (): Promise<ToolInfo[]> => ListTools()

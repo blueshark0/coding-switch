@@ -406,6 +406,9 @@ func TestTestConnection(t *testing.T) {
 // 真实 stdio 链路：helper 进程跑一个真 MCP server，验证 CommandTransport 与进程回收。
 func TestStdioConnectorHelperProcess(t *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+		if os.Getenv("PYTHONHOME") != "" || os.Getenv("PYTHONPATH") != "" {
+			os.Exit(2)
+		}
 		server := mcp.NewServer(&mcp.Implementation{Name: "helper", Version: "v0"}, nil)
 		server.AddTool(&mcp.Tool{Name: "ping", InputSchema: objectSchema()},
 			func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -417,6 +420,10 @@ func TestStdioConnectorHelperProcess(t *testing.T) {
 		os.Exit(0)
 	}
 
+	appDir := t.TempDir()
+	t.Setenv("APPDIR", appDir)
+	t.Setenv("PYTHONHOME", appDir+"/usr")
+	t.Setenv("PYTHONPATH", appDir+"/usr/share/pyshared")
 	connect := defaultConnector("test", nil)
 	cfg := domain.McpServer{
 		Name: "helper", Type: domain.ServerTypeStdio,

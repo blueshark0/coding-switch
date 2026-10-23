@@ -34,8 +34,7 @@ func defaultConnector(appVersion string, onToolsChanged func(serverID int64)) Co
 		switch cfg.Type {
 		case domain.ServerTypeStdio:
 			cmd := exec.Command(cfg.Command, cfg.Args...)
-			// 继承宿主环境（PATH/HOME 等，npx/uvx 需要），再叠加用户配置的变量
-			cmd.Env = append(os.Environ(), envPairs(cfg.Env)...)
+			cmd.Env = stdioEnvironment(os.Environ(), cfg.Env)
 			transport = &mcp.CommandTransport{Command: cmd}
 		case domain.ServerTypeHTTP:
 			transport = &mcp.StreamableClientTransport{

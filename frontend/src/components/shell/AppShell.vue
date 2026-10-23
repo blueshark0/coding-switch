@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, type Component } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { Home, Layers, History, MessagesSquare, Plug, Settings } from 'lucide-vue-next'
 import QuickSwitchModal from '../QuickSwitch/QuickSwitchModal.vue'
 import { useQuickSwitch } from '../../composables/useQuickSwitch'
 
@@ -9,13 +10,13 @@ const route = useRoute()
 const { t } = useI18n()
 const { quickSwitchOpen, openQuickSwitch, closeQuickSwitch } = useQuickSwitch()
 
-const NAV_ITEMS = [
-  { key: 'dashboard', glyph: '⌂', to: '/' },
-  { key: 'providers', glyph: '▧', to: '/providers' },
-  { key: 'logs', glyph: '↗', to: '/logs' },
-  { key: 'sessions', glyph: '▤', to: '/sessions' },
-  { key: 'mcp', glyph: '◇', to: '/mcp' },
-] as const
+const NAV_ITEMS: ReadonlyArray<{ key: string; icon: Component; to: string }> = [
+  { key: 'dashboard', icon: Home, to: '/' },
+  { key: 'providers', icon: Layers, to: '/providers' },
+  { key: 'logs', icon: History, to: '/logs' },
+  { key: 'sessions', icon: MessagesSquare, to: '/sessions' },
+  { key: 'mcp', icon: Plug, to: '/mcp' },
+]
 
 const activeNav = computed(() => (route.meta.nav as string) || 'dashboard')
 const crumb = computed(() => {
@@ -55,7 +56,7 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
           :class="{ active: activeNav === item.key }"
           :title="t(`shell.nav.${item.key}`)"
         >
-          <span class="shell-nav-glyph">{{ item.glyph }}</span>
+          <component :is="item.icon" :size="20" :stroke-width="2" class="shell-nav-icon" />
         </RouterLink>
       </nav>
       <div class="shell-sidebar-bottom">
@@ -65,7 +66,7 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
           :class="{ active: activeNav === 'settings' }"
           :title="t('shell.nav.settings')"
         >
-          <span class="shell-nav-glyph shell-nav-glyph--sm">⚙</span>
+          <Settings :size="20" :stroke-width="2" class="shell-nav-icon" />
         </RouterLink>
       </div>
     </aside>
@@ -155,14 +156,8 @@ onUnmounted(() => window.removeEventListener('keydown', onGlobalKeydown))
   color: var(--cs-brand);
 }
 
-.shell-nav-glyph {
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.shell-nav-glyph--sm {
-  font-size: 19px;
+.shell-nav-icon {
+  flex-shrink: 0;
 }
 
 .shell-sidebar-bottom {

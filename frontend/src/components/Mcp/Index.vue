@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { Activity, Ellipsis, Plug, Plus } from 'lucide-vue-next'
 import BaseModal from '../common/BaseModal.vue'
 import McpEditorModal from './McpEditorModal.vue'
 import { useMcpServers } from './useMcpServers'
@@ -162,7 +163,8 @@ const onSubmitAndTest = async () => {
           {{ t('mcpPage.actions.diagnostics') }}
         </button>
         <button type="button" class="cs-btn cs-btn--primary" @click="openCreate">
-          ＋&nbsp;{{ t('mcpPage.actions.create') }}
+          <Plus :size="14" :stroke-width="2" />
+          {{ t('mcpPage.actions.create') }}
         </button>
       </div>
     </div>
@@ -184,7 +186,7 @@ const onSubmitAndTest = async () => {
           :class="{ selected: selectedServer?.id === server.id }"
           @click.stop="selectedId = server.id"
         >
-          <span class="mcp-avatar cs-mono">{{ server.name.slice(0, 1).toUpperCase() }}</span>
+          <span class="mcp-avatar"><Plug :size="16" :stroke-width="2" /></span>
           <span class="mcp-main">
             <span class="mcp-name cs-mono">{{ server.name }}</span>
             <span class="mcp-sub">{{ serverSubtitle(server) }}</span>
@@ -193,7 +195,9 @@ const onSubmitAndTest = async () => {
             {{ statusOf(server).label }}
           </span>
           <span class="cs-menu-anchor" @click.stop>
-            <button type="button" class="mcp-kebab" @click="toggleMenu(server.id)">⋯</button>
+            <button type="button" class="mcp-kebab" @click="toggleMenu(server.id)">
+              <Ellipsis :size="16" :stroke-width="2" />
+            </button>
             <div v-if="menuFor === server.id" class="cs-menu">
               <button type="button" class="cs-menu-item" @click="openEdit(server); closeMenu()">
                 {{ t('mcpPage.menu.edit') }}
@@ -254,7 +258,8 @@ const onSubmitAndTest = async () => {
           </button>
         </div>
         <button type="button" class="cs-btn cs-btn--tint mcp-diag-btn" @click="openDiagnostics(selectedServer)">
-          ◉&nbsp;&nbsp;{{ t('mcpPage.actions.openDiagnostics') }}
+          <Activity :size="14" :stroke-width="2" />
+          {{ t('mcpPage.actions.openDiagnostics') }}
         </button>
       </div>
     </div>
@@ -331,12 +336,12 @@ const onSubmitAndTest = async () => {
 }
 
 .mcp-avatar {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--cs-brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cs-text-secondary);
   flex-shrink: 0;
   width: 20px;
-  text-align: center;
 }
 
 .mcp-main {
@@ -359,10 +364,12 @@ const onSubmitAndTest = async () => {
 }
 
 .mcp-kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--cs-text-secondary);
-  font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChevronRight, Search } from 'lucide-vue-next'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
 import {
   fetchPlatformSessions,
@@ -138,11 +139,14 @@ onUnmounted(() => {
         >
           {{ tab.label }}
         </button>
-        <input
-          v-model="keyword"
-          class="sess-search"
-          :placeholder="t('sessionsPage.searchPlaceholder')"
-        />
+        <span class="sess-search-wrap">
+          <Search :size="13" :stroke-width="2" class="sess-search-icon" />
+          <input
+            v-model="keyword"
+            class="sess-search"
+            :placeholder="t('sessionsPage.searchPlaceholder')"
+          />
+        </span>
       </div>
 
       <div v-if="visibleRows.length === 0 && !loading" class="cs-empty">
@@ -160,7 +164,9 @@ onUnmounted(() => {
         </div>
         <span class="sess-time">{{ formatTime(row.last_success_at) }}</span>
         <span class="cs-menu-anchor" @click.stop>
-          <button type="button" class="sess-chevron" @click="toggleMenu(`${row.platform}:${row.session_id}`)">›</button>
+          <button type="button" class="sess-chevron" @click="toggleMenu(`${row.platform}:${row.session_id}`)">
+            <ChevronRight :size="15" :stroke-width="2" />
+          </button>
           <div v-if="menuFor === `${row.platform}:${row.session_id}`" class="cs-menu">
             <button type="button" class="cs-menu-item cs-menu-item--danger" @click="unbind(row)">
               {{ t('sessionsPage.unbind') }}
@@ -179,8 +185,21 @@ onUnmounted(() => {
   gap: 14px;
 }
 
-.sess-search {
+.sess-search-wrap {
   margin-left: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sess-search-icon {
+  position: absolute;
+  left: 0;
+  color: var(--cs-text-secondary);
+  pointer-events: none;
+}
+
+.sess-search {
   border: none;
   background: transparent;
   font-size: 11px;
@@ -188,7 +207,7 @@ onUnmounted(() => {
   font-family: inherit;
   outline: none;
   min-width: 180px;
-  text-align: right;
+  padding-left: 20px;
 }
 
 .sess-search::placeholder {
@@ -235,14 +254,15 @@ onUnmounted(() => {
 }
 
 .sess-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--cs-text-secondary);
-  font-size: 22px;
   cursor: pointer;
   padding: 2px 8px;
   border-radius: 6px;
-  line-height: 1;
 }
 
 .sess-chevron:hover {

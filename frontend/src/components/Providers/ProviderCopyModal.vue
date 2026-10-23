@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ArrowLeftRight, TriangleAlert } from 'lucide-vue-next'
 import BaseModal from '../common/BaseModal.vue'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
 import type { DirectoryEntry } from './useProviderDirectory'
@@ -58,7 +59,9 @@ const RULES = ['baseUrl', 'apiKey', 'model', 'headers', 'proxy', 'whitelist'] as
           <p class="pcopy-lane-name">{{ source.provider.name }}</p>
           <span class="cs-pill cs-pill--success pcopy-lane-pill">{{ t('providersPage.copy.sourceReadonly') }}</span>
         </div>
-        <button type="button" class="pcopy-swap" :title="t('providersPage.copy.swap')" @click="swapDirection">⇄</button>
+        <button type="button" class="pcopy-swap" :title="t('providersPage.copy.swap')" @click="swapDirection">
+          <ArrowLeftRight :size="18" :stroke-width="2" />
+        </button>
         <div class="pcopy-lane">
           <p class="pcopy-lane-title">{{ targetLabel }}</p>
           <p class="pcopy-lane-name">{{ t('providersPage.copy.newDraft') }}</p>
@@ -85,7 +88,10 @@ const RULES = ['baseUrl', 'apiKey', 'model', 'headers', 'proxy', 'whitelist'] as
       </div>
 
       <div class="pcopy-warning">
-        <p class="pcopy-warning-title">⚠ {{ t('providersPage.copy.warnTitle') }}</p>
+        <p class="pcopy-warning-title">
+          <TriangleAlert :size="13" :stroke-width="2" />
+          {{ t('providersPage.copy.warnTitle') }}
+        </p>
         <p class="pcopy-warning-body">{{ t('providersPage.copy.warnBody') }}</p>
       </div>
 
@@ -147,12 +153,13 @@ const RULES = ['baseUrl', 'apiKey', 'model', 'headers', 'proxy', 'whitelist'] as
 .pcopy-swap {
   width: 56px;
   height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   border-radius: 12px;
   background: var(--cs-brand-tint);
   color: var(--cs-brand);
-  font-size: 22px;
-  font-weight: 700;
   cursor: pointer;
 }
 
@@ -206,6 +213,9 @@ const RULES = ['baseUrl', 'apiKey', 'model', 'headers', 'proxy', 'whitelist'] as
 
 .pcopy-warning-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   font-weight: 500;
   color: var(--cs-warning);

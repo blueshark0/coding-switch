@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { Sparkles, Command, ChevronRight } from 'lucide-vue-next'
 import { useDashboard, type DashboardClient } from './useDashboard'
 import { useQuickSwitch } from '../../composables/useQuickSwitch'
 import { parseDateTime } from '../../utils/dateTime'
+import brandClaude from '../../assets/icons/brand-claude.svg'
+import brandCodex from '../../assets/icons/brand-codex.svg'
+import brandGemini from '../../assets/icons/brand-gemini.svg'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -19,10 +23,10 @@ const {
   toggleClientProxy,
 } = useDashboard()
 
-const CLIENT_ICONS: Record<DashboardClient['platform'], { glyph: string; tone: string }> = {
-  claude: { glyph: '⌘', tone: 'dark' },
-  codex: { glyph: 'C', tone: 'green' },
-  gemini: { glyph: '✦', tone: 'blue' },
+const CLIENT_ICONS: Record<DashboardClient['platform'], string> = {
+  claude: brandClaude,
+  codex: brandCodex,
+  gemini: brandGemini,
 }
 
 const formatSessionTime = (value: unknown) => {
@@ -62,8 +66,14 @@ const copyEndpoint = async () => {
     </div>
 
     <button type="button" class="dash-quick" @click="openQuickSwitch()">
-      <span class="dash-quick-label">✦&nbsp;&nbsp;{{ t('dashboard.quickSwitch.label') }}</span>
-      <span class="cs-kbd">⌘ K</span>
+      <span class="dash-quick-label">
+        <Sparkles :size="14" :stroke-width="2" class="dash-quick-sparkle" />
+        {{ t('dashboard.quickSwitch.label') }}
+      </span>
+      <span class="dash-quick-kbd">
+        <Command :size="12" :stroke-width="2" />
+        <span>K</span>
+      </span>
       <span class="dash-quick-hint">{{ t('dashboard.quickSwitch.hint') }}</span>
       <span class="cs-btn dash-quick-btn">{{ t('dashboard.quickSwitch.open') }}</span>
     </button>
@@ -74,8 +84,8 @@ const copyEndpoint = async () => {
       <div class="dash-clients">
         <div v-for="client in clients" :key="client.platform" class="cs-card dash-client">
           <div class="dash-client-head">
-            <span class="dash-client-icon" :class="`dash-client-icon--${CLIENT_ICONS[client.platform].tone}`">
-              {{ CLIENT_ICONS[client.platform].glyph }}
+            <span class="dash-client-icon">
+              <img :src="CLIENT_ICONS[client.platform]" :alt="client.label" class="dash-client-icon-img" />
             </span>
             <span class="dash-client-name">{{ client.label }}</span>
             <span
@@ -103,7 +113,8 @@ const copyEndpoint = async () => {
               <span class="dash-client-relay-label">{{ t('dashboard.clients.relay') }}</span>
             </label>
             <button type="button" class="dash-client-switch" @click="openQuickSwitch(client.platform)">
-              {{ t('dashboard.clients.switch') }}&nbsp;&nbsp;›
+              {{ t('dashboard.clients.switch') }}
+              <ChevronRight :size="12" :stroke-width="2" />
             </button>
           </div>
         </div>
@@ -193,9 +204,25 @@ const copyEndpoint = async () => {
 }
 
 .dash-quick-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-weight: 500;
   color: var(--cs-text);
+}
+
+.dash-quick-sparkle {
+  color: var(--cs-brand);
+}
+
+.dash-quick-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--cs-text-secondary);
 }
 
 .dash-quick-hint {
@@ -230,28 +257,19 @@ const copyEndpoint = async () => {
 .dash-client-icon {
   width: 40px;
   height: 40px;
-  border-radius: 11px;
+  border-radius: 10px;
+  background: var(--cs-field);
+  border: 1px solid var(--cs-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  font-weight: 700;
   flex-shrink: 0;
 }
 
-.dash-client-icon--dark {
-  background: #20242d;
-  color: #fff;
-}
-
-.dash-client-icon--green {
-  background: var(--cs-success-tint);
-  color: var(--cs-success);
-}
-
-.dash-client-icon--blue {
-  background: var(--cs-brand-tint);
-  color: var(--cs-brand);
+.dash-client-icon-img {
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
 .dash-client-name {
@@ -288,6 +306,9 @@ const copyEndpoint = async () => {
 
 .dash-client-switch {
   align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
   border: none;
   background: transparent;
   color: var(--cs-brand);

@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { Search, ArrowUp, ArrowDown, CornerDownLeft, ExternalLink } from 'lucide-vue-next'
 import BaseModal from '../common/BaseModal.vue'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
 import { fetchRouteProfile, saveRouteProfile, type RouteProfile } from '../../services/routing'
@@ -9,6 +10,15 @@ import type { ProviderRecord } from '../../services/providers'
 import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
 import { useQuickSwitch } from '../../composables/useQuickSwitch'
+import brandClaude from '../../assets/icons/brand-claude.svg'
+import brandCodex from '../../assets/icons/brand-codex.svg'
+import brandGemini from '../../assets/icons/brand-gemini.svg'
+
+const BRAND_ICONS: Record<ProviderTab, string> = {
+  claude: brandClaude,
+  codex: brandCodex,
+  gemini: brandGemini,
+}
 
 const { t } = useI18n()
 const router = useRouter()
@@ -148,6 +158,7 @@ const onKeydown = (event: KeyboardEvent) => {
     <div class="qs" @keydown="onKeydown">
       <label class="cs-label">{{ t('quickSwitch.currentClient') }}</label>
       <div class="qs-client">
+        <img :src="BRAND_ICONS[platform]" :alt="platform" class="qs-client-brand" />
         <select v-model="platform" class="cs-select qs-client-select">
           <option v-for="opt in platformOptions" :key="opt.id" :value="opt.id">
             {{ opt.label }}
@@ -156,13 +167,16 @@ const onKeydown = (event: KeyboardEvent) => {
         <span class="qs-client-current">{{ t('quickSwitch.currentPrefix') }}{{ currentProviderName }}</span>
       </div>
 
-      <input
-        ref="searchInput"
-        v-model="keyword"
-        class="cs-input qs-search"
-        :placeholder="t('quickSwitch.searchPlaceholder')"
-        @input="activeIndex = 0"
-      />
+      <div class="qs-search-wrap">
+        <Search :size="14" :stroke-width="2" class="qs-search-icon" />
+        <input
+          ref="searchInput"
+          v-model="keyword"
+          class="cs-input qs-search"
+          :placeholder="t('quickSwitch.searchPlaceholder')"
+          @input="activeIndex = 0"
+        />
+      </div>
 
       <label class="cs-label qs-list-label">{{ t('quickSwitch.available') }}</label>
       <div class="qs-list">
@@ -191,14 +205,20 @@ const onKeydown = (event: KeyboardEvent) => {
       </div>
 
       <div class="qs-hints">
-        <span class="cs-mono">↑ ↓</span>
+        <span class="qs-hint-keys">
+          <ArrowUp :size="10" :stroke-width="2" />
+          <ArrowDown :size="10" :stroke-width="2" />
+        </span>
         <span>{{ t('quickSwitch.hintSelect') }}</span>
-        <span class="cs-mono">↵</span>
+        <span class="qs-hint-keys">
+          <CornerDownLeft :size="10" :stroke-width="2" />
+        </span>
         <span>{{ t('quickSwitch.hintApply') }}</span>
         <span class="cs-mono">Esc</span>
         <span>{{ t('quickSwitch.hintClose') }}</span>
         <button type="button" class="qs-advanced" @click="openAdvanced">
-          {{ t('quickSwitch.advanced') }} ↗
+          {{ t('quickSwitch.advanced') }}
+          <ExternalLink :size="12" :stroke-width="2" />
         </button>
       </div>
     </div>
@@ -232,10 +252,21 @@ const onKeydown = (event: KeyboardEvent) => {
   position: relative;
 }
 
+.qs-client-brand {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .qs-client-select {
   height: 44px;
   font-size: 12px;
-  padding-left: 12px;
+  padding-left: 32px;
 }
 
 .qs-client-current {
@@ -252,9 +283,23 @@ const onKeydown = (event: KeyboardEvent) => {
   white-space: nowrap;
 }
 
+.qs-search-wrap {
+  position: relative;
+}
+
+.qs-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cs-text-secondary);
+  pointer-events: none;
+}
+
 .qs-search {
   height: 40px;
   font-size: 12px;
+  padding-left: 32px;
 }
 
 .qs-list-label {
@@ -321,8 +366,18 @@ const onKeydown = (event: KeyboardEvent) => {
   padding-top: 14px;
 }
 
+.qs-hint-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--cs-text-secondary);
+}
+
 .qs-advanced {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: transparent;
   color: var(--cs-brand);

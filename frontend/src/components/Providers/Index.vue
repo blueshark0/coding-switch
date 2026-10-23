@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+import { Copy, Ellipsis, Plus, Server } from 'lucide-vue-next'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
 import { useProviderDirectory, type DirectoryEntry } from './useProviderDirectory'
 import ProviderEditorModal from './ProviderEditorModal.vue'
@@ -86,7 +87,7 @@ const probeSummary = computed(() => {
   return t('providersPage.detail.testErr', { error: probe.error ?? '', time: hhmm })
 })
 
-// ---- 行内 ⋯ 菜单 ----
+// ---- 行内菜单 ----
 const menuFor = ref('')
 const toggleMenu = (key: string) => {
   menuFor.value = menuFor.value === key ? '' : key
@@ -138,10 +139,12 @@ const deleteTarget = computed(() => {
           :disabled="!selectedEntry"
           @click="selectedEntry && directory.requestCopy(selectedEntry)"
         >
-          ⇄&nbsp;&nbsp;{{ t('providersPage.actions.copyAcross') }}
+          <Copy :size="14" :stroke-width="2" />
+          {{ t('providersPage.actions.copyAcross') }}
         </button>
         <button type="button" class="cs-btn cs-btn--primary" @click="directory.openCreate()">
-          ＋&nbsp;{{ t('providersPage.actions.create') }}
+          <Plus :size="14" :stroke-width="2" />
+          {{ t('providersPage.actions.create') }}
         </button>
       </div>
     </div>
@@ -177,7 +180,9 @@ const deleteTarget = computed(() => {
           :class="{ selected: selectedEntry && entryKey(selectedEntry) === entryKey(entry) }"
           @click.stop="selectedKey = entryKey(entry)"
         >
-          <span class="prov-avatar cs-mono">{{ entry.provider.name.slice(0, 1).toUpperCase() || '?' }}</span>
+          <span class="prov-avatar">
+            <Server :size="20" :stroke-width="2" />
+          </span>
           <span class="prov-main">
             <span class="prov-name">{{ entry.provider.name }}</span>
             <span class="prov-sub cs-mono">{{ entrySubtitle(entry) }}</span>
@@ -186,7 +191,9 @@ const deleteTarget = computed(() => {
             {{ statusOf(entry).label }}
           </span>
           <span class="cs-menu-anchor" @click.stop>
-            <button type="button" class="prov-kebab" @click="toggleMenu(entryKey(entry))">⋯</button>
+            <button type="button" class="prov-kebab" @click="toggleMenu(entryKey(entry))">
+              <Ellipsis :size="16" :stroke-width="2" />
+            </button>
             <div v-if="menuFor === entryKey(entry)" class="cs-menu">
               <button type="button" class="cs-menu-item" @click="directory.openEdit(entry); closeMenu()">
                 {{ t('providersPage.menu.edit') }}
@@ -358,9 +365,7 @@ const deleteTarget = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--cs-brand);
+  color: var(--cs-text-secondary);
   flex-shrink: 0;
 }
 
@@ -394,10 +399,12 @@ const deleteTarget = computed(() => {
 }
 
 .prov-kebab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--cs-text-secondary);
-  font-size: 18px;
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;

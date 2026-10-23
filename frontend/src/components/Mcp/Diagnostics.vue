@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { ArrowRight, Search, Server } from 'lucide-vue-next'
 import {
   ServerType,
   fetchInjectionStatus,
@@ -324,7 +325,8 @@ const serverCommand = (server: McpServerRecord) => {
             <span class="cs-pill cs-pill--success">{{ t('mcpDiag.gateway.published') }}</span>
           </div>
           <button v-if="tools.length > 0" type="button" class="diag-tools-more" @click="go({ view: 'tools' })">
-            {{ t('mcpDiag.gateway.allTools', { count: totalTools }) }} ↗
+            {{ t('mcpDiag.gateway.allTools', { count: totalTools }) }}
+            <ArrowRight :size="12" :stroke-width="2" />
           </button>
         </div>
       </div>
@@ -351,7 +353,7 @@ const serverCommand = (server: McpServerRecord) => {
 
       <template v-if="selectedServer">
         <div class="cs-card cs-card-pad diag-up-head">
-          <span class="diag-up-icon cs-mono">{{ selectedServer.name.slice(0, 1).toUpperCase() }}</span>
+          <span class="diag-up-icon"><Server :size="22" :stroke-width="2" /></span>
           <div class="diag-up-title">
             <h2 class="diag-up-name cs-mono">{{ selectedServer.name }}</h2>
             <p class="diag-up-cmd cs-mono">{{ serverCommand(selectedServer) }}</p>
@@ -465,7 +467,10 @@ const serverCommand = (server: McpServerRecord) => {
       </div>
 
       <div class="cs-filterbar">
-        <input v-model="toolKeyword" class="diag-tool-search" :placeholder="t('mcpDiag.tools.searchPlaceholder')" />
+        <span class="diag-tool-search-wrap">
+          <Search :size="13" :stroke-width="2" class="diag-tool-search-icon" />
+          <input v-model="toolKeyword" class="diag-tool-search" :placeholder="t('mcpDiag.tools.searchPlaceholder')" />
+        </span>
         <select v-model="toolSource" class="cs-select diag-tool-source">
           <option value="">{{ t('mcpDiag.tools.allSources') }}</option>
           <option v-for="source in toolSources" :key="source" :value="source">{{ source }}</option>
@@ -710,6 +715,9 @@ const serverCommand = (server: McpServerRecord) => {
 
 .diag-tools-more {
   margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: transparent;
   color: var(--cs-brand);
@@ -732,8 +740,6 @@ const serverCommand = (server: McpServerRecord) => {
   border-radius: 12px;
   background: var(--cs-brand-tint);
   color: var(--cs-brand);
-  font-size: 22px;
-  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -791,14 +797,29 @@ const serverCommand = (server: McpServerRecord) => {
   color: var(--cs-text);
 }
 
-.diag-tool-search {
+.diag-tool-search-wrap {
   flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.diag-tool-search-icon {
+  position: absolute;
+  left: 0;
+  color: var(--cs-text-secondary);
+  pointer-events: none;
+}
+
+.diag-tool-search {
+  width: 100%;
   border: none;
   background: transparent;
   outline: none;
   font-size: 11px;
   color: var(--cs-text);
   font-family: inherit;
+  padding-left: 20px;
 }
 
 .diag-tool-search::placeholder {

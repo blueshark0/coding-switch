@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ListItem from '../Setting/ListRow.vue'
 import LanguageSwitcher from '../Setting/LanguageSwitcher.vue'
@@ -10,14 +9,11 @@ import WebDavSyncSection from './WebDavSyncSection.vue'
 import { useAppSettingsStore } from '../../composables/useAppSettingsStore'
 import { runWithToast } from '../../utils/runWithToast'
 
-const router = useRouter()
 const { t } = useI18n()
 const {
   loadSettings,
   loading: settingsLoading,
   saving: saveBusy,
-  showHeatmap: heatmapEnabled,
-  showHomeTitle: homeTitleVisible,
   proxyEnabled,
   proxyURL: proxyUrlValue,
   updateSettings,
@@ -30,28 +26,10 @@ watch(proxyUrlValue, (val) => {
   proxyInput.value = val
 }, { immediate: true })
 
-const goBack = () => {
-  router.push('/')
-}
-
-const updateVisibilitySetting = async (
-  key: 'show_heatmap' | 'show_home_title',
-  value: boolean,
-) => {
-  if (settingsLoading.value || saveBusy.value) return
-  await runWithToast(() => updateSettings({ [key]: value }), {
-    fallback: t('components.general.messages.saveFailed'),
+const reloadApplicationSettings = () => {
+  void runWithToast(() => loadSettings(true), {
+    fallback: t('components.general.messages.loadFailed'),
   })
-}
-
-const onHeatmapChange = (event: Event) => {
-  const target = event.target as HTMLInputElement | null
-  void updateVisibilitySetting('show_heatmap', Boolean(target?.checked))
-}
-
-const onHomeTitleChange = (event: Event) => {
-  const target = event.target as HTMLInputElement | null
-  void updateVisibilitySetting('show_home_title', Boolean(target?.checked))
 }
 
 const onProxyToggle = async (event: Event) => {
@@ -77,21 +55,6 @@ const onProxySave = async () => {
   })
 }
 
-const onProxyClear = async () => {
-  proxyInput.value = ''
-  proxyError.value = ''
-  if (settingsLoading.value || saveBusy.value) return
-  await runWithToast(() => updateSettings({ proxy_url: '' }), {
-    fallback: t('components.general.messages.saveFailed'),
-  })
-}
-
-const reloadApplicationSettings = () => {
-  void runWithToast(() => loadSettings(true), {
-    fallback: t('components.general.messages.loadFailed'),
-  })
-}
-
 onMounted(() => {
   void runWithToast(() => loadSettings(), {
     fallback: t('components.general.messages.loadFailed'),
@@ -100,57 +63,26 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="main-shell general-shell">
-    <div class="global-actions">
-      <p class="global-eyebrow">{{ $t('components.general.title.application') }}</p>
-      <button class="ghost-icon" :aria-label="$t('components.general.buttons.back')" @click="goBack">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M15 18l-6-6 6-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
+  <div class="cs-page">
+    <div class="cs-page-head">
+      <div>
+        <h1 class="cs-page-title">{{ t('settingsPage.title') }}</h1>
+        <p class="cs-page-sub">{{ t('settingsPage.subtitle') }}</p>
+      </div>
     </div>
 
-    <div class="general-page">
-      <section>
-        <h2 class="mac-section-title">{{ $t('components.general.title.application') }}</h2>
-        <div class="mac-panel">
-          <ListItem :label="$t('components.general.label.heatmap')">
-            <label class="mac-switch">
-              <input
-                type="checkbox"
-                :disabled="settingsLoading || saveBusy"
-                :checked="heatmapEnabled"
-                @change="onHeatmapChange"
-              />
-              <span></span>
-            </label>
+    <div class="cs-card cs-card-pad settings-wrap">
+      <section class="settings-group">
+        <h2 class="cs-card-title">{{ t('settingsPage.appNetwork') }}</h2>
+        <div class="settings-rows">
+          <ListItem :label="t('settingsPage.language')">
+            <LanguageSwitcher />
           </ListItem>
-          <ListItem :label="$t('components.general.label.homeTitle')">
-            <label class="mac-switch">
-              <input
-                type="checkbox"
-                :disabled="settingsLoading || saveBusy"
-                :checked="homeTitleVisible"
-                @change="onHomeTitleChange"
-              />
-              <span></span>
-            </label>
+          <ListItem :label="t('settingsPage.theme')">
+            <ThemeSetting />
           </ListItem>
-        </div>
-      </section>
-
-      <section>
-        <h2 class="mac-section-title">{{ $t('components.general.title.network') }}</h2>
-        <div class="mac-panel">
-          <ListItem :label="$t('components.general.label.proxy')">
-            <label class="mac-switch">
+          <ListItem :label="t('settingsPage.proxy')" :sub-label="t('settingsPage.proxyHint')">
+            <label class="cs-switch">
               <input
                 type="checkbox"
                 :disabled="settingsLoading || saveBusy"
@@ -160,42 +92,25 @@ onMounted(() => {
               <span></span>
             </label>
           </ListItem>
-          <div v-if="proxyEnabled" class="proxy-url-row">
-            <div class="proxy-input-group">
-              <input
-                type="text"
-                class="mac-input proxy-input"
-                :placeholder="$t('components.general.placeholder.proxy')"
-                :disabled="settingsLoading || saveBusy"
-                v-model="proxyInput"
-                @keydown.enter="onProxySave"
-              />
-              <button
-                v-if="proxyInput"
-                class="proxy-clear-btn"
-                :disabled="settingsLoading || saveBusy"
-                @click="onProxyClear"
-              >&times;</button>
-              <button
-                class="proxy-save-btn"
-                :disabled="settingsLoading || saveBusy || proxyInput === proxyUrlValue"
-                @click="onProxySave"
-              >{{ $t('components.general.buttons.save') }}</button>
-            </div>
-            <div v-if="proxyError" class="proxy-error">{{ proxyError }}</div>
+          <div v-if="proxyEnabled" class="settings-proxy">
+            <input
+              v-model="proxyInput"
+              type="text"
+              class="cs-input cs-mono settings-proxy-input"
+              :placeholder="t('components.general.placeholder.proxy')"
+              :disabled="settingsLoading || saveBusy"
+              @keydown.enter="onProxySave"
+            />
+            <button
+              type="button"
+              class="cs-btn"
+              :disabled="settingsLoading || saveBusy || proxyInput === proxyUrlValue"
+              @click="onProxySave"
+            >
+              {{ t('common.save') }}
+            </button>
           </div>
-        </div>
-      </section>
-
-      <section>
-        <h2 class="mac-section-title">{{ $t('components.general.title.exterior') }}</h2>
-        <div class="mac-panel">
-          <ListItem :label="$t('components.general.label.language')">
-            <LanguageSwitcher />
-          </ListItem>
-          <ListItem :label="$t('components.general.label.theme')">
-            <ThemeSetting />
-          </ListItem>
+          <p v-if="proxyError" class="cs-field-error">{{ proxyError }}</p>
         </div>
       </section>
 
@@ -205,91 +120,31 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.proxy-url-row {
-  padding: 6px 18px 14px;
-}
-
-.proxy-input-group {
+.settings-wrap {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 22px;
 }
 
-.proxy-input {
-  flex: 1;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  border: 1px solid var(--mac-border, #d1d5db);
-  border-radius: 6px;
-  background: var(--mac-bg, #fff);
-  color: var(--mac-text, #1d1d1f);
-  outline: none;
-  transition: border-color 0.15s;
+.settings-group {
+  border: 1px solid var(--cs-border);
+  border-radius: 11px;
+  padding: 14px 15px;
 }
 
-.proxy-input:focus {
-  border-color: var(--mac-accent, #007aff);
+.settings-rows {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
 }
 
-.proxy-input:disabled {
-  opacity: 0.5;
+.settings-proxy {
+  display: flex;
+  gap: 10px;
+  padding: 4px 2px 8px;
 }
 
-.proxy-clear-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: none;
-  border-radius: 50%;
-  background: var(--mac-border, #d1d5db);
-  color: var(--mac-text-secondary, #86868b);
-  font-size: 0.9rem;
-  cursor: pointer;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.proxy-clear-btn:hover {
-  background: var(--mac-text-secondary, #86868b);
-  color: #fff;
-}
-
-.proxy-clear-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.proxy-save-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 14px;
-  min-height: 28px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1;
-  border: none;
-  border-radius: 6px;
-  background: var(--mac-accent, #007aff);
-  color: #fff;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.proxy-save-btn:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.proxy-save-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.proxy-error {
-  margin-top: 4px;
-  font-size: 0.78rem;
-  color: #ff3b30;
+.settings-proxy-input {
+  max-width: 420px;
 }
 </style>

@@ -45,9 +45,9 @@ const toggle = () => {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: var(--foreground);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--cs-text);
 }
 
 .help-icon {
@@ -57,18 +57,18 @@ const toggle = () => {
   padding: 2px;
   border: none;
   background: none;
-  color: var(--foreground-muted);
+  color: var(--cs-text-secondary);
   cursor: help;
   border-radius: 4px;
-  transition: all 0.2s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .help-icon:hover {
-  color: var(--foreground);
-  background-color: var(--background-hover);
+  color: var(--cs-text);
+  background-color: var(--cs-row-hover);
 }
 
 .help-icon.is-open {
-  color: var(--accent-primary);
+  color: var(--cs-brand);
 }
 </style>

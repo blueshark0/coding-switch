@@ -291,9 +291,6 @@ const removeMapping = (key: string) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
-  background-color: var(--background-secondary);
-  border-radius: 8px;
 }
 
 .mapping-row {
@@ -302,14 +299,9 @@ const removeMapping = (key: string) => {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background-color: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.mapping-row:hover {
-  background-color: var(--background-hover);
+  background: var(--cs-field);
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
 }
 
 .mapping-content {
@@ -323,30 +315,32 @@ const removeMapping = (key: string) => {
 .mapping-key,
 .mapping-value {
   padding: 3px 7px;
-  background-color: var(--background-secondary);
-  border: 1px solid var(--border);
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: 4px;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 0.75rem;
-  color: var(--foreground);
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  color: var(--cs-text);
   word-break: break-all;
 }
 
 .mapping-key.wildcard,
 .mapping-value.wildcard {
-  color: var(--accent-primary);
+  color: var(--cs-brand);
   font-weight: 500;
 }
 
-.mapping-arrow {
+.mapping-arrow,
+.input-arrow {
   flex-shrink: 0;
-  color: var(--foreground-muted);
+  color: var(--cs-text-secondary);
 }
 
-.mapping-content :deep(input) {
+.mapping-content :deep(input),
+.mapping-input-row :deep(input) {
   flex: 1;
   min-width: 0;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-family: var(--cs-font-mono);
 }
 
 .mapping-actions {
@@ -363,41 +357,31 @@ const removeMapping = (key: string) => {
   padding: 4px;
   border: none;
   background: none;
-  color: var(--foreground-muted);
+  color: var(--cs-text-secondary);
   cursor: pointer;
-  border-radius: 3px;
-  transition: all 0.2s;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
 }
 
 .mapping-edit:hover,
 .mapping-confirm:hover {
-  color: var(--accent-primary);
-  background-color: var(--background-hover);
+  color: var(--cs-brand);
+  background: var(--cs-brand-tint);
 }
 
 .mapping-remove:hover {
-  color: var(--error);
-  background-color: var(--error-bg);
+  color: var(--cs-danger);
+  background: var(--cs-danger-tint);
 }
 
 .mapping-cancel:hover {
-  color: var(--foreground);
-  background-color: var(--background-hover);
+  color: var(--cs-text);
+  background: var(--cs-row-hover);
 }
 
 .mapping-input-row {
   display: flex;
   gap: 8px;
   align-items: center;
-}
-
-.mapping-input-row :deep(input) {
-  flex: 1;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-}
-
-.input-arrow {
-  flex-shrink: 0;
-  color: var(--foreground-muted);
 }
 </style>

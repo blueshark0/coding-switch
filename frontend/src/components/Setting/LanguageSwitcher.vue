@@ -12,7 +12,7 @@ const locale = computed({
 </script>
 
 <template>
-  <select class="mac-select" v-model="locale">
+  <select class="cs-select" style="width:auto;min-width:150px" v-model="locale">
     <option value="zh">简体中文</option>
     <option value="en">English</option>
   </select>

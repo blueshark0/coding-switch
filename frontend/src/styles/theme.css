@@ -1,64 +1,116 @@
+/* Code Switch 设计令牌（对齐 Figma · Code Switch 设计系统页） */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400;
+  src: url("/Inter-Medium.ttf") format("truetype");
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
-  --mac-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
-  --mac-surface: #ffffff;
-  --mac-surface-strong: #f5f5f7;
-  --mac-border: rgba(15, 23, 42, 0.12);
-  --mac-divider: rgba(15, 23, 42, 0.12);
-  --mac-sidebar: #f2f3f5;
-  --mac-sidebar-border: rgba(15, 23, 42, 0.08);
-  --mac-text: #1d1d1f;
-  --mac-text-secondary: #6e6e73;
-  --mac-accent: #0a84ff;
-  --app-background: linear-gradient(180deg, #f6f7fb 0%, #eef1f7 50%, #e7ebf5 100%);
-  --sticky-bar-bg: rgba(255, 255, 255, 0.72);
-  --sticky-bar-border: rgba(15, 23, 42, 0.08);
-  --sticky-bar-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+  --cs-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --cs-font-mono: "Inter", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --cs-brand: #356df3;
+  --cs-brand-hover: #2b5fd9;
+  --cs-canvas: #f6f7f9;
+  --cs-surface: #ffffff;
+  --cs-text: #20242d;
+  --cs-text-secondary: #747c89;
+  --cs-success: #1a9b63;
+  --cs-warning: #b87919;
+  --cs-danger: #d64b4b;
+
+  --cs-border: #e7e9ee;
+  --cs-field: #f9fafb;
+  --cs-row-hover: #f6f7f9;
+
+  --cs-brand-tint: #eef3ff;
+  --cs-brand-tint-border: #c8d8ff;
+  --cs-success-tint: #eaf8f0;
+  --cs-warning-tint: #fff5e2;
+  --cs-warning-tint-border: #f3d9a4;
+  --cs-danger-tint: #fff0ef;
+
+  --cs-overlay: rgba(34, 40, 52, 0.28);
+
+  --cs-r-card: 14px;
+  --cs-r-modal: 18px;
+  --cs-r-row: 9px;
+  --cs-r-btn: 9px;
+  --cs-r-pill: 7px;
+  --cs-r-field: 8px;
+  --cs-r-nav: 12px;
+
+  --cs-sidebar-w: 76px;
+  --cs-topbar-h: 66px;
+
+  --cs-shadow-modal: 0 24px 64px rgba(32, 36, 45, 0.16);
+  --cs-shadow-menu: 0 8px 24px rgba(32, 36, 45, 0.12);
+
+  /* 兼容旧别名：heatmap 等暂未迁移的模块仍在使用 */
   --contrib-surface: #f6f8fa;
-  --contrib-text: #0f1116;
-  --contrib-muted: rgba(15, 23, 42, 0.6);
+  --contrib-text: #20242d;
+  --contrib-muted: #747c89;
   --contrib-base: #e3e7ec;
   --contrib-level-1: #9be9a8;
   --contrib-level-2: #40c463;
   --contrib-level-3: #30a14e;
   --contrib-level-4: #216e39;
   --contrib-tooltip-bg: #ffffff;
-  --contrib-tooltip-border: rgba(15, 23, 42, 0.12);
+  --contrib-tooltip-border: #e7e9ee;
   --contrib-tooltip-shadow: 0 20px 40px rgba(15, 23, 42, 0.15);
-  --contrib-tooltip-heading: #0f172a;
-  --contrib-tooltip-text: rgba(15, 23, 42, 0.7);
-  --contrib-tooltip-value: #0f172a;
+  --contrib-tooltip-heading: #20242d;
+  --contrib-tooltip-text: #747c89;
+  --contrib-tooltip-value: #20242d;
 }
 
 html.dark {
   color-scheme: dark;
-  --mac-surface: #1c1e24;
-  --mac-surface-strong: #21232c;
-  --mac-border: rgba(255, 255, 255, 0.06);
-  --mac-divider: rgba(255, 255, 255, 0.08);
-  --mac-sidebar: #181a20;
-  --mac-sidebar-border: rgba(255, 255, 255, 0.04);
-  --mac-text: #f5f5f7;
-  --mac-text-secondary: #b7bac7;
-  --mac-accent: #0a84ff;
-  --app-background: linear-gradient(180deg, #0f1116 0%, #11131a 45%, #0d0f15 100%);
-  --sticky-bar-bg: rgba(17, 19, 26, 0.72);
-  --sticky-bar-border: rgba(255, 255, 255, 0.06);
-  --sticky-bar-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
-  --contrib-surface: #0d1117;
-  --contrib-text: #ffffff;
-  --contrib-muted: rgba(255, 255, 255, 0.7);
-  --contrib-base: #1a1f29;
+
+  --cs-brand: #5b86f5;
+  --cs-brand-hover: #6f96f7;
+  --cs-canvas: #14161b;
+  --cs-surface: #1c1f27;
+  --cs-text: #ecedf1;
+  --cs-text-secondary: #9aa0ac;
+  --cs-success: #3bbd82;
+  --cs-warning: #d99a3d;
+  --cs-danger: #e06c6c;
+
+  --cs-border: #2a2e38;
+  --cs-field: #22262f;
+  --cs-row-hover: #22252e;
+
+  --cs-brand-tint: rgba(91, 134, 245, 0.16);
+  --cs-brand-tint-border: rgba(91, 134, 245, 0.38);
+  --cs-success-tint: rgba(59, 189, 130, 0.14);
+  --cs-warning-tint: rgba(217, 154, 61, 0.14);
+  --cs-warning-tint-border: rgba(217, 154, 61, 0.32);
+  --cs-danger-tint: rgba(224, 108, 108, 0.14);
+
+  --cs-overlay: rgba(0, 0, 0, 0.55);
+
+  --cs-shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.5);
+  --cs-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  --contrib-surface: #16181e;
+  --contrib-text: #ecedf1;
+  --contrib-muted: #9aa0ac;
+  --contrib-base: #262a33;
   --contrib-level-1: #0e4429;
   --contrib-level-2: #006d32;
   --contrib-level-3: #26a641;
   --contrib-level-4: #39d353;
-  --contrib-tooltip-bg: rgba(6, 11, 19, 0.96);
-  --contrib-tooltip-border: rgba(255, 255, 255, 0.08);
+  --contrib-tooltip-bg: rgba(10, 12, 18, 0.96);
+  --contrib-tooltip-border: #2a2e38;
   --contrib-tooltip-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
-  --contrib-tooltip-heading: #f8fafc;
-  --contrib-tooltip-text: rgba(248, 250, 252, 0.75);
-  --contrib-tooltip-value: #fefce8;
+  --contrib-tooltip-heading: #ecedf1;
+  --contrib-tooltip-text: #9aa0ac;
+  --contrib-tooltip-value: #ecedf1;
 }
 
 html,
@@ -66,12 +118,21 @@ body {
   margin: 0;
   width: 100%;
   min-height: 100%;
-  font-family: var(--mac-font);
-  color: var(--mac-text);
-  background: var(--app-background);
-  transition: background 0.3s ease, color 0.3s ease;
+  font-family: var(--cs-font);
+  color: var(--cs-text);
+  background: var(--cs-canvas);
+  transition: background 0.25s ease, color 0.25s ease;
 }
 
 #app {
   width: 100%;
+  height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--cs-brand) 22%, transparent);
 }

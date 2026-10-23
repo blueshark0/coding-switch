@@ -1,48 +1,63 @@
 <template>
-  <TransitionRoot as="template" :show="open">
-    <Dialog as="div" class="modal-backdrop" :open="open" @close="$emit('close')">
-      <div class="modal-overlay" aria-hidden="true"></div>
-      <div class="modal-wrapper">
-        <TransitionChild
-          as="template"
-          enter="ease-out duration-200"
-          enter-from="opacity-0 translate-y-4"
-          enter-to="opacity-100 translate-y-0"
-          leave="ease-in duration-150"
-          leave-from="opacity-100 translate-y-0"
-          leave-to="opacity-0 translate-y-4"
-        >
-          <DialogPanel :class="['modal', variantClass]">
-            <header class="modal-header">
-              <DialogTitle class="modal-title">{{ title }}</DialogTitle>
-              <button class="ghost-icon" :aria-label="$t('components.common.close')" @click="$emit('close')">✕</button>
-            </header>
-            <div class="modal-body modal-scrollable">
-              <slot />
-            </div>
-          </DialogPanel>
-        </TransitionChild>
+  <Teleport to="body">
+    <div v-if="open" class="cs-modal-mask" @mousedown.self="onMaskClose">
+      <div class="cs-modal" :class="widthClass" role="dialog" aria-modal="true">
+        <header class="cs-modal-head">
+          <h2 class="cs-modal-title">{{ title }}</h2>
+          <p v-if="subtitle" class="cs-modal-sub">{{ subtitle }}</p>
+        </header>
+        <hr class="cs-divider" style="margin: 0 24px" />
+        <div class="cs-modal-body">
+          <slot />
+        </div>
+        <footer v-if="$slots.footer" class="cs-modal-foot">
+          <slot name="footer" />
+        </footer>
       </div>
-    </Dialog>
-  </TransitionRoot>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
-
-type Variant = 'default' | 'confirm'
+import { computed, watch } from 'vue'
 
 const props = withDefaults(
   defineProps<{
     open: boolean
     title: string
-    variant?: Variant
+    subtitle?: string
+    width?: 'narrow' | 'default' | 'wide'
   }>(),
-  { variant: 'default' },
+  { subtitle: '', width: 'default' },
 )
 
-defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{ (e: 'close'): void }>()
 
-const variantClass = computed(() => (props.variant === 'confirm' ? 'confirm-modal' : ''))
+const widthClass = computed(() => {
+  if (props.width === 'narrow') return 'cs-modal--narrow'
+  if (props.width === 'wide') return 'cs-modal--wide'
+  return ''
+})
+
+const onMaskClose = () => {
+  emit('close')
+}
+
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape') {
+    event.stopPropagation()
+    emit('close')
+  }
+}
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) {
+      window.addEventListener('keydown', onKeydown, true)
+    } else {
+      window.removeEventListener('keydown', onKeydown, true)
+    }
+  },
+)
 </script>

@@ -1,5 +1,5 @@
 <template>
-  <button :type="type" :class="['btn', variantClass]" v-bind="$attrs">
+  <button :type="type" :class="['cs-btn', variantClass]" v-bind="$attrs">
     <slot />
   </button>
 </template>
@@ -9,7 +9,7 @@ import { computed, useAttrs } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    variant?: 'primary' | 'outline' | 'danger' | 'ghost'
+    variant?: 'primary' | 'outline' | 'danger' | 'ghost' | 'tint'
     type?: 'button' | 'submit' | 'reset'
   }>(),
   {
@@ -20,5 +20,14 @@ const props = withDefaults(
 
 useAttrs()
 
-const variantClass = computed(() => `btn-${props.variant}`)
+const variantClass = computed(() => {
+  switch (props.variant) {
+    case 'danger':
+      return 'cs-btn--danger'
+    case 'tint':
+      return 'cs-btn--tint'
+    default:
+      return ''
+  }
+})
 </script>

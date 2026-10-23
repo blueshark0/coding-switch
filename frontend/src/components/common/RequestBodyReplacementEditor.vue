@@ -188,7 +188,7 @@ import BaseInput from './BaseInput.vue'
 import BaseTextarea from './BaseTextarea.vue'
 import EditorHelpBox from './EditorHelpBox.vue'
 import FieldHelpLabel from './FieldHelpLabel.vue'
-import type { RequestBodyReplacement } from '../../data/cards'
+import type { RequestBodyReplacement } from '../../../bindings/codeswitch/internal/routing/domain/models'
 
 interface Props {
   modelValue?: RequestBodyReplacement[]
@@ -266,12 +266,6 @@ const removeEntry = (index: number) => {
 </script>
 
 <style scoped>
-.request-body-replacement-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .editor-section {
   display: flex;
   flex-direction: column;
@@ -288,9 +282,6 @@ const removeEntry = (index: number) => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px;
-  background-color: var(--background-secondary);
-  border-radius: 8px;
 }
 
 .replacement-row {
@@ -299,14 +290,9 @@ const removeEntry = (index: number) => {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 10px;
-  background-color: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.replacement-row:hover {
-  background-color: var(--background-hover);
+  background: var(--cs-field);
+  border: 1px solid var(--cs-border);
+  border-radius: 8px;
 }
 
 .replacement-content {
@@ -321,23 +307,23 @@ const removeEntry = (index: number) => {
 .replacement-value,
 .replacement-match {
   padding: 3px 7px;
-  background-color: var(--background-secondary);
-  border: 1px solid var(--border);
+  background: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: 4px;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 0.75rem;
-  color: var(--foreground);
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  color: var(--cs-text);
   word-break: break-all;
 }
 
 .replacement-path {
-  color: var(--accent-primary);
+  color: var(--cs-brand);
   font-weight: 500;
 }
 
 .replacement-match {
   max-width: 35%;
-  color: var(--warning, #d97706);
+  color: var(--cs-warning);
 }
 
 .replacement-value {
@@ -346,14 +332,14 @@ const removeEntry = (index: number) => {
 
 .replacement-match-op {
   flex-shrink: 0;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 0.75rem;
-  color: var(--foreground-muted);
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  color: var(--cs-text-secondary);
 }
 
 .replacement-arrow {
   flex-shrink: 0;
-  color: var(--foreground-muted);
+  color: var(--cs-text-secondary);
 }
 
 .replacement-remove {
@@ -363,16 +349,16 @@ const removeEntry = (index: number) => {
   padding: 4px;
   border: none;
   background: none;
-  color: var(--foreground-muted);
+  color: var(--cs-text-secondary);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: 4px;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: color 0.15s, background 0.15s;
 }
 
 .replacement-remove:hover {
-  color: var(--error);
-  background-color: var(--error-bg);
+  color: var(--cs-danger);
+  background: var(--cs-danger-tint);
 }
 
 .replacement-inputs {
@@ -383,7 +369,7 @@ const removeEntry = (index: number) => {
 
 .replacement-inputs :deep(input),
 .replacement-inputs :deep(textarea) {
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-family: var(--cs-font-mono);
 }
 
 .replacement-inputs :deep(textarea) {

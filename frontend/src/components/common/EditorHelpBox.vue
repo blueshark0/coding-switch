@@ -18,15 +18,16 @@ defineProps<{
 <style scoped>
 .help-text {
   padding: 12px;
-  background-color: var(--background-secondary);
+  background-color: var(--cs-field);
+  border: 1px solid var(--cs-border);
   border-radius: 8px;
-  font-size: 0.8125rem;
-  color: var(--foreground-muted);
+  font-size: 11px;
+  color: var(--cs-text-secondary);
 }
 
 .help-example {
-  margin-bottom: 8px;
-  color: var(--foreground);
+  margin: 0 0 8px;
+  color: var(--cs-text);
 }
 
 .help-content :deep(.help-list) {
@@ -42,17 +43,16 @@ defineProps<{
 
 .help-content :deep(.help-list code) {
   padding: 2px 6px;
-  background-color: var(--background);
-  border: 1px solid var(--border);
+  background-color: var(--cs-surface);
+  border: 1px solid var(--cs-border);
   border-radius: 4px;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-  font-size: 0.75rem;
-  color: var(--accent-primary);
+  font-family: var(--cs-font-mono);
+  font-size: 10px;
+  color: var(--cs-brand);
 }
 
 .help-content :deep(.help-desc) {
-  font-size: 0.75rem;
-  color: var(--foreground-muted);
-  font-style: italic;
+  font-size: 10px;
+  color: var(--cs-text-secondary);
 }
 </style>

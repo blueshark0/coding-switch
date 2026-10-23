@@ -2,7 +2,7 @@
   <textarea
     ref="textareaRef"
     v-bind="$attrs"
-    class="base-textarea"
+    class="cs-textarea"
     :value="modelValue"
     autocorrect="off"
     autocapitalize="none"

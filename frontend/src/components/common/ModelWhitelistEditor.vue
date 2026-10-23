@@ -139,37 +139,23 @@ const removeModel = (index: number) => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px;
-  background-color: var(--background-secondary);
-  border-radius: 8px;
-  min-height: 44px;
 }
 
 .model-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px 4px 10px;
-  background-color: var(--background);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  transition: all 0.2s;
-}
-
-.model-tag:hover {
-  background-color: var(--background-hover);
+  height: 24px;
+  padding: 0 4px 0 9px;
+  background: var(--cs-brand-tint);
+  border-radius: var(--cs-r-pill);
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .model-name {
-  color: var(--foreground);
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
-}
-
-.model-name.wildcard {
-  color: var(--accent-primary);
-  font-weight: 500;
+  color: var(--cs-brand);
+  font-family: var(--cs-font-mono);
 }
 
 .tag-remove {
@@ -179,15 +165,15 @@ const removeModel = (index: number) => {
   padding: 2px;
   border: none;
   background: none;
-  color: var(--foreground-muted);
+  color: var(--cs-brand);
   cursor: pointer;
   border-radius: 3px;
-  transition: all 0.2s;
+  opacity: 0.6;
+  transition: opacity 0.15s;
 }
 
 .tag-remove:hover {
-  color: var(--error);
-  background-color: var(--error-bg);
+  opacity: 1;
 }
 
 .model-input-row {
@@ -198,6 +184,6 @@ const removeModel = (index: number) => {
 
 .model-input-row :deep(input) {
   flex: 1;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-family: var(--cs-font-mono);
 }
 </style>

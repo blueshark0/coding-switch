@@ -3,7 +3,7 @@
     ref="inputRef"
     v-bind="$attrs"
     :type="type"
-    class="base-input"
+    class="cs-input"
     :value="modelValue"
     autocorrect="off"
     autocapitalize="none"

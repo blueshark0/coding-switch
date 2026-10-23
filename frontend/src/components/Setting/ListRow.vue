@@ -22,7 +22,7 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 12px 2px;
   gap: 16px;
 }
 
@@ -31,14 +31,14 @@ defineProps<{
 }
 
 .mac-list-label {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--mac-text);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cs-text);
 }
 
 .mac-list-sublabel {
-  font-size: 0.8rem;
-  color: var(--mac-text-secondary);
+  font-size: 10px;
+  color: var(--cs-text-secondary);
   margin-top: 4px;
 }
 

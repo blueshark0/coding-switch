@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"database/sql"
 	"fmt"
 	"sort"
 	"time"
@@ -139,6 +140,10 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	tierClause, tierArgs := costTierSQLClause(normalizedCostTier)
 	filterClause += tierClause
 	args = append(args, tierArgs...)
+	// 指标卡聚合沿用平台/供应商/档位过滤，但不套 httpStatus 过滤——
+	// 否则"只看成功"的默认视图下失败数与延迟会失真。
+	metricClause := filterClause
+	metricArgs := append([]any(nil), args...)
 	httpClause, httpArgs := httpStatusSQLClause(normalizedHTTPStatus)
 	filterClause += httpClause
 	args = append(args, httpArgs...)
@@ -210,6 +215,25 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 		return stats, err
 	}
 	warnSkippedStatRows("StatsSince", skipped)
+
+	var totalRequests, failedRequests sql.NullInt64
+	var avgDuration sql.NullFloat64
+	metricRow := db.QueryRow(fmt.Sprintf(`SELECT COUNT(*) AS total_requests,
+			SUM(CASE WHEN http_code >= 400 THEN 1 ELSE 0 END) AS failed_requests,
+			AVG(duration_sec) AS avg_duration_sec
+			FROM request_log
+			WHERE created_at >= ? AND created_at < ?%s`, metricClause), metricArgs...)
+	if err := metricRow.Scan(&totalRequests, &failedRequests, &avgDuration); err != nil {
+		// 表不存在视为空统计；其余错误如实上报。
+		if !isNoSuchTableErr(err) {
+			return stats, err
+		}
+	}
+	stats.FailedRequests = nullInt64(failedRequests)
+	if avgDuration.Valid {
+		stats.AvgDurationSec = avgDuration.Float64
+	}
+
 	appendStatsSeries(&stats, seriesBuckets)
 	return q.statsCache.Set(cacheKey, stats), nil
 }

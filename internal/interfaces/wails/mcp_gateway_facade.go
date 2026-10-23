@@ -46,6 +46,11 @@ func (f *McpGatewayFacade) Statuses() []mcpapp.UpstreamStatus {
 	return f.mcpService.Statuses()
 }
 
+// ListTools 全部上游已发布工具的快照（含公共名、上游名、描述与下发的 InputSchema）。
+func (f *McpGatewayFacade) ListTools() []mcpapp.ToolInfo {
+	return f.mcpService.ToolCatalog()
+}
+
 // Endpoint 网关聚合端点地址，供 UI 展示/复制。
 func (f *McpGatewayFacade) Endpoint() string {
 	return f.endpoint

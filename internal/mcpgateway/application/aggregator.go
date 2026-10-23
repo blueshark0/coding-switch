@@ -8,6 +8,7 @@ import (
 	"iter"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -53,6 +54,19 @@ type UpstreamStatus struct {
 	Error     string `json:"error,omitempty"`
 }
 
+// ToolInfo 单个已发布工具的快照，供 UI 工具清单与诊断页展示。
+// InputSchema 是发布到下游的（已消毒）JSON Schema 字符串，与 tools/list 下发一致。
+type ToolInfo struct {
+	ServerID     int64  `json:"serverId"`
+	ServerName   string `json:"serverName"`
+	PublicName   string `json:"publicName"`
+	UpstreamName string `json:"upstreamName"`
+	Description  string `json:"description"`
+	InputSchema  string `json:"inputSchema"`
+	ReadOnly     bool   `json:"readOnly"`
+	Destructive  bool   `json:"destructive"`
+}
+
 const (
 	connectTimeout = 10 * time.Second
 	// sessionTimeout 与 Codex 从不 DELETE 会话（实测 1.8% 关闭率）的行为互补，
@@ -76,6 +90,7 @@ type upstream struct {
 	state       string
 	err         string
 	toolNames   []string
+	toolDetails []ToolInfo // 与 toolNames 同生共灭：注册时填充、摘除时清空
 	backoffIdx  int
 	nextRetry   time.Time
 	generation  int64 // 全局代际号，防止迟到的连接结果落在已变更的记录上
@@ -339,15 +354,39 @@ func (a *Aggregator) registerToolsLocked(up *upstream, tools []*mcp.Tool) {
 				public, ref.serverID, up.cfg.Name, tool.Name)
 			continue
 		}
+		schema := sanitizeInputSchema(up.cfg.Name, tool)
 		a.mcpServer.AddTool(&mcp.Tool{
 			Name:        public,
 			Description: tool.Description,
-			InputSchema: sanitizeInputSchema(up.cfg.Name, tool),
+			InputSchema: schema,
 			Annotations: tool.Annotations,
 		}, a.makeCallHandler(up.cfg.ID, tool.Name))
 		up.toolNames = append(up.toolNames, public)
+		up.toolDetails = append(up.toolDetails, newToolInfo(up, tool, public, schema))
 		a.tools[public] = toolRef{serverID: up.cfg.ID, upstreamName: tool.Name}
 	}
+}
+
+// newToolInfo 生成工具的 UI 快照；schema 以发布到下游的消毒结果为准。
+// schema 序列化失败时降级为空串而不是让整个注册失败。
+func newToolInfo(up *upstream, tool *mcp.Tool, public string, schema any) ToolInfo {
+	info := ToolInfo{
+		ServerID:     up.cfg.ID,
+		ServerName:   up.cfg.Name,
+		PublicName:   public,
+		UpstreamName: tool.Name,
+		Description:  tool.Description,
+	}
+	if ann := tool.Annotations; ann != nil {
+		info.ReadOnly = ann.ReadOnlyHint
+		if ann.DestructiveHint != nil {
+			info.Destructive = *ann.DestructiveHint
+		}
+	}
+	if data, err := json.Marshal(schema); err == nil {
+		info.InputSchema = string(data)
+	}
+	return info
 }
 
 // onUpstreamToolsChanged 上游发出 notifications/tools/list_changed 时触发
@@ -396,6 +435,7 @@ func (a *Aggregator) refreshTools(id int64, session UpstreamSession, gen int64) 
 			delete(a.tools, name)
 		}
 		up.toolNames = nil
+		up.toolDetails = nil
 	}
 	a.registerToolsLocked(up, tools)
 	log.Printf("mcpgateway: 上游 %q 工具列表已刷新，当前 %d 个工具", up.cfg.Name, len(up.toolNames))
@@ -412,6 +452,7 @@ func (a *Aggregator) detachLocked(up *upstream) {
 			delete(a.tools, name)
 		}
 		up.toolNames = nil
+		up.toolDetails = nil
 	}
 	session := up.session
 	up.session = nil
@@ -494,6 +535,24 @@ func (a *Aggregator) markFailed(serverID int64, session UpstreamSession, callErr
 	a.mu.Unlock()
 	log.Printf("mcpgateway: 上游 %q 调用失败，转入重连: %v", name, callErr)
 	a.NotifyChanged()
+}
+
+// ToolCatalog 全部上游已发布工具的快照（按 serverID、公共名排序，输出稳定），
+// 供 UI 工具清单与诊断页使用。
+func (a *Aggregator) ToolCatalog() []ToolInfo {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	out := make([]ToolInfo, 0, len(a.tools))
+	for _, up := range a.ups {
+		out = append(out, up.toolDetails...)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].ServerID != out[j].ServerID {
+			return out[i].ServerID < out[j].ServerID
+		}
+		return out[i].PublicName < out[j].PublicName
+	})
+	return out
 }
 
 // Statuses 全部上游（含 disabled）的状态快照。

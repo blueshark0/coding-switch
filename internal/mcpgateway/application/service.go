@@ -67,3 +67,8 @@ func (s *Service) TestConnection(ctx context.Context, server domain.McpServer) (
 func (s *Service) Statuses() []UpstreamStatus {
 	return s.agg.Statuses()
 }
+
+// ToolCatalog 全部上游已发布工具的快照，供 UI 工具清单与诊断页使用。
+func (s *Service) ToolCatalog() []ToolInfo {
+	return s.agg.ToolCatalog()
+}

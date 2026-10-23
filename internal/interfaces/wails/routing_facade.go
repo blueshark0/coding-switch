@@ -30,3 +30,8 @@ func (f *RoutingFacade) GetAppPreferences() (routingdomain.AppPreferences, error
 func (f *RoutingFacade) SaveAppPreferences(preferences routingdomain.AppPreferences) (routingdomain.AppPreferences, error) {
 	return f.service.SaveAppPreferences(context.Background(), preferences)
 }
+
+// TestProvider 以供应商的代理/TLS 设置探测其 API Base URL 的连通性。
+func (f *RoutingFacade) TestProvider(provider routingdomain.Provider) (routingapp.ProviderProbeResult, error) {
+	return f.service.ProbeProvider(context.Background(), provider)
+}

@@ -56,7 +56,11 @@ type LogStats struct {
 	CostOutput        float64          `json:"cost_output"`
 	CostCacheCreate   float64          `json:"cost_cache_create"`
 	CostCacheRead     float64          `json:"cost_cache_read"`
-	Series            []LogStatsSeries `json:"series"`
+	// FailedRequests 与 AvgDurationSec 供指标卡使用；统计时忽略 httpStatus
+	// 过滤（否则"只看成功"的默认视图下失败数恒为 0），其余过滤条件照常生效。
+	FailedRequests int64            `json:"failed_requests"`
+	AvgDurationSec float64          `json:"avg_duration_sec"`
+	Series         []LogStatsSeries `json:"series"`
 }
 
 type ProviderDailyStat struct {

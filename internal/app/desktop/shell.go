@@ -31,7 +31,7 @@ func NewShell(app *application.App, dockService *dock.DockService, trayIcons fs.
 func (s *Shell) Configure() {
 	s.mainWindow = s.app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:     "Code Switch",
-		Width:     1024,
+		Width:     1150,
 		Height:    800,
 		MinWidth:  600,
 		MinHeight: 300,

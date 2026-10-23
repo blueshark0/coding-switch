@@ -18,3 +18,13 @@ export const saveProviders = async (platform: string, providers: ProviderRecord[
     providers: normalizedProviders,
   })
 }
+
+import { TestProvider } from '../../bindings/codeswitch/internal/interfaces/wails/routingfacade'
+import type { ProviderProbeResult } from '../../bindings/codeswitch/internal/routing/application/models'
+
+export type { ProviderProbeResult }
+
+// 供应商连通性探测：以后端代理/TLS 设置对 Base URL 做一次 GET（不携带凭证）。
+export const testProviderConnection = async (provider: ProviderRecord): Promise<ProviderProbeResult> => {
+  return TestProvider(provider)
+}

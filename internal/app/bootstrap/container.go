@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	appdesktop "codeswitch/internal/app/desktop"
 	configsyncapp "codeswitch/internal/configsync/application"
 	configsyncinfra "codeswitch/internal/configsync/infrastructure"
 	hotkeyinfra "codeswitch/internal/hotkeys/infrastructure"
@@ -36,7 +35,6 @@ type Container struct {
 	relayServer   *relayhttp.Server
 	cleanupRunner *sessionapp.CleanupRunner
 	hotkeyService *facades.HotkeyFacade
-	logsWindow    *appdesktop.LogsWindowService
 	routingFacade *facades.RoutingFacade
 	syncFacade    *facades.ConfigSyncFacade
 	sessionFacade *facades.SessionFacade
@@ -66,7 +64,6 @@ func Initialize(appVersion string) (*Container, error) {
 		return nil, err
 	}
 
-	logsWindow := appdesktop.NewLogsWindowService()
 	sessionRepo := sessioninfra.NewSQLiteRepository("")
 	sessionService := sessionapp.NewService(sessionRepo)
 	routingService := routingapp.NewService(routinginfra.NewSQLiteStore())
@@ -111,7 +108,6 @@ func Initialize(appVersion string) (*Container, error) {
 		relayServer:   relayServer,
 		cleanupRunner: sessionapp.NewCleanupRunner(sessionService, defaultSessionCleanupInterval),
 		hotkeyService: facades.NewHotkeyFacade(hotkeyStore),
-		logsWindow:    logsWindow,
 		routingFacade: facades.NewRoutingFacade(routingService),
 		syncFacade:    facades.NewConfigSyncFacade(configSyncService),
 		sessionFacade: facades.NewSessionFacade(sessionService, obsQueries),
@@ -126,7 +122,6 @@ func Initialize(appVersion string) (*Container, error) {
 
 func (c *Container) ApplicationServices(extra ...application.Service) []application.Service {
 	services := []application.Service{
-		application.NewService(c.logsWindow),
 		application.NewService(c.hotkeyService),
 		application.NewService(c.routingFacade),
 		application.NewService(c.syncFacade),
@@ -139,10 +134,6 @@ func (c *Container) ApplicationServices(extra ...application.Service) []applicat
 	}
 	services = append(services, extra...)
 	return services
-}
-
-func (c *Container) LogsWindowService() *appdesktop.LogsWindowService {
-	return c.logsWindow
 }
 
 func (c *Container) DockService() *dock.DockService {

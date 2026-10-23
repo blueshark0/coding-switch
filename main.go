@@ -38,7 +38,6 @@ func main() {
 		},
 	})
 
-	container.LogsWindowService().SetApp(app)
 	appdesktop.NewShell(app, container.DockService(), trayIcons).Configure()
 	if err := container.StartBackground(); err != nil {
 		container.Shutdown()

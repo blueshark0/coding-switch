@@ -35,6 +35,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # bindings 不入库（.gitignore），构建前必须重新生成
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Generate bindings
+        working-directory: .
+        run: wails3 task common:generate:bindings
+
       - uses: pnpm/action-setup@v4
         with:
           version: 9

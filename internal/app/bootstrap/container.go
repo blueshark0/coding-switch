@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"context"
 	"io"
 	"sync"
 	"time"
@@ -11,6 +12,8 @@ import (
 	hotkeyinfra "codeswitch/internal/hotkeys/infrastructure"
 	relayhttp "codeswitch/internal/interfaces/http/relay"
 	facades "codeswitch/internal/interfaces/wails"
+	mcpgatewayapp "codeswitch/internal/mcpgateway/application"
+	mcpgatewayinfra "codeswitch/internal/mcpgateway/infrastructure"
 	observabilityinfra "codeswitch/internal/observability/infrastructure"
 	platformproxyapp "codeswitch/internal/platformproxy/application"
 	platformproxyinfra "codeswitch/internal/platformproxy/infrastructure"
@@ -40,6 +43,8 @@ type Container struct {
 	obsFacade     *facades.ObservabilityFacade
 	appLogFacade  *facades.AppLogFacade
 	proxyFacade   *facades.PlatformProxyFacade
+	mcpFacade     *facades.McpGatewayFacade
+	mcpAggregator *mcpgatewayapp.Aggregator
 	dockService   *dock.DockService
 	shutdownOnce  sync.Once
 }
@@ -65,6 +70,10 @@ func Initialize(appVersion string) (*Container, error) {
 	sessionRepo := sessioninfra.NewSQLiteRepository("")
 	sessionService := sessionapp.NewService(sessionRepo)
 	routingService := routingapp.NewService(routinginfra.NewSQLiteStore())
+	// MCP 聚合网关需在 relay 之前构造，经 Options 注入并由 relay 挂载 /mcp。
+	mcpStore := mcpgatewayinfra.NewSQLiteStore()
+	mcpAggregator := mcpgatewayapp.NewAggregator(mcpStore, mcpgatewayapp.AggregatorOptions{AppVersion: appVersion})
+	mcpService := mcpgatewayapp.NewService(mcpStore, mcpAggregator)
 	// 仅监听回环地址：绑定 0.0.0.0 会让同一局域网任意主机免费使用已配置的付费 API key。
 	relayServer := relayhttp.NewServer(routingService, sessionService, "127.0.0.1:18100", relayhttp.Options{
 		SessionCache:   sessioninfra.NewCache(sessionService),
@@ -75,6 +84,7 @@ func Initialize(appVersion string) (*Container, error) {
 		RetentionCleanup: func() error {
 			return observabilityinfra.CleanupOldRequestLogs(observabilityinfra.RequestLogRetentionDays)
 		},
+		MCPGateway: mcpAggregator,
 	})
 	// 偏好保存（含 configsync 快照恢复）后由 application 层统一推送代理配置到 relay。
 	routingService.RegisterProxyConfigSink(relayServer)
@@ -105,6 +115,8 @@ func Initialize(appVersion string) (*Container, error) {
 		obsFacade:     facades.NewObservabilityFacade(observabilityinfra.NewSQLiteQueries()),
 		appLogFacade:  facades.NewAppLogFacade(observabilityinfra.NewAppLogReader(appLogPath)),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),
+		mcpFacade:     facades.NewMcpGatewayFacade(mcpService, platformProxyService, "http://"+relayServer.Addr()+"/mcp"),
+		mcpAggregator: mcpAggregator,
 		dockService:   dock.New(),
 	}, nil
 }
@@ -119,6 +131,7 @@ func (c *Container) ApplicationServices(extra ...application.Service) []applicat
 		application.NewService(c.obsFacade),
 		application.NewService(c.appLogFacade),
 		application.NewService(c.proxyFacade),
+		application.NewService(c.mcpFacade),
 		application.NewService(c.dockService),
 	}
 	services = append(services, extra...)
@@ -142,6 +155,11 @@ func (c *Container) StartBackground() error {
 	}
 	if c.cleanupRunner != nil {
 		c.cleanupRunner.Start()
+	}
+	// relay 起监听后再启动 MCP 聚合器：Start 只起 reconciler goroutine，
+	// 上游连接异步进行，不拖慢启动。
+	if c.mcpAggregator != nil {
+		c.mcpAggregator.Start(context.Background())
 	}
 	return nil
 }

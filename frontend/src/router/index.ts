@@ -5,6 +5,7 @@ const routes = [
   { path: '/logs', component: () => import('../components/Logs/Index.vue') },
   { path: '/settings', component: () => import('../components/General/Index.vue') },
   { path: '/sessions', component: () => import('../components/Session/Index.vue') },
+  { path: '/mcp', component: () => import('../components/Mcp/Index.vue') },
 ]
 
 export default createRouter({

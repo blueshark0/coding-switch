@@ -111,7 +111,8 @@
         "githubUpdate": "打开 GitHub（发现新版本）",
         "theme": "切换主题",
         "settings": "打开设置",
-        "sessions": "打开会话管理"
+        "sessions": "打开会话管理",
+        "mcp": "MCP 网关"
       },
       "versionLabel": "版本 {version}",
       "setDefault": "设为默认供应商",
@@ -421,6 +422,97 @@
       "justNow": "刚刚",
       "minutesAgo": "{count} 分钟前",
       "hoursAgo": "{count} 小时前"
+    },
+    "mcp": {
+      "hero": {
+        "eyebrow": "MCP 网关",
+        "title": "MCP 服务管理",
+        "lead": "聚合多个 MCP 服务为一个本地端点，注入后 Claude Code / Codex 自动发现全部工具。"
+      },
+      "actions": {
+        "back": "返回主页",
+        "refresh": "刷新"
+      },
+      "cli": {
+        "title": "CLI 接入",
+        "endpoint": "聚合端点",
+        "copy": "复制",
+        "inject": "注入",
+        "remove": "移除",
+        "injected": "已注入",
+        "notInjected": "未注入",
+        "helpTitle": "注意事项与手动配置",
+        "helpRestart": "注入后需重启 CLI（或 Claude Code 中 /mcp 重连）生效。",
+        "helpRefresh": "运行期增删服务：Claude Code 自动刷新工具列表；Codex 需重启才感知。",
+        "helpContext": "模型流量走本网关时 Claude Code 会全量加载工具 schema，请保持工具集精简。",
+        "helpCodexBackend": "Codex 的 MCP 工具仅在路由到 OpenAI/Azure 兼容上游时可用。",
+        "manualTitle": "手动配置（等价命令）"
+      },
+      "servers": {
+        "title": "MCP 服务",
+        "totalTools": "共 {count} 个工具",
+        "add": "新增服务",
+        "empty": "暂无 MCP 服务，点击右上角新增",
+        "toolCount": "{count} 工具",
+        "toggle": "启用/禁用",
+        "edit": "编辑",
+        "delete": "删除"
+      },
+      "status": {
+        "connected": "已连接",
+        "connecting": "连接中",
+        "failed": "连接失败",
+        "disabled": "已禁用"
+      },
+      "form": {
+        "titleNew": "新增 MCP 服务",
+        "titleEdit": "编辑 MCP 服务",
+        "name": "名称（工具命名空间前缀）",
+        "namePlaceholder": "字母数字开头，可含 - 和 _，如 github",
+        "type": "类型",
+        "typeStdio": "stdio（本地进程）",
+        "typeHttp": "HTTP（远程服务）",
+        "command": "启动命令",
+        "args": "参数（空格分隔）",
+        "argsPlaceholder": "-y {'@'}modelcontextprotocol/server-filesystem /tmp",
+        "env": "环境变量（每行 KEY=VALUE）",
+        "url": "服务地址",
+        "headers": "请求头（每行 KEY=VALUE）",
+        "kvPlaceholder": "KEY=VALUE\nANOTHER=...",
+        "timeout": "调用超时（秒）",
+        "test": "测试连接",
+        "testing": "测试中...",
+        "testOk": "连接成功，发现 {count} 个工具（{ms}ms）",
+        "testErr": "连接失败：{error}",
+        "cancel": "取消",
+        "save": "保存",
+        "saving": "保存中...",
+        "errors": {
+          "name": "名称需以字母或数字开头，仅含字母数字、- 和 _（不含连续 __），最长 32 字符",
+          "command": "stdio 类型必须填写启动命令",
+          "url": "HTTP 类型必须填写服务地址"
+        }
+      },
+      "confirm": {
+        "title": "删除 MCP 服务",
+        "body": "确认删除「{name}」吗？删除后其工具将立即从网关移除。",
+        "delete": "删除"
+      },
+      "messages": {
+        "loadFailed": "加载 MCP 配置失败",
+        "statusLoadFailed": "刷新状态失败",
+        "saved": "已保存",
+        "saveFailed": "保存失败",
+        "deleted": "已删除",
+        "deleteFailed": "删除失败",
+        "toggleFailed": "切换启用状态失败",
+        "testFailed": "测试连接失败",
+        "injected": "已注入，重启 CLI 后生效",
+        "injectionRemoved": "已移除注入",
+        "injectionFailed": "注入操作失败",
+        "copied": "端点已复制",
+        "copyFailed": "复制失败"
+      }
     }
   }
 }

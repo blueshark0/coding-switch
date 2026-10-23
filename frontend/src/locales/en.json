@@ -473,7 +473,7 @@
         "typeHttp": "HTTP (remote server)",
         "command": "Command",
         "args": "Args (space-separated)",
-        "argsPlaceholder": "-y @modelcontextprotocol/server-filesystem /tmp",
+        "argsPlaceholder": "-y {'@'}modelcontextprotocol/server-filesystem /tmp",
         "env": "Environment variables (KEY=VALUE per line)",
         "url": "Server URL",
         "headers": "Headers (KEY=VALUE per line)",

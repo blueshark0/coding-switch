@@ -474,7 +474,7 @@
         "typeHttp": "HTTP（远程服务）",
         "command": "启动命令",
         "args": "参数（空格分隔）",
-        "argsPlaceholder": "-y @modelcontextprotocol/server-filesystem /tmp",
+        "argsPlaceholder": "-y {'@'}modelcontextprotocol/server-filesystem /tmp",
         "env": "环境变量（每行 KEY=VALUE）",
         "url": "服务地址",
         "headers": "请求头（每行 KEY=VALUE）",

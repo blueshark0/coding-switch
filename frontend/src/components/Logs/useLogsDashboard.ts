@@ -1,4 +1,4 @@
-import { computed, onMounted, onUnmounted, reactive, ref, watch, type Ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   DEFAULT_LOG_RANGE,
   DEFAULT_LOG_HTTP_STATUS,
@@ -15,26 +15,22 @@ import {
   type LogRangeKey,
   type RequestLog,
 } from '../../services/logs'
-import { useLogsPresentation } from './useLogsPresentation'
+import { showToast } from '../../utils/toast'
 import type { CostTier } from './costTier'
 import type { TranslateFn } from '../../types/i18n'
 
 type UseLogsDashboardOptions = {
-  getCssVarValue: (name: string, fallback: string) => string
-  isDarkMode: Ref<boolean>
   t: TranslateFn
 }
 
 const REFRESH_INTERVAL = 30
+const EXPORT_MAX_ROWS = 5000
 
-export const useLogsDashboard = ({
-  getCssVarValue,
-  isDarkMode,
-  t,
-}: UseLogsDashboardOptions) => {
+export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
   const logs = ref<RequestLog[]>([])
   const stats = ref<LogStats | null>(null)
   const loading = ref(false)
+  const exporting = ref(false)
   const filters = reactive<{
     platform: string
     provider: string
@@ -56,63 +52,26 @@ export const useLogsDashboard = ({
   let timer: number | undefined
   let dashboardLoadPromise: Promise<void> | null = null
   let queuedDashboardReload = false
-  const selectedRangeKey = computed(() => normalizeLogRangeKey(filters.rangeKey))
   const rangeOptions = computed(() =>
     LOG_RANGE_OPTIONS.map((value) => ({
       value,
       label: t(`components.logs.filters.ranges.${value}`),
     })),
   )
-  const costTierOptions = computed<Array<{ value: CostTier; label: string }>>(() => [
-    {
-      value: 'all',
-      label: t('components.logs.filters.allCostTiers'),
-    },
-    {
-      value: 'low',
-      label: t('components.logs.filters.costTiers.low'),
-    },
-    {
-      value: 'medium',
-      label: t('components.logs.filters.costTiers.medium'),
-    },
-    {
-      value: 'high',
-      label: t('components.logs.filters.costTiers.high'),
-    },
-  ])
   const httpStatusOptions = computed<Array<{ value: LogHttpStatus; label: string }>>(() => [
-    {
-      value: 'success',
-      label: t('components.logs.filters.httpStatus200'),
-    },
     {
       value: 'all',
       label: t('components.logs.filters.allHttpStatus'),
+    },
+    {
+      value: 'success',
+      label: t('components.logs.filters.httpStatus200'),
     },
   ])
 
   const pageSizeOptions = computed(() => LOG_PAGE_SIZE_OPTIONS.map((value) => ({ value })))
   const pagedLogs = computed(() => logs.value)
   const totalPages = computed(() => Math.max(1, Math.ceil(totalLogs.value / pageSize.value)))
-  const {
-    chartData,
-    chartOptions,
-    durationColor,
-    formatDuration,
-    formatCurrency,
-    formatNumber,
-    formatStream,
-    formatTime,
-    httpCodeClass,
-    statsCards,
-  } = useLogsPresentation({
-    getCssVarValue,
-    isDarkMode,
-    stats,
-    rangeKey: selectedRangeKey,
-    t,
-  })
 
   const resetTimer = () => {
     countdown.value = REFRESH_INTERVAL
@@ -134,7 +93,7 @@ export const useLogsDashboard = ({
             fetchRequestLogs({
               platform: filters.platform,
               provider: filters.provider,
-              rangeKey: selectedRangeKey.value,
+              rangeKey: normalizeLogRangeKey(filters.rangeKey),
               costTier: filters.costTier,
               httpStatus: filters.httpStatus,
               page: requestedPage,
@@ -143,7 +102,7 @@ export const useLogsDashboard = ({
             fetchLogStats({
               platform: filters.platform,
               provider: filters.provider,
-              rangeKey: selectedRangeKey.value,
+              rangeKey: normalizeLogRangeKey(filters.rangeKey),
               costTier: filters.costTier,
               httpStatus: filters.httpStatus,
             }),
@@ -251,6 +210,73 @@ export const useLogsDashboard = ({
     void loadDashboard()
   }
 
+  const csvEscape = (value: unknown) => {
+    const text = String(value ?? '')
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+  }
+
+  // 导出当前筛选条件下的全部日志（分页拉取，封顶 EXPORT_MAX_ROWS 行）。
+  const exportCsv = async () => {
+    if (exporting.value) return
+    exporting.value = true
+    try {
+      const all: RequestLog[] = []
+      let exportPage = 1
+      const exportPageSize = 100
+      let total = 0
+      do {
+        const data = await fetchRequestLogs({
+          platform: filters.platform,
+          provider: filters.provider,
+          rangeKey: normalizeLogRangeKey(filters.rangeKey),
+          costTier: filters.costTier,
+          httpStatus: filters.httpStatus,
+          page: exportPage,
+          pageSize: exportPageSize,
+        })
+        all.push(...(data?.items ?? []))
+        total = data?.total ?? 0
+        exportPage += 1
+      } while (all.length < total && all.length < EXPORT_MAX_ROWS && exportPage <= 100)
+
+      const header = 'id,created_at,platform,provider,model,http_code,duration_sec,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,reasoning_tokens,total_cost'
+      const lines = all.map((log) =>
+        [
+          log.id,
+          log.created_at,
+          log.platform,
+          log.provider,
+          log.model,
+          log.http_code,
+          log.duration_sec,
+          log.input_tokens,
+          log.output_tokens,
+          log.cache_create_tokens,
+          log.cache_read_tokens,
+          log.reasoning_tokens,
+          log.total_cost,
+        ]
+          .map(csvEscape)
+          .join(','),
+      )
+      const blob = new Blob([`${header}\n${lines.join('\n')}`], {
+        type: 'text/csv;charset=utf-8',
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `code-switch-logs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      showToast(t('logsPage.messages.exported', { count: all.length }))
+    } catch (error) {
+      console.error('export logs failed', error)
+      showToast(t('logsPage.messages.exportFailed'), 'error')
+    } finally {
+      exporting.value = false
+    }
+  }
+
   watch(
     () => filters.platform,
     async () => {
@@ -271,18 +297,10 @@ export const useLogsDashboard = ({
 
   return {
     applyFilters,
-    chartData,
-    chartOptions,
-    costTierOptions,
     countdown,
-    durationColor,
+    exporting,
+    exportCsv,
     filters,
-    formatDuration,
-    formatCurrency,
-    formatNumber,
-    formatStream,
-    formatTime,
-    httpCodeClass,
     httpStatusOptions,
     loading,
     manualRefresh,
@@ -294,7 +312,7 @@ export const useLogsDashboard = ({
     prevPage,
     providerOptions,
     rangeOptions,
-    statsCards,
+    stats,
     totalLogs,
     totalPages,
     updatePageSize,

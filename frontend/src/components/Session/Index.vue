@@ -10,6 +10,9 @@ import {
 } from '../../services/sessions'
 import { parseDateTime } from '../../utils/dateTime'
 import { getErrorMessage } from '../../utils/errors'
+import { formatTokenCount } from '../../utils/number'
+import { shortSessionId } from '../../utils/sessionId'
+import { formatUsd } from '../../utils/currency'
 import { showToast } from '../../utils/toast'
 
 type SessionRow = SessionBinding & { platformLabel: string }
@@ -59,7 +62,9 @@ const visibleRows = computed(() => {
   const query = keyword.value.trim().toLowerCase()
   if (!query) return rows.value
   return rows.value.filter((row) =>
-    `${row.session_id} ${row.provider_name} ${row.platformLabel}`.toLowerCase().includes(query),
+    `${row.session_id} ${row.provider_name} ${row.platformLabel} ${(row.models ?? []).join(' ')}`
+      .toLowerCase()
+      .includes(query),
   )
 })
 
@@ -84,8 +89,22 @@ const formatTime = (value: unknown) => {
   }).format(date)
 }
 
-const shortId = (sessionId: string) =>
-  sessionId.length <= 16 ? sessionId : `${sessionId.slice(0, 16)}…`
+const shortId = (sessionId: string) => shortSessionId(sessionId)
+
+const modelsLabel = (row: SessionRow) => {
+  const models = row.models ?? []
+  if (models.length === 0) return ''
+  if (models.length === 1) return models[0]
+  return `${models[0]} +${models.length - 1}`
+}
+
+const usageLabel = (row: SessionRow) =>
+  t('sessionsPage.usage', {
+    count: row.requests,
+    input: formatTokenCount(row.input_tokens),
+    output: formatTokenCount(row.output_tokens),
+    cost: formatUsd(row.total_cost),
+  })
 
 const toggleMenu = (key: string) => {
   menuFor.value = menuFor.value === key ? '' : key
@@ -159,8 +178,12 @@ onUnmounted(() => {
         class="sess-row"
       >
         <div class="sess-main">
-          <span class="sess-id cs-mono">{{ shortId(row.session_id) }}</span>
-          <span class="sess-sub">{{ row.platformLabel }} · {{ row.provider_name }}</span>
+          <span class="sess-id cs-mono" :title="row.session_id">{{ shortId(row.session_id) }}</span>
+          <span class="sess-sub">
+            {{ row.platformLabel }} · {{ row.provider_name }}<template v-if="modelsLabel(row)"> · {{ modelsLabel(row) }}</template>
+          </span>
+          <span v-if="row.requests > 0" class="sess-usage">{{ usageLabel(row) }}</span>
+          <span v-else class="sess-usage sess-usage--empty">{{ t('sessionsPage.noUsage') }}</span>
         </div>
         <span class="sess-time">{{ formatTime(row.last_success_at) }}</span>
         <span class="cs-menu-anchor" @click.stop>
@@ -244,6 +267,15 @@ onUnmounted(() => {
 
 .sess-sub {
   font-size: 10px;
+  color: var(--cs-text-secondary);
+}
+
+.sess-usage {
+  font-size: 10px;
+  color: var(--cs-text);
+}
+
+.sess-usage--empty {
   color: var(--cs-text-secondary);
 }
 

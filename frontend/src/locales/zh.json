@@ -568,6 +568,8 @@
     "minutesAgo": "{count} 分钟前",
     "hoursAgo": "{count} 小时前",
     "unbind": "解绑会话",
+    "usage": "{count} 次请求 · ↑{input} ↓{output} · {cost}",
+    "noUsage": "暂无用量记录",
     "messages": {
       "unbound": "已解绑",
       "unbindFailed": "解绑失败，请重试"

@@ -5,6 +5,7 @@ import { Sparkles, Command, ChevronRight } from 'lucide-vue-next'
 import { useDashboard, type DashboardClient } from './useDashboard'
 import { useQuickSwitch } from '../../composables/useQuickSwitch'
 import { parseDateTime } from '../../utils/dateTime'
+import { shortSessionId } from '../../utils/sessionId'
 import brandClaude from '../../assets/icons/brand-claude.svg'
 import brandCodex from '../../assets/icons/brand-codex.svg'
 import brandGemini from '../../assets/icons/brand-gemini.svg'
@@ -137,7 +138,7 @@ const copyEndpoint = async () => {
               @click="goToSessions"
             >
               <span class="dash-recent-name">{{ session.providerName }} · {{ session.platformLabel }}</span>
-              <span class="dash-recent-meta cs-mono">{{ session.sessionId.slice(0, 12) }}</span>
+              <span class="dash-recent-meta cs-mono" :title="session.sessionId">{{ shortSessionId(session.sessionId) }}</span>
               <span class="dash-recent-time">{{ formatSessionTime(session.lastSuccessAt) }}</span>
               <hr v-if="index < recentSessions.length - 1" class="cs-divider" />
             </button>

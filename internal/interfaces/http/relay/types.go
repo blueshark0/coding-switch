@@ -48,6 +48,7 @@ type ForwardContext struct {
 	IsStream  bool
 	IsFast    bool
 	Model     string
+	SessionID string
 }
 
 type PlatformHandler interface {

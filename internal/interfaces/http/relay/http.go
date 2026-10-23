@@ -132,11 +132,12 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 		headers["Accept"] = "application/json"
 	}
 	requestLog := &observabilitydomain.RequestLog{
-		Platform: fwdCtx.Platform.String(),
-		Provider: provider.Name,
-		Model:    fwdCtx.Model,
-		IsStream: fwdCtx.IsStream,
-		IsFast:   fwdCtx.IsFast,
+		Platform:  fwdCtx.Platform.String(),
+		Provider:  provider.Name,
+		Model:     fwdCtx.Model,
+		SessionID: fwdCtx.SessionID,
+		IsStream:  fwdCtx.IsStream,
+		IsFast:    fwdCtx.IsFast,
 	}
 	start := time.Now()
 	defer func() {

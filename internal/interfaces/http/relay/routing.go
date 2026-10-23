@@ -165,6 +165,7 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		IsStream:  ctx.RequestMeta.IsStream,
 		IsFast:    ctx.RequestMeta.IsFast,
 		Model:     rewrite.EffectiveModel,
+		SessionID: ctx.RequestMeta.SessionID,
 	}, nil
 }
 

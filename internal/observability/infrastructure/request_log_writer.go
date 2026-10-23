@@ -114,8 +114,9 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 		duration_sec,
 		created_at,
 		total_cost,
-		has_pricing
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		has_pricing,
+		session_id
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, insertSQL)
 	if err != nil {
 		return err
@@ -143,6 +144,7 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 			requestLogCreatedAt(logEntry.CreatedAt),
 			logEntry.TotalCost,
 			boolToInt(logEntry.HasPricing),
+			logEntry.SessionID,
 		); err != nil {
 			return err
 		}

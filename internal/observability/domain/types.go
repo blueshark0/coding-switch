@@ -5,6 +5,7 @@ type RequestLog struct {
 	Platform          string  `json:"platform"`
 	Model             string  `json:"model"`
 	Provider          string  `json:"provider"`
+	SessionID         string  `json:"session_id"`
 	HttpCode          int     `json:"http_code"`
 	InputTokens       int     `json:"input_tokens"`
 	OutputTokens      int     `json:"output_tokens"`
@@ -33,6 +34,18 @@ type RequestLogPage struct {
 	Total    int64        `json:"total"`
 	Page     int          `json:"page"`
 	PageSize int          `json:"page_size"`
+}
+
+// SessionUsage 是按 (platform, session_id) 聚合的用量摘要，供会话页把
+// 不可读的会话 ID 换成"N 次请求 / tokens / 费用 / 用过的模型"这类可读信息。
+// 只有成功转发后 relay 才会记录会话绑定，因此聚合只对已绑定会话有意义。
+type SessionUsage struct {
+	SessionID    string   `json:"session_id"`
+	Requests     int      `json:"requests"`
+	InputTokens  int      `json:"input_tokens"`
+	OutputTokens int      `json:"output_tokens"`
+	TotalCost    float64  `json:"total_cost"`
+	Models       []string `json:"models"`
 }
 
 type HeatmapStat struct {

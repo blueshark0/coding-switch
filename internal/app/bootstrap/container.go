@@ -103,6 +103,9 @@ func Initialize(appVersion string) (*Container, error) {
 	// 路径失败时留空即可：reader 对不存在的文件返回空日志而非报错。
 	appLogPath, _ := storage.AppDataPath("app.log")
 
+	// 会话页需要 request_log 的会话级聚合，与观测 facade 共用同一查询实例。
+	obsQueries := observabilityinfra.NewSQLiteQueries()
+
 	return &Container{
 		logFile:       logFile,
 		relayServer:   relayServer,
@@ -111,8 +114,8 @@ func Initialize(appVersion string) (*Container, error) {
 		logsWindow:    logsWindow,
 		routingFacade: facades.NewRoutingFacade(routingService),
 		syncFacade:    facades.NewConfigSyncFacade(configSyncService),
-		sessionFacade: facades.NewSessionFacade(sessionService),
-		obsFacade:     facades.NewObservabilityFacade(observabilityinfra.NewSQLiteQueries()),
+		sessionFacade: facades.NewSessionFacade(sessionService, obsQueries),
+		obsFacade:     facades.NewObservabilityFacade(obsQueries),
 		appLogFacade:  facades.NewAppLogFacade(observabilityinfra.NewAppLogReader(appLogPath)),
 		proxyFacade:   facades.NewPlatformProxyFacade(platformProxyService),
 		mcpFacade:     facades.NewMcpGatewayFacade(mcpService, platformProxyService, "http://"+relayServer.Addr()+"/mcp"),

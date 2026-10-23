@@ -47,6 +47,7 @@ func recordFromRequestLog(logEntry *observabilitydomain.RequestLog) xdb.Record {
 		"is_fast":             boolToInt(logEntry.IsFast),
 		"duration_sec":        logEntry.DurationSec,
 		"created_at":          requestLogCreatedAt(logEntry.CreatedAt),
+		"session_id":          logEntry.SessionID,
 	}
 }
 
@@ -126,7 +127,8 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		duration_sec REAL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		total_cost REAL,
-		has_pricing INTEGER
+		has_pricing INTEGER,
+		session_id TEXT
 	)`
 
 	if _, err := db.Exec(createTableSQL); err != nil {
@@ -142,6 +144,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		{Name: "duration_sec", Definition: "REAL DEFAULT 0"},
 		{Name: "total_cost", Definition: "REAL"},
 		{Name: "has_pricing", Definition: "INTEGER"},
+		{Name: "session_id", Definition: "TEXT"},
 	}); err != nil {
 		return err
 	}
@@ -157,6 +160,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_request_log_provider_created_at ON request_log(provider, created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_provider_created_at ON request_log(platform, provider, created_at DESC)",
 		"CREATE INDEX IF NOT EXISTS idx_request_log_created_at ON request_log(created_at)",
+		"CREATE INDEX IF NOT EXISTS idx_request_log_platform_session ON request_log(platform, session_id)",
 	}
 	for _, stmt := range indexStatements {
 		if _, err := db.Exec(stmt); err != nil {

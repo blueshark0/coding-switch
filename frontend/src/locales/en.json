@@ -530,6 +530,15 @@
       "title": "Recent requests",
       "subtitle": "Filter by client, provider, status and time"
     },
+    "columns": {
+      "time": "Time",
+      "client": "Client",
+      "provider": "Provider",
+      "model": "Model",
+      "httpCode": "HTTP",
+      "duration": "Duration",
+      "status": "Status"
+    },
     "filters": {
       "allPlatforms": "Client: all",
       "allProviders": "Provider: all"

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLogsDashboard } from './useLogsDashboard'
 import { providerTabs } from '../../constants/platforms'
+import { formatBeijingDateTime } from '../../utils/dateTime'
 import type { RequestLog } from '../../services/logs'
 
 const { t } = useI18n()
@@ -46,12 +47,7 @@ const metrics = computed(() => {
 const platformLabel = (platform: string) =>
   providerTabs.find((tab) => tab.id === platform)?.label ?? platform
 
-const formatTime = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
+const formatTime = (value: string) => formatBeijingDateTime(value)
 
 const formatDuration = (sec: number) => (sec >= 10 ? `${sec.toFixed(1)}s` : `${sec.toFixed(2)}s`)
 
@@ -122,16 +118,30 @@ const statusOf = (log: RequestLog) => {
       </div>
 
       <div v-else class="logs-rows">
+        <div class="logs-row logs-row--head">
+          <span>{{ t('logsPage.columns.time') }}</span>
+          <span>{{ t('logsPage.columns.client') }}</span>
+          <span>{{ t('logsPage.columns.provider') }}</span>
+          <span>{{ t('logsPage.columns.model') }}</span>
+          <span class="logs-cell-num">{{ t('logsPage.columns.httpCode') }}</span>
+          <span class="logs-cell-num">{{ t('logsPage.columns.duration') }}</span>
+          <span class="logs-cell-status">{{ t('logsPage.columns.status') }}</span>
+        </div>
         <div
           v-for="(log, index) in pagedLogs"
           :key="log.id"
           class="logs-row"
           :class="{ 'logs-row--alt': index % 2 === 0, 'logs-row--error': log.http_code >= 400 }"
         >
-          <span class="logs-line cs-mono">
-            {{ formatTime(log.created_at) }}&nbsp;&nbsp;{{ platformLabel(log.platform) }}&nbsp;&nbsp;{{ log.provider }}&nbsp;&nbsp;{{ log.model }}&nbsp;&nbsp;{{ log.http_code }}&nbsp;&nbsp;{{ formatDuration(log.duration_sec) }}
+          <span class="logs-cell-time cs-mono" :title="formatTime(log.created_at)">{{ formatTime(log.created_at) }}</span>
+          <span class="logs-cell-ellipsis">{{ platformLabel(log.platform) }}</span>
+          <span class="logs-cell-ellipsis" :title="log.provider">{{ log.provider }}</span>
+          <span class="logs-cell-ellipsis" :title="log.model">{{ log.model }}</span>
+          <span class="logs-cell-num cs-mono">{{ log.http_code }}</span>
+          <span class="logs-cell-num cs-mono">{{ formatDuration(log.duration_sec) }}</span>
+          <span class="logs-cell-status">
+            <span class="cs-pill" :class="`cs-pill--${statusOf(log).tone}`">{{ statusOf(log).label }}</span>
           </span>
-          <span class="cs-pill" :class="`cs-pill--${statusOf(log).tone}`">{{ statusOf(log).label }}</span>
         </div>
       </div>
 
@@ -211,28 +221,48 @@ const statusOf = (log: RequestLog) => {
 }
 
 .logs-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 160px 96px minmax(80px, 1fr) minmax(110px, 1.2fr) 64px 72px 76px;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  min-height: 58px;
+  min-height: 40px;
   padding: 0 12px;
   border-radius: 6px;
+  font-size: 12px;
+  color: var(--cs-text);
 }
 
-.logs-row--alt {
+.logs-row--head {
+  min-height: 30px;
+  font-size: 11px;
+  color: var(--cs-text-secondary);
+}
+
+.logs-row--alt:not(.logs-row--head) {
   background: var(--cs-field);
 }
 
-.logs-line {
-  font-size: 10px;
-  color: var(--cs-text);
+.logs-cell-time {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.logs-row--error .logs-line {
+.logs-cell-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-cell-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.logs-cell-status {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.logs-row--error .logs-cell-num {
   color: var(--cs-danger);
 }
 

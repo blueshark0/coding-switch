@@ -16,6 +16,7 @@ import {
   type RequestLog,
 } from '../../services/logs'
 import { showToast } from '../../utils/toast'
+import { formatBeijingDateTime } from '../../utils/dateTime'
 import type { CostTier } from './costTier'
 import type { TranslateFn } from '../../types/i18n'
 
@@ -243,7 +244,7 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
       const lines = all.map((log) =>
         [
           log.id,
-          log.created_at,
+          formatBeijingDateTime(log.created_at),
           log.platform,
           log.provider,
           log.model,

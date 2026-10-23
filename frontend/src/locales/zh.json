@@ -530,6 +530,15 @@
       "title": "最近请求",
       "subtitle": "可按客户端、供应商、状态与时间筛选"
     },
+    "columns": {
+      "time": "时间",
+      "client": "客户端",
+      "provider": "供应商",
+      "model": "模型",
+      "httpCode": "状态码",
+      "duration": "耗时",
+      "status": "状态"
+    },
     "filters": {
       "allPlatforms": "客户端：全部",
       "allProviders": "供应商：全部"

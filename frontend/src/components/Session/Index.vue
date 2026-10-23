@@ -1,143 +1,251 @@
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { providerTabs, type ProviderTab } from '../../constants/platforms'
+import {
+  fetchPlatformSessions,
+  unbindSession,
+  type SessionBinding,
+} from '../../services/sessions'
+import { parseDateTime } from '../../utils/dateTime'
+import { getErrorMessage } from '../../utils/errors'
+import { showToast } from '../../utils/toast'
+
+type SessionRow = SessionBinding & { platformLabel: string }
+
+const { t } = useI18n()
+
+const tabs = computed(() => [
+  { id: 'all' as const, label: t('sessionsPage.filters.all') },
+  ...providerTabs.map((tab) => ({ id: tab.id, label: tab.label })),
+])
+
+const filter = ref<'all' | ProviderTab>('all')
+const keyword = ref('')
+const rows = ref<SessionRow[]>([])
+const loading = ref(false)
+const menuFor = ref('')
+
+const loadSessions = async () => {
+  loading.value = true
+  try {
+    const targets =
+      filter.value === 'all' ? providerTabs.map((tab) => tab.id) : [filter.value]
+    const collected: SessionRow[] = []
+    await Promise.all(
+      targets.map(async (platform) => {
+        const label = providerTabs.find((tab) => tab.id === platform)?.label ?? platform
+        const bindings = await fetchPlatformSessions(platform)
+        for (const binding of bindings ?? []) {
+          collected.push({ ...binding, platformLabel: label })
+        }
+      }),
+    )
+    rows.value = collected.sort((a, b) => {
+      const ta = parseDateTime(a.last_success_at)?.getTime() ?? 0
+      const tb = parseDateTime(b.last_success_at)?.getTime() ?? 0
+      return tb - ta
+    })
+  } catch (error) {
+    console.error('Failed to load sessions', error)
+    rows.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+const visibleRows = computed(() => {
+  const query = keyword.value.trim().toLowerCase()
+  if (!query) return rows.value
+  return rows.value.filter((row) =>
+    `${row.session_id} ${row.provider_name} ${row.platformLabel}`.toLowerCase().includes(query),
+  )
+})
+
+const switchFilter = (id: 'all' | ProviderTab) => {
+  if (filter.value === id) return
+  filter.value = id
+  void loadSessions()
+}
+
+const formatTime = (value: unknown) => {
+  const date = parseDateTime(value)
+  if (!date) return t('sessionsPage.dateUnknown')
+  const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000)
+  if (diffMinutes < 1) return t('sessionsPage.justNow')
+  if (diffMinutes < 60) return t('sessionsPage.minutesAgo', { count: diffMinutes })
+  if (diffMinutes < 24 * 60) return t('sessionsPage.hoursAgo', { count: Math.floor(diffMinutes / 60) })
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
+const shortId = (sessionId: string) =>
+  sessionId.length <= 16 ? sessionId : `${sessionId.slice(0, 16)}…`
+
+const toggleMenu = (key: string) => {
+  menuFor.value = menuFor.value === key ? '' : key
+}
+
+const closeMenu = () => {
+  menuFor.value = ''
+}
+
+const unbind = async (row: SessionRow) => {
+  closeMenu()
+  try {
+    await unbindSession(row.platform, row.session_id)
+    rows.value = rows.value.filter(
+      (item) => !(item.platform === row.platform && item.session_id === row.session_id),
+    )
+    showToast(t('sessionsPage.messages.unbound'))
+  } catch (error) {
+    showToast(getErrorMessage(error, t('sessionsPage.messages.unbindFailed')), 'error')
+  }
+}
+
+onMounted(() => {
+  void loadSessions()
+  window.addEventListener('click', closeMenu)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('click', closeMenu)
+})
+</script>
+
 <template>
-  <div class="main-shell">
-    <div class="global-actions">
-      <p class="global-eyebrow">{{ t('components.sessions.hero.eyebrow') }}</p>
-      <button class="ghost-icon" :data-tooltip="t('components.sessions.actions.back')" @click="goHome">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            d="M15 18l-6-6 6-6"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
-      <button
-        class="ghost-icon"
-        :data-tooltip="t('components.sessions.actions.refresh')"
-        :disabled="loading"
-        @click="refreshSessions"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" :class="{ spin: loading }">
-          <path
-            d="M20.5 8a8.5 8.5 0 10-2.38 7.41"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <path
-            d="M20.5 4v4h-4"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-      </button>
+  <div class="cs-page">
+    <div class="cs-page-head">
+      <div>
+        <h1 class="cs-page-title">{{ t('sessionsPage.title') }}</h1>
+        <p class="cs-page-sub">{{ t('sessionsPage.subtitle') }}</p>
+      </div>
     </div>
 
-    <div class="contrib-page sessions-page">
-      <section class="contrib-hero">
-        <h1>{{ t('components.sessions.hero.title') }}</h1>
-        <p class="lead">{{ t('components.sessions.hero.lead') }}</p>
-      </section>
+    <div class="cs-card cs-card-pad sess-panel">
+      <div class="cs-filterbar cs-filterbar--inset">
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          type="button"
+          class="cs-tab"
+          :class="{ active: filter === tab.id }"
+          @click="switchFilter(tab.id)"
+        >
+          {{ tab.label }}
+        </button>
+        <input
+          v-model="keyword"
+          class="sess-search"
+          :placeholder="t('sessionsPage.searchPlaceholder')"
+        />
+      </div>
 
-      <section class="automation-section">
-        <div class="section-header">
-          <div class="tab-group" role="tablist" :aria-label="t('components.sessions.platforms.ariaLabel')">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="tab-pill"
-              :class="{ active: selectedPlatform === tab.id }"
-              role="tab"
-              :aria-selected="selectedPlatform === tab.id"
-              @click="switchPlatform(tab.id)"
-            >
-              {{ tab.label }}
+      <div v-if="visibleRows.length === 0 && !loading" class="cs-empty">
+        {{ t('sessionsPage.empty') }}
+      </div>
+
+      <div
+        v-for="row in visibleRows"
+        :key="`${row.platform}:${row.session_id}`"
+        class="sess-row"
+      >
+        <div class="sess-main">
+          <span class="sess-id cs-mono">{{ shortId(row.session_id) }}</span>
+          <span class="sess-sub">{{ row.platformLabel }} · {{ row.provider_name }}</span>
+        </div>
+        <span class="sess-time">{{ formatTime(row.last_success_at) }}</span>
+        <span class="cs-menu-anchor" @click.stop>
+          <button type="button" class="sess-chevron" @click="toggleMenu(`${row.platform}:${row.session_id}`)">›</button>
+          <div v-if="menuFor === `${row.platform}:${row.session_id}`" class="cs-menu">
+            <button type="button" class="cs-menu-item cs-menu-item--danger" @click="unbind(row)">
+              {{ t('sessionsPage.unbind') }}
             </button>
           </div>
-          <div class="section-controls">
-            <BaseButton variant="outline" size="sm" :disabled="loading" @click="refreshSessions">
-              {{ t('components.sessions.actions.refresh') }}
-            </BaseButton>
-          </div>
-        </div>
-        <SessionGroups
-          :format-relative-time="formatRelativeTime"
-          :groups="providerGroups"
-          :loading="loading"
-          :truncate-session-id="truncateSessionId"
-          @unbind="unbindSession"
-        />
-      </section>
+        </span>
+      </div>
     </div>
   </div>
 </template>
 
-<script setup lang="ts">
-import { onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
-import BaseButton from '../common/BaseButton.vue'
-import SessionGroups from './SessionGroups.vue'
-import { usePlatformSessions } from './usePlatformSessions'
-import type { ProviderTab } from '../../constants/platforms'
-
-const { t, locale } = useI18n()
-const router = useRouter()
-const route = useRoute()
-
-const syncPlatformQuery = async (platform: ProviderTab) => {
-  await router.replace({ path: '/sessions', query: { platform } })
-}
-
-const {
-  formatRelativeTime,
-  initializeSessions,
-  loading,
-  providerGroups,
-  refreshSessions,
-  selectedPlatform,
-  switchPlatform,
-  tabs,
-  truncateSessionId,
-  unbindSession,
-} = usePlatformSessions({
-  locale,
-  syncPlatformQuery,
-  t,
-})
-
-const goHome = () => {
-  void router.push('/')
-}
-
-onMounted(() => {
-  void initializeSessions(route.query.platform)
-})
-</script>
-
 <style scoped>
-.sessions-page {
-  gap: 18px;
+.sess-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.spin {
-  animation: spin 1s linear infinite;
+.sess-search {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  color: var(--cs-text);
+  font-family: inherit;
+  outline: none;
+  min-width: 180px;
+  text-align: right;
 }
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.sess-search::placeholder {
+  color: var(--cs-text-secondary);
+}
+
+.sess-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 80px;
+  padding: 12px 17px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-r-row);
+  background: var(--cs-surface);
+}
+
+.sess-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sess-id {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cs-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sess-sub {
+  font-size: 10px;
+  color: var(--cs-text-secondary);
+}
+
+.sess-time {
+  font-size: 10px;
+  color: var(--cs-text-secondary);
+  white-space: nowrap;
+}
+
+.sess-chevron {
+  border: none;
+  background: transparent;
+  color: var(--cs-text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.sess-chevron:hover {
+  background: var(--cs-row-hover);
 }
 </style>

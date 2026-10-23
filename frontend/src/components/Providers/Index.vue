@@ -172,47 +172,49 @@ const deleteTarget = computed(() => {
           {{ t('providersPage.list.empty') }}
         </div>
 
-        <button
-          v-for="entry in filteredEntries"
-          :key="entryKey(entry)"
-          type="button"
-          class="prov-row"
-          :class="{ selected: selectedEntry && entryKey(selectedEntry) === entryKey(entry) }"
-          @click.stop="selectedKey = entryKey(entry)"
-        >
-          <span class="prov-avatar">
-            <Server :size="20" :stroke-width="2" />
-          </span>
-          <span class="prov-main">
-            <span class="prov-name">{{ entry.provider.name }}</span>
-            <span class="prov-sub cs-mono">{{ entrySubtitle(entry) }}</span>
-          </span>
-          <span class="cs-pill" :class="`cs-pill--${statusOf(entry).tone}`">
-            {{ statusOf(entry).label }}
-          </span>
-          <span class="cs-menu-anchor" @click.stop>
-            <button type="button" class="prov-kebab" @click="toggleMenu(entryKey(entry))">
-              <Ellipsis :size="16" :stroke-width="2" />
-            </button>
-            <div v-if="menuFor === entryKey(entry)" class="cs-menu">
-              <button type="button" class="cs-menu-item" @click="directory.openEdit(entry); closeMenu()">
-                {{ t('providersPage.menu.edit') }}
+        <div class="prov-rows">
+          <button
+            v-for="entry in filteredEntries"
+            :key="entryKey(entry)"
+            type="button"
+            class="prov-row"
+            :class="{ selected: selectedEntry && entryKey(selectedEntry) === entryKey(entry) }"
+            @click.stop="selectedKey = entryKey(entry)"
+          >
+            <span class="prov-avatar">
+              <Server :size="20" :stroke-width="2" />
+            </span>
+            <span class="prov-main">
+              <span class="prov-name">{{ entry.provider.name }}</span>
+              <span class="prov-sub cs-mono">{{ entrySubtitle(entry) }}</span>
+            </span>
+            <span class="cs-pill" :class="`cs-pill--${statusOf(entry).tone}`">
+              {{ statusOf(entry).label }}
+            </span>
+            <span class="cs-menu-anchor" @click.stop>
+              <button type="button" class="prov-kebab" @click="toggleMenu(entryKey(entry))">
+                <Ellipsis :size="16" :stroke-width="2" />
               </button>
-              <button type="button" class="cs-menu-item" @click="directory.openAdvanced(entry); closeMenu()">
-                {{ t('providersPage.menu.advanced') }}
-              </button>
-              <button type="button" class="cs-menu-item" @click="directory.requestCopy(entry); closeMenu()">
-                {{ t('providersPage.menu.copyAcross') }}
-              </button>
-              <button type="button" class="cs-menu-item" @click="directory.toggleArchive(entry); closeMenu()">
-                {{ t('providersPage.menu.archive') }}
-              </button>
-              <button type="button" class="cs-menu-item cs-menu-item--danger" @click="directory.requestDelete(entry); closeMenu()">
-                {{ t('providersPage.menu.delete') }}
-              </button>
-            </div>
-          </span>
-        </button>
+              <div v-if="menuFor === entryKey(entry)" class="cs-menu">
+                <button type="button" class="cs-menu-item" @click="directory.openEdit(entry); closeMenu()">
+                  {{ t('providersPage.menu.edit') }}
+                </button>
+                <button type="button" class="cs-menu-item" @click="directory.openAdvanced(entry); closeMenu()">
+                  {{ t('providersPage.menu.advanced') }}
+                </button>
+                <button type="button" class="cs-menu-item" @click="directory.requestCopy(entry); closeMenu()">
+                  {{ t('providersPage.menu.copyAcross') }}
+                </button>
+                <button type="button" class="cs-menu-item" @click="directory.toggleArchive(entry); closeMenu()">
+                  {{ t('providersPage.menu.archive') }}
+                </button>
+                <button type="button" class="cs-menu-item cs-menu-item--danger" @click="directory.requestDelete(entry); closeMenu()">
+                  {{ t('providersPage.menu.delete') }}
+                </button>
+              </div>
+            </span>
+          </button>
+        </div>
       </div>
 
       <div class="cs-card cs-card-pad prov-detail" v-if="selectedEntry">
@@ -331,6 +333,23 @@ const deleteTarget = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* 列表在卡片内部滚动，不撑高整页；高度为视口减去顶栏/页头/筛选条 */
+  max-height: calc(100vh - 220px);
+}
+
+.prov-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 滚动容器会裁剪绝对定位的下拉菜单，末行改为向上弹出 */
+.prov-row:last-child .cs-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 
 .prov-list .cs-section-sub {

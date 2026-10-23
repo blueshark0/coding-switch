@@ -1,4 +1,4 @@
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
 import { fetchRouteProfile } from '../../services/routing'
 import { disableProxy, enableProxy, fetchProxyStatus } from '../../services/claudeSettings'
@@ -13,6 +13,7 @@ import {
 } from '../../services/mcp'
 import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
+import { useQuickSwitch } from '../../composables/useQuickSwitch'
 
 export type DashboardClient = {
   platform: ProviderTab
@@ -98,9 +99,8 @@ export const useDashboard = () => {
       mcpEndpoint.value = endpoint
       mcpInjected.value = { claude: claudeInjected, codex: codexInjected }
 
-      const clientRows: DashboardClient[] = []
-      const allSessions: RecentSession[] = []
-      await Promise.all(
+      // 并行拉取各平台数据；用返回值而非 push，保证 clients 顺序恒为 providerTabs 声明顺序。
+      const results = await Promise.all(
         providerTabs.map(async (tab) => {
           const [profile, proxyStatus, bindings] = await Promise.all([
             fetchRouteProfile(tab.id),
@@ -108,26 +108,26 @@ export const useDashboard = () => {
             fetchPlatformSessions(tab.id),
           ])
           const current = profile?.providers?.find((p) => p.id === profile.defaultProviderId)
-          clientRows.push({
+          const clientRow: DashboardClient = {
             platform: tab.id,
             label: tab.label,
             proxyEnabled: Boolean(proxyStatus?.enabled),
             providerName: current?.name ?? '',
             model: current ? modelOf(current.supportedModels) : '',
-          })
-          for (const binding of bindings ?? []) {
-            allSessions.push({
-              platform: tab.id,
-              platformLabel: tab.label,
-              providerName: binding.provider_name,
-              sessionId: binding.session_id,
-              lastSuccessAt: binding.last_success_at,
-            })
           }
+          const sessions: RecentSession[] = (bindings ?? []).map((binding) => ({
+            platform: tab.id,
+            platformLabel: tab.label,
+            providerName: binding.provider_name,
+            sessionId: binding.session_id,
+            lastSuccessAt: binding.last_success_at,
+          }))
+          return { clientRow, sessions }
         }),
       )
-      clients.value = clientRows
-      recentSessions.value = allSessions
+      clients.value = results.map((r) => r.clientRow)
+      recentSessions.value = results
+        .flatMap((r) => r.sessions)
         .sort((a, b) => {
           const ta = new Date(a.lastSuccessAt as string).getTime() || 0
           const tb = new Date(b.lastSuccessAt as string).getTime() || 0
@@ -138,6 +138,33 @@ export const useDashboard = () => {
       loading.value = false
     }
   }
+
+  // 快捷切换面板改完默认供应商后，就地刷新卡片的当前供应商/模型（不触发整页 loading）。
+  const refreshClients = async () => {
+    const profiles = await Promise.all(providerTabs.map((tab) => fetchRouteProfile(tab.id)))
+    const nameModelByPlatform = new Map(
+      providerTabs.map((tab, index) => {
+        const profile = profiles[index]
+        const current = profile?.providers?.find((p) => p.id === profile.defaultProviderId)
+        return [
+          tab.id,
+          {
+            providerName: current?.name ?? '',
+            model: current ? modelOf(current.supportedModels) : '',
+          },
+        ] as const
+      }),
+    )
+    clients.value = clients.value.map((client) => ({
+      ...client,
+      ...(nameModelByPlatform.get(client.platform) ?? {}),
+    }))
+  }
+
+  const { profileRevision } = useQuickSwitch()
+  watch(profileRevision, () => {
+    void refreshClients()
+  })
 
   onMounted(() => {
     void load()

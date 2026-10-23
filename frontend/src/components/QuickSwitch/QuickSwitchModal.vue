@@ -22,7 +22,8 @@ const BRAND_ICONS: Record<ProviderTab, string> = {
 
 const { t } = useI18n()
 const router = useRouter()
-const { quickSwitchOpen, quickSwitchPlatform, closeQuickSwitch } = useQuickSwitch()
+const { quickSwitchOpen, quickSwitchPlatform, closeQuickSwitch, notifyProfileChanged } =
+  useQuickSwitch()
 
 const profiles = ref<Partial<Record<ProviderTab, RouteProfile>>>({})
 const platform = ref<ProviderTab>('claude')
@@ -108,6 +109,7 @@ const applyProvider = async (provider: ProviderRecord) => {
   applying.value = true
   try {
     await saveRouteProfile({ ...profile, defaultProviderId: provider.id })
+    notifyProfileChanged()
     showToast(
       t('quickSwitch.applied', {
         platform: platformOptions.value.find((o) => o.id === platform.value)?.label,

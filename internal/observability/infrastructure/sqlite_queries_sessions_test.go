@@ -75,6 +75,21 @@ func TestSessionUsageByPlatform_AggregatesPerSession(t *testing.T) {
 		t.Fatalf("expected s-1 to have 2 distinct models, got %v", s1.Models)
 	}
 
+	logs, err := NewSQLiteQueries().ListSessionRequestLogs("claude", "s-1")
+	if err != nil {
+		t.Fatalf("ListSessionRequestLogs: %v", err)
+	}
+	if len(logs) != 2 || logs[0].SessionID != "s-1" || logs[1].SessionID != "s-1" {
+		t.Fatalf("expected two s-1 logs with session IDs preserved, got %+v", logs)
+	}
+	if logs[0].Model != "claude-opus-4" || logs[1].Model != "claude-sonnet-4" {
+		t.Fatalf("expected newest session request first, got %q then %q", logs[0].Model, logs[1].Model)
+	}
+	otherPlatform, err := NewSQLiteQueries().ListSessionRequestLogs("codex", "s-1")
+	if err != nil || len(otherPlatform) != 0 {
+		t.Fatalf("session query must be platform scoped: logs=%+v err=%v", otherPlatform, err)
+	}
+
 	if usage["s-2"].Requests != 1 {
 		t.Fatalf("expected s-2 requests 1, got %d", usage["s-2"].Requests)
 	}

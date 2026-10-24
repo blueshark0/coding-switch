@@ -5,12 +5,10 @@ import {
   DEFAULT_LOG_PAGE_SIZE,
   fetchRequestLogs,
   fetchLogProviders,
-  fetchLogStats,
   LOG_PAGE_SIZE_OPTIONS,
   LOG_RANGE_OPTIONS,
   normalizeLogPageSize,
   normalizeLogRangeKey,
-  type LogStats,
   type LogHttpStatus,
   type LogRangeKey,
   type RequestLog,
@@ -29,7 +27,6 @@ const EXPORT_MAX_ROWS = 5000
 
 export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
   const logs = ref<RequestLog[]>([])
-  const stats = ref<LogStats | null>(null)
   const loading = ref(false)
   const exporting = ref(false)
   const filters = reactive<{
@@ -56,17 +53,21 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
   const rangeOptions = computed(() =>
     LOG_RANGE_OPTIONS.map((value) => ({
       value,
-      label: t(`components.logs.filters.ranges.${value}`),
+      label: t('logsPage.filters.rangeOption', { range: t(`logsPage.filters.ranges.${value}`) }),
     })),
   )
   const httpStatusOptions = computed<Array<{ value: LogHttpStatus; label: string }>>(() => [
     {
       value: 'all',
-      label: t('components.logs.filters.allHttpStatus'),
+      label: t('logsPage.filters.allStatus'),
     },
     {
       value: 'success',
-      label: t('components.logs.filters.httpStatus200'),
+      label: t('logsPage.filters.successStatus'),
+    },
+    {
+      value: 'failed',
+      label: t('logsPage.filters.failedStatus'),
     },
   ])
 
@@ -90,29 +91,19 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
           queuedDashboardReload = false
           const requestedPage = Math.max(1, Math.floor(page.value))
           const requestedPageSize = normalizeLogPageSize(pageSize.value)
-          const [logData, statData] = await Promise.all([
-            fetchRequestLogs({
-              platform: filters.platform,
-              provider: filters.provider,
-              rangeKey: normalizeLogRangeKey(filters.rangeKey),
-              costTier: filters.costTier,
-              httpStatus: filters.httpStatus,
-              page: requestedPage,
-              pageSize: requestedPageSize,
-            }),
-            fetchLogStats({
-              platform: filters.platform,
-              provider: filters.provider,
-              rangeKey: normalizeLogRangeKey(filters.rangeKey),
-              costTier: filters.costTier,
-              httpStatus: filters.httpStatus,
-            }),
-          ])
+          const logData = await fetchRequestLogs({
+            platform: filters.platform,
+            provider: filters.provider,
+            rangeKey: normalizeLogRangeKey(filters.rangeKey),
+            costTier: filters.costTier,
+            httpStatus: filters.httpStatus,
+            page: requestedPage,
+            pageSize: requestedPageSize,
+          })
           const nextLogs = logData?.items ?? []
           logs.value = nextLogs
           totalLogs.value = logData?.total ?? 0
           pageSize.value = normalizeLogPageSize(logData?.page_size ?? requestedPageSize)
-          stats.value = statData ?? null
           const nextTotalPages = Math.max(1, Math.ceil(totalLogs.value / pageSize.value))
           if (requestedPage > nextTotalPages) {
             page.value = nextTotalPages
@@ -240,7 +231,7 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
         exportPage += 1
       } while (all.length < total && all.length < EXPORT_MAX_ROWS && exportPage <= 100)
 
-      const header = 'id,created_at,platform,provider,model,http_code,duration_sec,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,reasoning_tokens,total_cost'
+      const header = 'id,created_at,platform,provider,model,session_id,http_code,ttft_sec,duration_sec,input_tokens,output_tokens,cache_create_tokens,cache_read_tokens,reasoning_tokens,total_cost'
       const lines = all.map((log) =>
         [
           log.id,
@@ -248,7 +239,9 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
           log.platform,
           log.provider,
           log.model,
+          log.session_id,
           log.http_code,
+          log.ttft_sec || '',
           log.duration_sec,
           log.input_tokens,
           log.output_tokens,
@@ -313,7 +306,6 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
     prevPage,
     providerOptions,
     rangeOptions,
-    stats,
     totalLogs,
     totalPages,
     updatePageSize,

@@ -12,3 +12,9 @@ export const formatUsd = (value?: number | null): string => {
   }
   return `$${value.toFixed(4)}`
 }
+
+// 请求明细和会话统计保留四位小数，避免小额请求成本被中间精度截断。
+export const formatUsdPrecise = (value?: number | null): string => {
+  const amount = value === undefined || value === null || Number.isNaN(value) ? 0 : value
+  return `$${amount.toFixed(4)}`
+}

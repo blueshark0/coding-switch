@@ -1,5 +1,7 @@
 import { ListByPlatform, Unbind } from '../../bindings/codeswitch/internal/interfaces/wails/sessionfacade'
+import { ListSessionRequestLogs } from '../../bindings/codeswitch/internal/interfaces/wails/observabilityfacade'
 import type { SessionSummary } from '../../bindings/codeswitch/internal/interfaces/wails/models'
+import type { RequestLog } from './logs'
 
 // ListByPlatform 现在返回「绑定 + 用量聚合」的 SessionSummary，
 // 它覆盖原 SessionBinding 的全部字段，这里保留旧名以免改动各消费方。
@@ -11,4 +13,9 @@ export const fetchPlatformSessions = async (platform: string): Promise<SessionBi
 
 export const unbindSession = async (platform: string, sessionId: string): Promise<void> => {
   await Unbind(platform, sessionId)
+}
+
+export const fetchSessionRequestLogs = async (platform: string, sessionId: string): Promise<RequestLog[]> => {
+  if (!platform.trim() || !sessionId.trim()) return []
+  return ListSessionRequestLogs(platform, sessionId)
 }

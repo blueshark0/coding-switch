@@ -128,6 +128,7 @@ watch(
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+  margin-top: 13px;
 }
 
 .app-log-toolbar {

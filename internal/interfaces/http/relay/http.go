@@ -170,7 +170,7 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	status := resp.StatusCode()
 	requestLog.HttpCode = status
 	if status >= http.StatusOK && status < http.StatusMultipleChoices {
-		responseHook := s.requestLogHook(fwdCtx.Platform, requestLog)
+		responseHook := withFirstTokenTiming(start, requestLog, s.requestLogHook(fwdCtx.Platform, requestLog))
 		var codexOutcome *codexStreamOutcome
 		if fwdCtx.Platform == kernel.PlatformCodex {
 			codexOutcome = &codexStreamOutcome{}

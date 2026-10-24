@@ -520,13 +520,15 @@
   "logsPage": {
     "title": "Usage logs",
     "subtitle": {
-      "requests": "Track requests, latency and error causes; troubleshoot first, then analyze trends.",
+      "overview": "Analyze today's cost, request quality and Token usage; open request logs for details.",
+      "requests": "Inspect cost, Tokens, first response and total duration for each request, then trace its session.",
       "app": "Inspect service startup, MCP connections, upstream errors and internal application events."
     },
     "tabs": {
+      "overview": "Overview",
       "requests": "Request logs",
       "app": "Application logs",
-      "hint": "API call details and application runtime events, kept separate"
+      "hint": "Analyze overall usage  ·  Inspect each request  ·  Diagnose runtime issues"
     },
     "appLog": {
       "levelLabel": "Level",
@@ -541,49 +543,203 @@
       "loading": "Reading logs…",
       "truncatedHint": "The log file is large; only the latest portion is shown"
     },
-    "metrics": {
-      "requests": "Requests",
-      "successRate": "Success rate",
-      "avgLatency": "Avg latency",
-      "errors": "Failed requests"
+    "overview": {
+      "loadFailed": "Failed to load usage statistics; please try again later",
+      "rangeLabel": "Statistics range",
+      "todayOption": "Today · {date}",
+      "metricsTitle": "Key metrics · {range}",
+      "metrics": {
+        "cost": "Request cost · {range}",
+        "costHint": "USD · estimated cost",
+        "requests": "Requests",
+        "requestsHint": "{range} total",
+        "successRate": "Success rate",
+        "successHint": "{count} failed requests",
+        "duration": "Avg total duration",
+        "durationHint": "Average across all requests"
+      },
+      "tokens": {
+        "title": "Token usage",
+        "subtitle": "Cache reads may count as input; reasoning Tokens may count as output",
+        "cacheHits": "{count} cache-hit requests",
+        "total": "Total Tokens",
+        "input": "Input Tokens",
+        "output": "Output Tokens",
+        "reasoning": "Reasoning Tokens",
+        "cacheRead": "Cache read",
+        "cacheCreate": "Cache write"
+      },
+      "trend": {
+        "title": "Usage trend",
+        "subtitle": "Last 7 days · Showing {metric} ({unit})",
+        "metricLabel": "Trend metric",
+        "chartLabel": "Seven-day {metric} trend",
+        "table": "Data table",
+        "tableCaption": "Seven-day {metric} data",
+        "day": "Day",
+        "empty": "No trend data in this range",
+        "metrics": {
+          "cost": "Cost",
+          "input": "Input",
+          "output": "Output",
+          "cacheCreate": "Cache write",
+          "reasoning": "Reasoning",
+          "cacheRead": "Cache read"
+        }
+      },
+      "note": "Cost and Tokens use independent units. Total Tokens = input + output; cache and reasoning may already be included."
     },
     "recent": {
-      "title": "Recent requests",
-      "subtitle": "Filter by client, provider, status and time"
+      "title": "Detailed request logs",
+      "subtitle": "Input / output and cache read / write Tokens appear on two lines",
+      "tokenHint": "Input / output and cache read / write use two rows; reasoning Tokens may already be included in output."
     },
     "columns": {
       "time": "Time",
       "client": "Client",
       "provider": "Provider",
       "model": "Model",
-      "httpCode": "HTTP",
+      "tokens": "Token usage",
+      "cost": "Cost",
+      "ttft": "First response",
+      "ttftHint": "Time to the first data event or JSON body; unavailable for historical entries",
       "duration": "Duration",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "filters": {
+      "platform": "Client",
+      "provider": "Provider",
+      "status": "Request status",
+      "range": "Time range",
+      "pageSize": "Rows per page",
       "allPlatforms": "Client: all",
-      "allProviders": "Provider: all"
+      "allProviders": "Provider: all",
+      "allStatus": "Status: all",
+      "successStatus": "Status: success",
+      "failedStatus": "Status: failed",
+      "rangeOption": "Time: {range}",
+      "pageSizeOption": "{count} rows / page",
+      "costTier": "Request cost range",
+      "costHint": "Low / medium / high are based on per-request cost · thresholds are defined by the backend",
+      "costTiers": {
+        "all": "All",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High"
+      },
+      "ranges": {
+        "today": "Today",
+        "last3days": "Last 3 days",
+        "last7days": "Last 7 days"
+      }
     },
     "actions": {
-      "export": "Export",
-      "refresh": "Refresh"
+      "export": "Export records",
+      "exporting": "Exporting…",
+      "refresh": "Refresh",
+      "trace": "Trace session",
+      "traceTitle": "Open the complete session",
+      "traceUnavailable": "This request has no session ID"
     },
+    "tokens": {
+      "inputShort": "In",
+      "outputShort": "Out",
+      "cacheReadShort": "Cache R",
+      "cacheWriteShort": "W"
+    },
+    "loading": "Loading request records…",
     "empty": "No requests under current filters",
     "status": {
       "success": "Success",
-      "rateLimited": "429 rate limited",
-      "serverError": "{code} server error",
-      "failed": "{code} failed"
+      "failure": "Failed"
     },
     "pager": {
       "total": "{total} entries",
-      "prev": "Prev",
+      "range": "Showing {start}–{end} · {total} entries",
+      "current": "Page {page} / {total}",
+      "prev": "Previous",
       "next": "Next"
     },
     "messages": {
       "exported": "Exported {count} entries",
       "exportFailed": "Export failed"
     }
+  },
+  "sessionTrace": {
+    "title": "Session trace",
+    "subtitle": "Usage logs  /  Request logs  /  Session trace",
+    "back": "Back to request logs",
+    "loading": "Loading session requests…",
+    "loadFailed": "Failed to load session requests; please retry",
+    "retry": "Retry",
+    "empty": "No local request records found for this session",
+    "recorded": "Recorded",
+    "sessionLabel": "Session",
+    "identity": "Started {start} · last activity {last} · current Provider {provider} · model {model}",
+    "fullLifecycle": "Full session lifecycle",
+    "requestCount": "{count} requests",
+    "fullOutcome": "{success} success / {failed} failed",
+    "enteredFrom": "Entered from request at {time}",
+    "range": {
+      "label": "Range",
+      "day": "Request day ({date})",
+      "full": "Full session",
+      "daySummary": "{count} requests in this session on {date}",
+      "fullSummary": "{count} requests · {start} to {end}"
+    },
+    "metrics": {
+      "dayRequests": "Requests on day",
+      "totalRequests": "Total requests",
+      "requestHint": "{success} success · {failed} failed",
+      "successRate": "Success rate",
+      "failureRate": "Failure rate",
+      "cacheShare": "Cache-read share",
+      "ratio": "{part} / {total}",
+      "cacheHint": "{hits} / {total} requests"
+    },
+    "filters": {
+      "label": "Request status",
+      "all": "All",
+      "success": "Success",
+      "failed": "Failed"
+    },
+    "timeline": {
+      "title": "Request timeline for this session",
+      "daySubtitle": "Request day · {date}",
+      "fullSubtitle": "Full lifecycle · {start}—{end}",
+      "footer": "{filtered} shown · {total} in range · scroll to inspect",
+      "empty": "No requests match this status"
+    },
+    "columns": {
+      "time": "Time",
+      "model": "Model",
+      "status": "Status",
+      "ttft": "First response",
+      "duration": "Duration",
+      "cost": "Cost"
+    },
+    "usage": {
+      "title": "Session usage & cache",
+      "day": "Request day",
+      "full": "Full-session totals",
+      "input": "Input Tokens",
+      "output": "Output Tokens",
+      "cacheRead": "Cache read",
+      "cacheCreate": "Cache write",
+      "totalCost": "Total estimated cost"
+    },
+    "source": {
+      "title": "Selected request",
+      "success": "{code} · Success",
+      "failure": "{code} · Failed",
+      "id": "Request ID #{id}",
+      "cost": "Cost",
+      "ttft": "First response",
+      "duration": "Duration",
+      "note": "Only structured metrics are stored, not raw request / response events."
+    },
+    "note": "Only locally retained request records (30 days) are included. Cache share = requests with cache reads / all requests. First response uses the first data event or JSON body."
   },
   "sessionsPage": {
     "title": "Sessions",

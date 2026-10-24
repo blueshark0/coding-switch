@@ -25,21 +25,23 @@ export type {
 
 export const LOG_RANGE_OPTIONS = ['today', 'last3days', 'last7days'] as const
 export const LOG_COST_TIER_OPTIONS = ['all', 'low', 'medium', 'high'] as const
-export const LOG_HTTP_STATUS_OPTIONS = ['all', 'success'] as const
-export const LOG_PAGE_SIZE_OPTIONS = [15, 30, 50, 100] as const
-export const DEFAULT_LOG_PAGE_SIZE = 15
+export const LOG_HTTP_STATUS_OPTIONS = ['all', 'success', 'failed'] as const
+export const LOG_PAGE_SIZE_OPTIONS = [15, 30, 50, 100, 200] as const
+export const DEFAULT_LOG_PAGE_SIZE = 200
 
 export type LogRangeKey = (typeof LOG_RANGE_OPTIONS)[number]
 export type LogCostTier = (typeof LOG_COST_TIER_OPTIONS)[number]
 export type LogHttpStatus = (typeof LOG_HTTP_STATUS_OPTIONS)[number]
 export type LogPageSize = (typeof LOG_PAGE_SIZE_OPTIONS)[number]
 
-export const DEFAULT_LOG_RANGE: LogRangeKey = 'today'
-// 请求日志默认只看 200 的记录，排查失败时再手动切到 all。
-export const DEFAULT_LOG_HTTP_STATUS: LogHttpStatus = 'success'
+export const DEFAULT_LOG_RANGE: LogRangeKey = 'last7days'
+// 请求日志默认展示全部状态，便于直接排障；总览统计也显式使用 all。
+export const DEFAULT_LOG_HTTP_STATUS: LogHttpStatus = 'all'
 
 export const normalizeLogRangeKey = (value?: string): LogRangeKey => {
   switch (value) {
+    case 'today':
+      return 'today'
     case 'last3days':
       return 'last3days'
     case 'last7days':
@@ -63,7 +65,7 @@ export const normalizeLogCostTier = (value?: string): LogCostTier => {
 }
 
 export const normalizeLogHttpStatus = (value?: string): LogHttpStatus => {
-  return value === 'all' ? 'all' : DEFAULT_LOG_HTTP_STATUS
+  return value === 'success' || value === 'failed' ? value : 'all'
 }
 
 export const normalizeLogPageSize = (value?: number): LogPageSize => {

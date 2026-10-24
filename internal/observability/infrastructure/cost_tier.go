@@ -25,7 +25,7 @@ func normalizeRequestLogPagination(page int, pageSize int) (int, int) {
 		page = 1
 	}
 	switch pageSize {
-	case 15, 30, 50, 100:
+	case 15, 30, 50, 100, 200:
 	default:
 		pageSize = defaultRequestLogPageSize
 	}

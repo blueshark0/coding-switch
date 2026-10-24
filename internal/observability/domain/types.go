@@ -15,15 +15,18 @@ type RequestLog struct {
 	IsStream          bool    `json:"is_stream"`
 	IsFast            bool    `json:"is_fast"`
 	DurationSec       float64 `json:"duration_sec"`
-	CreatedAt         string  `json:"created_at"`
-	InputCost         float64 `json:"input_cost"`
-	OutputCost        float64 `json:"output_cost"`
-	CacheCreateCost   float64 `json:"cache_create_cost"`
-	CacheReadCost     float64 `json:"cache_read_cost"`
-	Ephemeral5mCost   float64 `json:"ephemeral_5m_cost"`
-	Ephemeral1hCost   float64 `json:"ephemeral_1h_cost"`
-	TotalCost         float64 `json:"total_cost"`
-	HasPricing        bool    `json:"has_pricing"`
+	// TTFTSec 是成功响应首条 data 事件或 JSON body 到达的耗时；
+	// 0 表示历史记录或无可用数据，前端应显示为暂无数据。
+	TTFTSec         float64 `json:"ttft_sec"`
+	CreatedAt       string  `json:"created_at"`
+	InputCost       float64 `json:"input_cost"`
+	OutputCost      float64 `json:"output_cost"`
+	CacheCreateCost float64 `json:"cache_create_cost"`
+	CacheReadCost   float64 `json:"cache_read_cost"`
+	Ephemeral5mCost float64 `json:"ephemeral_5m_cost"`
+	Ephemeral1hCost float64 `json:"ephemeral_1h_cost"`
+	TotalCost       float64 `json:"total_cost"`
+	HasPricing      bool    `json:"has_pricing"`
 	// CostTier 是后端统一计算的费用档位（""/low/medium/high），前端只消费
 	// 该字段做着色，不再复写 0.1/0.5 阈值。
 	CostTier string `json:"cost_tier"`
@@ -58,22 +61,23 @@ type HeatmapStat struct {
 }
 
 type LogStats struct {
-	TotalRequests     int64            `json:"total_requests"`
-	InputTokens       int64            `json:"input_tokens"`
-	OutputTokens      int64            `json:"output_tokens"`
-	ReasoningTokens   int64            `json:"reasoning_tokens"`
-	CacheCreateTokens int64            `json:"cache_create_tokens"`
-	CacheReadTokens   int64            `json:"cache_read_tokens"`
-	CostTotal         float64          `json:"cost_total"`
-	CostInput         float64          `json:"cost_input"`
-	CostOutput        float64          `json:"cost_output"`
-	CostCacheCreate   float64          `json:"cost_cache_create"`
-	CostCacheRead     float64          `json:"cost_cache_read"`
+	TotalRequests     int64   `json:"total_requests"`
+	InputTokens       int64   `json:"input_tokens"`
+	OutputTokens      int64   `json:"output_tokens"`
+	ReasoningTokens   int64   `json:"reasoning_tokens"`
+	CacheCreateTokens int64   `json:"cache_create_tokens"`
+	CacheReadTokens   int64   `json:"cache_read_tokens"`
+	CostTotal         float64 `json:"cost_total"`
+	CostInput         float64 `json:"cost_input"`
+	CostOutput        float64 `json:"cost_output"`
+	CostCacheCreate   float64 `json:"cost_cache_create"`
+	CostCacheRead     float64 `json:"cost_cache_read"`
 	// FailedRequests 与 AvgDurationSec 供指标卡使用；统计时忽略 httpStatus
 	// 过滤（否则"只看成功"的默认视图下失败数恒为 0），其余过滤条件照常生效。
-	FailedRequests int64            `json:"failed_requests"`
-	AvgDurationSec float64          `json:"avg_duration_sec"`
-	Series         []LogStatsSeries `json:"series"`
+	FailedRequests   int64            `json:"failed_requests"`
+	CacheHitRequests int64            `json:"cache_hit_requests"`
+	AvgDurationSec   float64          `json:"avg_duration_sec"`
+	Series           []LogStatsSeries `json:"series"`
 }
 
 type ProviderDailyStat struct {

@@ -46,6 +46,7 @@ func recordFromRequestLog(logEntry *observabilitydomain.RequestLog) xdb.Record {
 		"is_stream":           boolToInt(logEntry.IsStream),
 		"is_fast":             boolToInt(logEntry.IsFast),
 		"duration_sec":        logEntry.DurationSec,
+		"ttft_sec":            logEntry.TTFTSec,
 		"created_at":          requestLogCreatedAt(logEntry.CreatedAt),
 		"session_id":          logEntry.SessionID,
 	}
@@ -125,6 +126,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		is_stream INTEGER DEFAULT 0,
 		is_fast INTEGER DEFAULT 0,
 		duration_sec REAL DEFAULT 0,
+		ttft_sec REAL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		total_cost REAL,
 		has_pricing INTEGER,
@@ -142,6 +144,7 @@ func EnsureRequestLogTableWithDB(db *sql.DB) error {
 		{Name: "is_stream", Definition: "INTEGER DEFAULT 0"},
 		{Name: "is_fast", Definition: "INTEGER DEFAULT 0"},
 		{Name: "duration_sec", Definition: "REAL DEFAULT 0"},
+		{Name: "ttft_sec", Definition: "REAL DEFAULT 0"},
 		{Name: "total_cost", Definition: "REAL"},
 		{Name: "has_pricing", Definition: "INTEGER"},
 		{Name: "session_id", Definition: "TEXT"},

@@ -36,6 +36,12 @@
   --cs-danger-tint: #fff0ef;
   --cs-info-tint: #e8edf5;
   --cs-info-text: #637184;
+  --cs-metric-cost: #ea7435;
+  --cs-metric-input: #20ac79;
+  --cs-metric-output: #356df3;
+  --cs-metric-reasoning: #7856d6;
+  --cs-metric-cache-create: #d5a129;
+  --cs-metric-cache-read: #0ca6c6;
 
   --cs-overlay: rgba(34, 40, 52, 0.28);
 
@@ -95,6 +101,12 @@ html.dark {
   --cs-danger-tint: rgba(224, 108, 108, 0.14);
   --cs-info-tint: #2a2e38;
   --cs-info-text: #9aa0ac;
+  --cs-metric-cost: #d5652f;
+  --cs-metric-input: #20ac79;
+  --cs-metric-output: #5b86f5;
+  --cs-metric-reasoning: #7856d6;
+  --cs-metric-cache-create: #bd861c;
+  --cs-metric-cache-read: #0799b5;
 
   --cs-overlay: rgba(0, 0, 0, 0.55);
 

@@ -50,6 +50,7 @@ func (q *SQLiteQueries) requestLogsFromRecords(records []xdb.Record) []observabi
 			Platform:          record.GetString("platform"),
 			Model:             record.GetString("model"),
 			Provider:          record.GetString("provider"),
+			SessionID:         record.GetString("session_id"),
 			HttpCode:          record.GetInt("http_code"),
 			InputTokens:       record.GetInt("input_tokens"),
 			OutputTokens:      record.GetInt("output_tokens"),
@@ -60,6 +61,7 @@ func (q *SQLiteQueries) requestLogsFromRecords(records []xdb.Record) []observabi
 			IsStream:          record.GetBool("is_stream"),
 			IsFast:            record.GetBool("is_fast"),
 			DurationSec:       record.GetFloat64("duration_sec"),
+			TTFTSec:           record.GetFloat64("ttft_sec"),
 		}
 		q.decorateCost(&logEntry)
 		logs = append(logs, logEntry)

@@ -14,7 +14,7 @@ import (
 
 // RequestLogWriter 在写入前按当时定价物化 total_cost/has_pricing，
 // 让费用档位过滤与统计可以下推到 SQL。pricing 为 nil 时使用共享定价服务
-//（测试可注入固定价格表）。
+// （测试可注入固定价格表）。
 type RequestLogWriter struct {
 	pricing *modelpricing.Service
 }
@@ -112,11 +112,12 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 		is_stream,
 		is_fast,
 		duration_sec,
+		ttft_sec,
 		created_at,
 		total_cost,
 		has_pricing,
 		session_id
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	stmt, err := tx.PrepareContext(ctx, insertSQL)
 	if err != nil {
 		return err
@@ -141,6 +142,7 @@ func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
 			boolToInt(logEntry.IsStream),
 			boolToInt(logEntry.IsFast),
 			logEntry.DurationSec,
+			logEntry.TTFTSec,
 			requestLogCreatedAt(logEntry.CreatedAt),
 			logEntry.TotalCost,
 			boolToInt(logEntry.HasPricing),

@@ -51,7 +51,7 @@ func TestEnsureRequestLogTableWithDB_MigratesLegacySchema(t *testing.T) {
 		t.Fatalf("ensure request_log schema: %v", err)
 	}
 
-	for _, column := range []string{"created_at", "is_stream", "is_fast", "duration_sec", "session_id"} {
+	for _, column := range []string{"created_at", "is_stream", "is_fast", "duration_sec", "ttft_sec", "session_id"} {
 		var count int
 		if err := db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('request_log') WHERE name = ?", column).Scan(&count); err != nil {
 			t.Fatalf("query column %s: %v", column, err)

@@ -55,6 +55,7 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 			IsStream:          true,
 			IsFast:            true,
 			DurationSec:       1.25,
+			TTFTSec:           0.42,
 			CreatedAt:         "2026-05-29 06:30:15",
 		},
 		nil,
@@ -84,14 +85,15 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 	var isStream int
 	var isFast int
 	var durationSec float64
+	var ttftSec float64
 	var createdAt string
 	var totalCost float64
 	var hasPricing int
 	if err := db.QueryRow(`
-		SELECT provider, http_code, input_tokens, is_stream, is_fast, duration_sec, strftime('%Y-%m-%d %H:%M:%S', created_at), total_cost, has_pricing
+		SELECT provider, http_code, input_tokens, is_stream, is_fast, duration_sec, ttft_sec, strftime('%Y-%m-%d %H:%M:%S', created_at), total_cost, has_pricing
 		FROM request_log
 		WHERE platform = 'claude'
-	`).Scan(&provider, &httpCode, &inputTokens, &isStream, &isFast, &durationSec, &createdAt, &totalCost, &hasPricing); err != nil {
+	`).Scan(&provider, &httpCode, &inputTokens, &isStream, &isFast, &durationSec, &ttftSec, &createdAt, &totalCost, &hasPricing); err != nil {
 		t.Fatalf("query written row: %v", err)
 	}
 	if provider != "alpha-temp" {
@@ -111,6 +113,9 @@ func TestRequestLogWriter_ProcessWritesBatch(t *testing.T) {
 	}
 	if durationSec != 1.25 {
 		t.Fatalf("expected duration_sec 1.25, got %f", durationSec)
+	}
+	if ttftSec != 0.42 {
+		t.Fatalf("expected ttft_sec 0.42, got %f", ttftSec)
 	}
 	if createdAt != "2026-05-29 06:30:15" {
 		t.Fatalf("expected created_at to be preserved, got %q", createdAt)

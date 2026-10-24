@@ -100,6 +100,13 @@ func TestListRequestLogs_PaginatesWithTotal(t *testing.T) {
 	if page.Page != 1 || page.PageSize != 30 || len(page.Items) != 5 {
 		t.Fatalf("unexpected first page: page=%d pageSize=%d items=%d", page.Page, page.PageSize, len(page.Items))
 	}
+	page, err = queries.ListRequestLogs("", "", "today", "all", "all", 1, 200)
+	if err != nil {
+		t.Fatalf("ListRequestLogs page size 200: %v", err)
+	}
+	if page.PageSize != 200 || len(page.Items) != 5 {
+		t.Fatalf("expected 200-row page size, got pageSize=%d items=%d", page.PageSize, len(page.Items))
+	}
 }
 
 func TestListRequestLogs_FiltersByCostTier(t *testing.T) {
@@ -184,6 +191,14 @@ func TestListRequestLogs_FiltersByHTTPStatus(t *testing.T) {
 		t.Fatalf("expected two logs with all filter, got total=%d items=%d", allLogs.Total, len(allLogs.Items))
 	}
 
+	failedLogs, err := queries.ListRequestLogs("claude", "alpha", "today", "all", "failed", 1, 15)
+	if err != nil {
+		t.Fatalf("ListRequestLogs failed: %v", err)
+	}
+	if failedLogs.Total != 1 || len(failedLogs.Items) != 1 || failedLogs.Items[0].HttpCode != 500 {
+		t.Fatalf("expected one failed log, got %+v", failedLogs)
+	}
+
 	successStats, err := queries.StatsSince("claude", "alpha", "today", "all", "success")
 	if err != nil {
 		t.Fatalf("StatsSince success: %v", err)
@@ -197,6 +212,26 @@ func TestListRequestLogs_FiltersByHTTPStatus(t *testing.T) {
 	}
 	if allStats.TotalRequests != 2 {
 		t.Fatalf("expected all stats total 2, got %d", allStats.TotalRequests)
+	}
+}
+
+func TestStatsSinceCountsCacheHitRequests(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, time.March, 16, 12, 0, 0, 0, loc)
+	db := setupRangeQueryTestDB(t)
+	setRangeTestClock(t, now)
+	seedRequestLogWithHTTPCode(t, db, time.Date(2026, time.March, 16, 9, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 1, 0, false, 200)
+	seedRequestLogWithHTTPCode(t, db, time.Date(2026, time.March, 16, 10, 0, 0, 0, loc), "claude", "alpha", "gpt-4.1", 1, 1, 0, false, 500)
+	if _, err := db.Exec("UPDATE request_log SET cache_read_tokens = 64 WHERE http_code = 200"); err != nil {
+		t.Fatalf("seed cache read: %v", err)
+	}
+
+	stats, err := newRangeTestQueriesWithPricing(t).StatsSince("claude", "alpha", "today", "all", "all")
+	if err != nil {
+		t.Fatalf("StatsSince: %v", err)
+	}
+	if stats.CacheHitRequests != 1 {
+		t.Fatalf("expected one request with cache reads, got %d", stats.CacheHitRequests)
 	}
 }
 

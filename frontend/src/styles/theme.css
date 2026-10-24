@@ -34,6 +34,8 @@
   --cs-warning-tint: #fff5e2;
   --cs-warning-tint-border: #f3d9a4;
   --cs-danger-tint: #fff0ef;
+  --cs-info-tint: #e8edf5;
+  --cs-info-text: #637184;
 
   --cs-overlay: rgba(34, 40, 52, 0.28);
 
@@ -91,6 +93,8 @@ html.dark {
   --cs-warning-tint: rgba(217, 154, 61, 0.14);
   --cs-warning-tint-border: rgba(217, 154, 61, 0.32);
   --cs-danger-tint: rgba(224, 108, 108, 0.14);
+  --cs-info-tint: #2a2e38;
+  --cs-info-text: #9aa0ac;
 
   --cs-overlay: rgba(0, 0, 0, 0.55);
 

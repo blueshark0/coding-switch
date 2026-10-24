@@ -519,7 +519,28 @@
   },
   "logsPage": {
     "title": "Usage logs",
-    "subtitle": "Track requests, latency and error causes; troubleshoot first, then analyze trends.",
+    "subtitle": {
+      "requests": "Track requests, latency and error causes; troubleshoot first, then analyze trends.",
+      "app": "Inspect service startup, MCP connections, upstream errors and internal application events."
+    },
+    "tabs": {
+      "requests": "Request logs",
+      "app": "Application logs",
+      "hint": "API call details and application runtime events, kept separate"
+    },
+    "appLog": {
+      "levelLabel": "Level",
+      "levels": {
+        "all": "All levels",
+        "none": "No level"
+      },
+      "keywordPlaceholder": "⌕  Search messages, source files or keywords…",
+      "follow": "Auto-follow",
+      "refresh": "Refresh",
+      "empty": "No application logs match the current filters",
+      "loading": "Reading logs…",
+      "truncatedHint": "The log file is large; only the latest portion is shown"
+    },
     "metrics": {
       "requests": "Requests",
       "successRate": "Success rate",

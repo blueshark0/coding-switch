@@ -519,7 +519,28 @@
   },
   "logsPage": {
     "title": "使用记录",
-    "subtitle": "追踪请求、延迟和错误原因；先排障，再分析趋势。",
+    "subtitle": {
+      "requests": "追踪请求、延迟和错误原因；先排障，再分析趋势。",
+      "app": "查看服务启动、MCP 连接、上游错误与应用内部事件。"
+    },
+    "tabs": {
+      "requests": "请求日志",
+      "app": "应用日志",
+      "hint": "API 调用明细与应用运行事件分开查看"
+    },
+    "appLog": {
+      "levelLabel": "级别",
+      "levels": {
+        "all": "全部级别",
+        "none": "无级别"
+      },
+      "keywordPlaceholder": "⌕  搜索日志内容、文件名或关键字…",
+      "follow": "自动跟随",
+      "refresh": "刷新",
+      "empty": "当前条件下暂无应用日志",
+      "loading": "正在读取日志…",
+      "truncatedHint": "日志文件较大，仅显示最近部分内容"
+    },
     "metrics": {
       "requests": "请求次数",
       "successRate": "成功率",

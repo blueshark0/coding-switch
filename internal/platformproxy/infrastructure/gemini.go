@@ -1,11 +1,11 @@
 package infrastructure
 
 import (
-	"bufio"
 	"errors"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	platformproxydomain "codeswitch/internal/platformproxy/domain"
 )
@@ -13,137 +13,172 @@ import (
 const (
 	geminiSettingsDir      = ".gemini"
 	geminiSettingsFileName = ".env"
-	geminiBackupFileName   = "cc-studio.back.env"
 	geminiAPIKeyValue      = "code-switch"
 )
 
+var geminiProxyFieldKeys = []string{"GEMINI_API_KEY", "GOOGLE_GEMINI_BASE_URL"}
+
 type GeminiManager struct {
-	relayAddr string
+	relayAddr  string
+	stateStore proxyStateStore
+	mu         sync.RWMutex
 }
 
 func NewGeminiManager(relayAddr string) *GeminiManager {
-	return &GeminiManager{relayAddr: relayAddr}
+	return &GeminiManager{relayAddr: relayAddr, stateStore: newProxyStateStore("gemini")}
 }
 
 func (m *GeminiManager) ProxyStatus() (platformproxydomain.Status, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	status := platformproxydomain.Status{Enabled: false, BaseURL: m.baseURL()}
-	settingsPath, _, err := m.paths()
+	state, exists, err := m.stateStore.load()
 	if err != nil {
 		return status, err
 	}
-	envMap, err := m.parseEnvFile(settingsPath)
+	if exists && !state.Active {
+		return status, nil
+	}
+	settingsPath, err := m.settingsPath()
+	if err != nil {
+		return status, err
+	}
+	data, err := os.ReadFile(settingsPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return status, nil
 		}
 		return status, err
 	}
-	baseURL := m.baseURL()
+	envMap, err := envEffectiveValues(data, geminiProxyFieldKeys)
+	if err != nil {
+		return status, err
+	}
 	status.Enabled = strings.EqualFold(envMap["GEMINI_API_KEY"], geminiAPIKeyValue) &&
-		strings.EqualFold(envMap["GOOGLE_GEMINI_BASE_URL"], baseURL)
+		strings.EqualFold(envMap["GOOGLE_GEMINI_BASE_URL"], m.baseURL())
 	return status, nil
 }
 
 func (m *GeminiManager) EnableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	settingsPath, err := m.settingsPath()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
+	data, fileExisted, err := readConfigFile(settingsPath, nil)
+	if err != nil {
 		return err
 	}
-	// 已处于代理状态时跳过备份：重复 Enable 会用已代理内容覆盖唯一备份，
-	// 导致用户原始配置永久丢失。
-	alreadyProxied := false
-	if status, statusErr := m.ProxyStatus(); statusErr == nil {
-		alreadyProxied = status.Enabled
+	state, stateExists, err := m.stateStore.load()
+	if err != nil {
+		return err
 	}
-	var envMap map[string]string
-	if _, err := os.Stat(settingsPath); err == nil {
-		content, readErr := os.ReadFile(settingsPath)
-		if readErr != nil {
-			return readErr
-		}
-		if !alreadyProxied {
-			if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-				return err
-			}
-		}
-		envMap, err = m.parseEnvFile(settingsPath)
+	newCycle := !stateExists || !state.Active
+	if newCycle {
+		fields, err := readEnvFieldValues(data, geminiProxyFieldKeys)
 		if err != nil {
-			envMap = make(map[string]string)
+			return err
 		}
-	} else {
-		envMap = make(map[string]string)
+		state = proxyState{Active: true, Files: map[string]proxyFileSnapshot{
+			"env": {Existed: fileExisted, Fields: fields},
+		}}
+	} else if _, err := m.geminiSnapshot(state); err != nil {
+		return err
 	}
-	envMap["GEMINI_API_KEY"] = geminiAPIKeyValue
-	envMap["GOOGLE_GEMINI_BASE_URL"] = m.baseURL()
-	return m.writeEnvFile(settingsPath, envMap)
+	updated, err := m.applyGeminiValues(data)
+	if err != nil {
+		return err
+	}
+	if newCycle {
+		if err := m.stateStore.save(state); err != nil {
+			return err
+		}
+	}
+	return writeConfigFileIfChanged(settingsPath, data, updated)
 }
 
 func (m *GeminiManager) DisableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	state, exists, err := m.stateStore.load()
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(settingsPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if _, err := os.Stat(backupPath); err == nil {
-		return os.Rename(backupPath, settingsPath)
-	} else if errors.Is(err, os.ErrNotExist) {
+	if exists && !state.Active {
 		return nil
 	}
-	return nil
+	if !exists {
+		return m.stateStore.save(proxyState{Active: false})
+	}
+	snapshot, err := m.geminiSnapshot(state)
+	if err != nil {
+		return err
+	}
+	settingsPath, err := m.settingsPath()
+	if err != nil {
+		return err
+	}
+	data, currentExists, err := readConfigFile(settingsPath, nil)
+	if err != nil {
+		return err
+	}
+	updated := data
+	for _, key := range geminiProxyFieldKeys {
+		updated, err = restoreEnvField(updated, key, snapshot.Fields[key])
+		if err != nil {
+			return err
+		}
+	}
+	if !snapshot.Existed && len(updated) == 0 {
+		if currentExists {
+			if err := removeConfigFile(settingsPath); err != nil {
+				return err
+			}
+		}
+		return m.stateStore.save(proxyState{Active: false})
+	}
+	if err := writeConfigFileIfChanged(settingsPath, data, updated); err != nil {
+		return err
+	}
+	return m.stateStore.save(proxyState{Active: false})
 }
 
-func (m *GeminiManager) paths() (settingsPath string, backupPath string, err error) {
+func (m *GeminiManager) applyGeminiValues(data []byte) ([]byte, error) {
+	updated, err := setEnvField(data, geminiProxyFieldKeys[0], geminiAPIKeyValue)
+	if err != nil {
+		return nil, err
+	}
+	return setEnvField(updated, geminiProxyFieldKeys[1], m.baseURL())
+}
+
+func (m *GeminiManager) geminiSnapshot(state proxyState) (proxyFileSnapshot, error) {
+	snapshot, ok := state.Files["env"]
+	if !ok {
+		return proxyFileSnapshot{}, errors.New("Gemini 接入快照缺少 .env 原值")
+	}
+	for _, key := range geminiProxyFieldKeys {
+		for _, line := range snapshot.Fields[key] {
+			assignments, err := findEnvAssignments([]string{line}, key)
+			if err != nil || len(assignments) != 1 {
+				return proxyFileSnapshot{}, errors.New("Gemini 接入快照含有无效的原始赋值")
+			}
+		}
+	}
+	return snapshot, nil
+}
+
+func (m *GeminiManager) settingsPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	dir := filepath.Join(home, geminiSettingsDir)
-	return filepath.Join(dir, geminiSettingsFileName), filepath.Join(dir, geminiBackupFileName), nil
+	return filepath.Join(home, geminiSettingsDir, geminiSettingsFileName), nil
 }
 
 func (m *GeminiManager) baseURL() string {
 	return normalizeRelayBaseURL(m.relayAddr) + "/gemini"
-}
-
-func (m *GeminiManager) parseEnvFile(path string) (map[string]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	envMap := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
-			envMap[key] = value
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return envMap, nil
-}
-
-func (m *GeminiManager) writeEnvFile(path string, envMap map[string]string) error {
-	var lines []string
-	for key, value := range envMap {
-		if strings.ContainsAny(value, " \t\n") {
-			value = `"` + value + `"`
-		}
-		lines = append(lines, key+"="+value)
-	}
-	content := strings.Join(lines, "\n") + "\n"
-	return os.WriteFile(path, []byte(content), 0o600)
 }

@@ -1,39 +1,61 @@
 package infrastructure
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	platformproxydomain "codeswitch/internal/platformproxy/domain"
 	"github.com/pelletier/go-toml/v2"
 )
 
 const (
-	codexSettingsDir      = ".codex"
-	codexConfigFileName   = "config.toml"
-	codexBackupConfigName = "cc-studio.back.config.toml"
-	codexAuthFileName     = "auth.json"
-	codexBackupAuthName   = "cc-studio.back.auth.json"
-	codexProviderKey      = "code-switch"
-	codexEnvKey           = "OPENAI_API_KEY"
-	codexWireAPI          = "responses"
-	codexTokenValue       = "code-switch"
+	codexSettingsDir    = ".codex"
+	codexConfigFileName = "config.toml"
+	codexAuthFileName   = "auth.json"
+	codexProviderKey    = "code-switch"
+	codexEnvKey         = "OPENAI_API_KEY"
+	codexWireAPI        = "responses"
+	codexTokenValue     = "code-switch"
 )
 
+var codexConfigFieldSpecs = []tomlFieldSpec{
+	{Key: "model_provider", Path: []string{"model_provider"}},
+	{Key: "model_providers.code-switch.name", Path: []string{"model_providers", "code-switch", "name"}},
+	{Key: "model_providers.code-switch.base_url", Path: []string{"model_providers", "code-switch", "base_url"}},
+	{Key: "model_providers.code-switch.wire_api", Path: []string{"model_providers", "code-switch", "wire_api"}},
+	{Key: "model_providers.code-switch.requires_openai_auth", Path: []string{"model_providers", "code-switch", "requires_openai_auth"}},
+}
+
+var codexAuthFieldPaths = []string{codexEnvKey}
+
 type CodexManager struct {
-	relayAddr string
+	relayAddr  string
+	stateStore proxyStateStore
+	mu         sync.RWMutex
 }
 
 func NewCodexManager(relayAddr string) *CodexManager {
-	return &CodexManager{relayAddr: relayAddr}
+	return &CodexManager{relayAddr: relayAddr, stateStore: newProxyStateStore("codex")}
 }
 
 func (m *CodexManager) ProxyStatus() (platformproxydomain.Status, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
 	status := platformproxydomain.Status{Enabled: false, BaseURL: m.baseURL()}
+	state, exists, err := m.stateStore.load()
+	if err != nil {
+		return status, err
+	}
+	if exists && !state.Active {
+		return status, nil
+	}
 	config, err := m.readConfig()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -45,103 +67,343 @@ func (m *CodexManager) ProxyStatus() (platformproxydomain.Status, error) {
 	if !ok {
 		return status, nil
 	}
-	baseURL := m.baseURL()
-	if strings.EqualFold(config.ModelProvider, codexProviderKey) && strings.EqualFold(provider.BaseURL, baseURL) {
+	if strings.EqualFold(config.ModelProvider, codexProviderKey) && strings.EqualFold(provider.BaseURL, m.baseURL()) {
 		status.Enabled = true
 	}
 	return status, nil
 }
 
 func (m *CodexManager) EnableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	configPath, err := m.configPath()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
+	authPath, err := m.authPath()
+	if err != nil {
 		return err
 	}
-	// 已处于代理状态时跳过备份：重复 Enable 会用已代理内容覆盖唯一备份，
-	// 导致用户原始配置永久丢失。
-	alreadyProxied := false
-	if status, statusErr := m.ProxyStatus(); statusErr == nil {
-		alreadyProxied = status.Enabled
+	configData, configExisted, err := readConfigFile(configPath, nil)
+	if err != nil {
+		return err
 	}
-	var raw map[string]any
-	if _, err := os.Stat(settingsPath); err == nil {
-		content, readErr := os.ReadFile(settingsPath)
-		if readErr != nil {
-			return readErr
-		}
-		if !alreadyProxied {
-			if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-				return err
-			}
-		}
-		if err := toml.Unmarshal(content, &raw); err != nil {
+	authData, authExisted, err := readConfigFile(authPath, []byte("{}\n"))
+	if err != nil {
+		return err
+	}
+	state, stateExists, err := m.stateStore.load()
+	if err != nil {
+		return err
+	}
+	newCycle := !stateExists || !state.Active
+	if newCycle {
+		configSnapshot, err := captureCodexConfigSnapshot(configData, configExisted)
+		if err != nil {
 			return err
 		}
-	} else {
-		raw = make(map[string]any)
+		authFields, err := readJSONFieldValues(authData, codexAuthFieldPaths)
+		if err != nil {
+			return err
+		}
+		state = proxyState{Active: true, Files: map[string]proxyFileSnapshot{
+			"config": configSnapshot,
+			"auth":   {Existed: authExisted, Fields: authFields},
+		}}
+	} else if _, _, err := m.codexSnapshots(state); err != nil {
+		return err
 	}
-	if raw == nil {
-		raw = make(map[string]any)
-	}
-	raw["model_provider"] = codexProviderKey
-	// 合并而非整表覆盖 model_providers，保留用户自定义的其他 provider。
-	modelProviders := make(map[string]any)
-	if existing, ok := raw["model_providers"].(map[string]any); ok {
-		modelProviders = existing
-	}
-	modelProviders[codexProviderKey] = map[string]any{
-		"name":                 codexProviderKey,
-		"base_url":             m.baseURL(),
-		"wire_api":             codexWireAPI,
-		"requires_openai_auth": false,
-	}
-	raw["model_providers"] = modelProviders
-	data, err := toml.Marshal(raw)
+
+	// 两个候选文件都成功计算并校验后才保存快照或开始写盘。
+	configUpdated, err := m.applyCodexDesiredConfig(configData)
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(settingsPath, stripRedundantTableHeaders(data, "model_providers", "mcp_servers"), 0o600); err != nil {
+	authUpdated, err := applyJSONFieldEdits(authData, []jsonFieldEdit{{
+		Path: codexEnvKey, Raw: strconv.Quote(codexTokenValue), Present: true,
+	}})
+	if err != nil {
 		return err
 	}
-	return m.writeAuthFile(alreadyProxied)
+	if newCycle {
+		if err := m.stateStore.save(state); err != nil {
+			return err
+		}
+	}
+	configChanged := !bytes.Equal(configData, configUpdated)
+	if err := writeConfigFileIfChanged(configPath, configData, configUpdated); err != nil {
+		return err
+	}
+	if err := writeConfigFileIfChanged(authPath, authData, authUpdated); err != nil {
+		if configChanged {
+			if rollbackErr := m.rollbackCodexConfig(configPath, state); rollbackErr != nil {
+				return fmt.Errorf("写入 Codex auth.json 失败: %w；回滚 config.toml 也失败: %v", err, rollbackErr)
+			}
+		}
+		return fmt.Errorf("写入 Codex auth.json 失败: %w", err)
+	}
+	return nil
 }
 
 func (m *CodexManager) DisableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	state, exists, err := m.stateStore.load()
 	if err != nil {
 		return err
 	}
-	// MCP 条目与模型代理配置同住 config.toml，而下方是整文件备份恢复——
-	// 备份里的 MCP 状态与当前可能不一致（启用后用户可能注入过、也可能
-	// 注入后又移除了）。MCP 条目当前的存在性是唯一事实来源：恢复备份后
-	// 按它调和，两个方向都要处理（有则重注入，无则确保删除）。
-	hadMcpEntry := false
-	if present, statusErr := m.McpStatus(); statusErr == nil {
-		hadMcpEntry = present
+	if exists && !state.Active {
+		return nil
 	}
-	if err := os.Remove(settingsPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if !exists {
+		return m.stateStore.save(proxyState{Active: false})
+	}
+	configSnapshot, authSnapshot, err := m.codexSnapshots(state)
+	if err != nil {
 		return err
 	}
-	if _, err := os.Stat(backupPath); err == nil {
-		if err := os.Rename(backupPath, settingsPath); err != nil {
-			return err
+	configPath, err := m.configPath()
+	if err != nil {
+		return err
+	}
+	authPath, err := m.authPath()
+	if err != nil {
+		return err
+	}
+	configData, configExisted, err := readConfigFile(configPath, nil)
+	if err != nil {
+		return err
+	}
+	authData, authExisted, err := readConfigFile(authPath, []byte("{}\n"))
+	if err != nil {
+		return err
+	}
+	configUpdate, err := m.codexConfigRestoreUpdate(configPath, configData, configExisted, configSnapshot)
+	if err != nil {
+		return err
+	}
+	authUpdate, err := codexAuthRestoreUpdate(authPath, authData, authExisted, authSnapshot)
+	if err != nil {
+		return err
+	}
+
+	// 先恢复 auth，再恢复决定 ProxyStatus 的 config。任一失败都保留 active
+	// 快照供重试；config 失败时把 auth 补偿回本次关闭前的内容。
+	if err := authUpdate.apply(); err != nil {
+		return err
+	}
+	if err := configUpdate.apply(); err != nil {
+		if authUpdate.changesFile() {
+			if rollbackErr := writeConfigFileIfChanged(authPath, nil, authData); rollbackErr != nil {
+				return fmt.Errorf("恢复 Codex config.toml 失败: %w；回滚 auth.json 也失败: %v", err, rollbackErr)
+			}
+		}
+		return err
+	}
+	return m.stateStore.save(proxyState{Active: false})
+}
+
+func (m *CodexManager) applyCodexDesiredConfig(data []byte) ([]byte, error) {
+	values := map[string]tomlFieldValue{
+		"model_provider":                                   {Present: true, Raw: strconv.Quote(codexProviderKey)},
+		"model_providers.code-switch.name":                 {Present: true, Raw: strconv.Quote(codexProviderKey)},
+		"model_providers.code-switch.base_url":             {Present: true, Raw: strconv.Quote(m.baseURL())},
+		"model_providers.code-switch.wire_api":             {Present: true, Raw: strconv.Quote(codexWireAPI)},
+		"model_providers.code-switch.requires_openai_auth": {Present: true, Raw: "false"},
+	}
+	return applyCodexConfigValues(data, values)
+}
+
+func applyCodexConfigValues(data []byte, values map[string]tomlFieldValue) ([]byte, error) {
+	updated := data
+	var err error
+	for _, spec := range codexConfigFieldSpecs {
+		value := values[spec.Key]
+		updated, err = applyTOMLFieldEdit(updated, spec.Path, value.Raw, value.Present)
+		if err != nil {
+			return nil, err
 		}
 	}
-	if hadMcpEntry {
-		if err := m.InjectMcp(); err != nil {
-			log.Printf("platformproxy: 恢复 codex MCP 条目失败: %v", err)
-		}
-	} else if err := m.RemoveMcp(); err != nil {
-		log.Printf("platformproxy: 清理备份恢复的 codex MCP 条目失败: %v", err)
+	return updated, nil
+}
+
+func captureCodexConfigSnapshot(data []byte, existed bool) (proxyFileSnapshot, error) {
+	values, err := readTOMLFieldValues(data, codexConfigFieldSpecs)
+	if err != nil {
+		return proxyFileSnapshot{}, err
 	}
-	return m.restoreAuthFile()
+	fields := make(map[string][]string, len(values))
+	for key, value := range values {
+		if value.Present {
+			fields[key] = []string{value.Raw}
+		} else {
+			fields[key] = nil
+		}
+	}
+	containers, err := codexContainerPresence(data)
+	if err != nil {
+		return proxyFileSnapshot{}, err
+	}
+	return proxyFileSnapshot{Existed: existed, Fields: fields, Containers: containers}, nil
+}
+
+func codexContainerPresence(data []byte) (map[string]bool, error) {
+	root := make(map[string]any)
+	if err := toml.Unmarshal(data, &root); err != nil {
+		return nil, err
+	}
+	presence := map[string]bool{"model_providers": false, "model_providers.code-switch": false}
+	providersValue, ok := root["model_providers"]
+	if !ok {
+		return presence, nil
+	}
+	providers, ok := providersValue.(map[string]any)
+	if !ok {
+		return nil, errors.New("Codex model_providers 不是表，拒绝覆盖")
+	}
+	presence["model_providers"] = true
+	providerValue, ok := providers[codexProviderKey]
+	if !ok {
+		return presence, nil
+	}
+	if _, ok := providerValue.(map[string]any); !ok {
+		return nil, errors.New("Codex model_providers.code-switch 不是表，拒绝覆盖")
+	}
+	presence["model_providers.code-switch"] = true
+	return presence, nil
+}
+
+func (m *CodexManager) codexSnapshots(state proxyState) (proxyFileSnapshot, proxyFileSnapshot, error) {
+	config, ok := state.Files["config"]
+	if !ok {
+		return proxyFileSnapshot{}, proxyFileSnapshot{}, errors.New("Codex 接入快照缺少 config.toml 原值")
+	}
+	auth, ok := state.Files["auth"]
+	if !ok {
+		return proxyFileSnapshot{}, proxyFileSnapshot{}, errors.New("Codex 接入快照缺少 auth.json 原值")
+	}
+	if _, err := codexConfigRestoreValues(config); err != nil {
+		return proxyFileSnapshot{}, proxyFileSnapshot{}, err
+	}
+	if _, err := jsonSnapshotEdits(auth.Fields, codexAuthFieldPaths); err != nil {
+		return proxyFileSnapshot{}, proxyFileSnapshot{}, err
+	}
+	return config, auth, nil
+}
+
+func codexConfigRestoreValues(snapshot proxyFileSnapshot) (map[string]tomlFieldValue, error) {
+	values := make(map[string]tomlFieldValue, len(codexConfigFieldSpecs))
+	for _, spec := range codexConfigFieldSpecs {
+		rawValues := snapshot.Fields[spec.Key]
+		if len(rawValues) > 1 {
+			return nil, fmt.Errorf("Codex 字段 %s 的快照含有多个值", spec.Key)
+		}
+		value := tomlFieldValue{Present: len(rawValues) == 1}
+		if value.Present {
+			value.Raw = rawValues[0]
+			if _, err := parseTOMLEditLiteral(value.Raw); err != nil {
+				return nil, fmt.Errorf("Codex 字段 %s 的快照 literal 无效: %w", spec.Key, err)
+			}
+		}
+		values[spec.Key] = value
+	}
+	return values, nil
+}
+
+type codexFileUpdate struct {
+	path          string
+	before        []byte
+	after         []byte
+	currentExists bool
+	remove        bool
+}
+
+func (u codexFileUpdate) changesFile() bool {
+	if u.remove {
+		return u.currentExists
+	}
+	return !bytes.Equal(u.before, u.after)
+}
+
+func (u codexFileUpdate) apply() error {
+	if u.remove {
+		if !u.currentExists {
+			return nil
+		}
+		return removeConfigFile(u.path)
+	}
+	return writeConfigFileIfChanged(u.path, u.before, u.after)
+}
+
+func (m *CodexManager) codexConfigRestoreUpdate(path string, data []byte, currentExists bool, snapshot proxyFileSnapshot) (codexFileUpdate, error) {
+	values, err := codexConfigRestoreValues(snapshot)
+	if err != nil {
+		return codexFileUpdate{}, err
+	}
+	updated, err := applyCodexConfigValues(data, values)
+	if err != nil {
+		return codexFileUpdate{}, err
+	}
+	var prunePaths [][]string
+	if !snapshot.Containers["model_providers.code-switch"] {
+		prunePaths = append(prunePaths, []string{"model_providers", "code-switch"})
+	}
+	if !snapshot.Containers["model_providers"] {
+		prunePaths = append(prunePaths, []string{"model_providers"})
+	}
+	if len(prunePaths) != 0 {
+		updated, err = pruneTOMLContainers(updated, prunePaths)
+		if err != nil {
+			return codexFileUpdate{}, err
+		}
+	}
+	update := codexFileUpdate{path: path, before: data, after: updated, currentExists: currentExists}
+	if !snapshot.Existed && len(bytes.TrimSpace(updated)) == 0 {
+		update.remove = true
+	}
+	return update, nil
+}
+
+func codexAuthRestoreUpdate(path string, data []byte, currentExists bool, snapshot proxyFileSnapshot) (codexFileUpdate, error) {
+	edits, err := jsonSnapshotEdits(snapshot.Fields, codexAuthFieldPaths)
+	if err != nil {
+		return codexFileUpdate{}, err
+	}
+	updated, err := applyJSONFieldEdits(data, edits)
+	if err != nil {
+		return codexFileUpdate{}, err
+	}
+	update := codexFileUpdate{path: path, before: data, after: updated, currentExists: currentExists}
+	if !snapshot.Existed {
+		empty, err := jsonRootIsEmpty(updated)
+		if err != nil {
+			return codexFileUpdate{}, err
+		}
+		update.remove = empty
+	}
+	return update, nil
+}
+
+func (m *CodexManager) rollbackCodexConfig(path string, state proxyState) error {
+	configSnapshot, _, err := m.codexSnapshots(state)
+	if err != nil {
+		return err
+	}
+	data, existed, err := readConfigFile(path, nil)
+	if err != nil {
+		return err
+	}
+	update, err := m.codexConfigRestoreUpdate(path, data, existed, configSnapshot)
+	if err != nil {
+		return err
+	}
+	return update.apply()
 }
 
 func (m *CodexManager) readConfig() (*codexConfig, error) {
-	settingsPath, _, err := m.paths()
+	settingsPath, err := m.configPath()
 	if err != nil {
 		return nil, err
 	}
@@ -159,22 +421,20 @@ func (m *CodexManager) readConfig() (*codexConfig, error) {
 	return &cfg, nil
 }
 
-func (m *CodexManager) paths() (settingsPath string, backupPath string, err error) {
+func (m *CodexManager) configPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	dir := filepath.Join(home, codexSettingsDir)
-	return filepath.Join(dir, codexConfigFileName), filepath.Join(dir, codexBackupConfigName), nil
+	return filepath.Join(home, codexSettingsDir, codexConfigFileName), nil
 }
 
-func (m *CodexManager) authPaths() (string, string, error) {
+func (m *CodexManager) authPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	dir := filepath.Join(home, codexSettingsDir)
-	return filepath.Join(dir, codexAuthFileName), filepath.Join(dir, codexBackupAuthName), nil
+	return filepath.Join(home, codexSettingsDir, codexAuthFileName), nil
 }
 
 func (m *CodexManager) baseURL() string {
@@ -191,7 +451,7 @@ type codexProvider struct {
 }
 
 // stripRedundantTableHeaders 剔除 go-toml v2 序列化嵌套 map 时多产生的
-// 空父表头（如裸的 [model_providers] / [mcp_servers] 行）。
+// 空父表头（如裸的 [model_providers] / [mcp_servers] 行）。仅供 MCP 写入使用。
 func stripRedundantTableHeaders(data []byte, tables ...string) []byte {
 	redundant := make(map[string]bool, len(tables))
 	for _, table := range tables {
@@ -206,43 +466,4 @@ func stripRedundantTableHeaders(data []byte, tables ...string) []byte {
 		result = append(result, line)
 	}
 	return []byte(strings.Join(result, "\n"))
-}
-
-func (m *CodexManager) writeAuthFile(alreadyProxied bool) error {
-	authPath, backupPath, err := m.authPaths()
-	if err != nil {
-		return err
-	}
-	if err := os.MkdirAll(filepath.Dir(authPath), 0o755); err != nil {
-		return err
-	}
-	if _, err := os.Stat(authPath); err == nil && !alreadyProxied {
-		content, readErr := os.ReadFile(authPath)
-		if readErr != nil {
-			return readErr
-		}
-		if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-			return err
-		}
-	}
-	payload := map[string]string{codexEnvKey: codexTokenValue}
-	data, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(authPath, data, 0o600)
-}
-
-func (m *CodexManager) restoreAuthFile() error {
-	authPath, backupPath, err := m.authPaths()
-	if err != nil {
-		return err
-	}
-	if err := os.Remove(authPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if _, err := os.Stat(backupPath); err == nil {
-		return os.Rename(backupPath, authPath)
-	}
-	return nil
 }

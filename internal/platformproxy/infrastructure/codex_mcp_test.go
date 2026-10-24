@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -153,8 +154,8 @@ func TestCodexCorruptConfigRefusesOverwrite(t *testing.T) {
 	}
 }
 
-// 关键路径：Enable 代理 → 手动注入 MCP → Disable 代理（整文件备份恢复）
-// 之后 MCP 条目应仍在——MCP 网关独立于模型代理运行。
+// 关键路径：Enable 代理 → 手动注入 MCP → Disable 代理。
+// 代理关闭只恢复自己的字段，不得回滚后来注入的 MCP 条目。
 func TestCodexDisableProxyKeepsMcpEntry(t *testing.T) {
 	m := newCodexManager(t)
 	if err := m.EnableProxy(); err != nil {
@@ -169,7 +170,15 @@ func TestCodexDisableProxyKeepsMcpEntry(t *testing.T) {
 	if ok, err := m.McpStatus(); err != nil || !ok {
 		t.Fatalf("Disable 代理后 MCP 条目应存续: %v, %v", ok, err)
 	}
-	// 且模型代理确实已禁用（条目是 Enable 前不存在、备份恢复后也不存在的状态）
+	raw, err := m.readRawConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	servers, _ := raw["mcp_servers"].(map[string]any)
+	if !reflect.DeepEqual(servers[mcpEntryName], m.mcpEntryPayload()) {
+		t.Fatalf("Disable 不得改写 MCP 条目内容: %#v", servers[mcpEntryName])
+	}
+	// 模型代理字段已恢复为接入前的缺失状态，MCP 条目独立保留。
 	status, err := m.ProxyStatus()
 	if err != nil {
 		t.Fatal(err)
@@ -179,8 +188,8 @@ func TestCodexDisableProxyKeepsMcpEntry(t *testing.T) {
 	}
 }
 
-// 反向场景：注入 → Enable（备份含条目）→ 用户移除 → Disable 恢复备份——
-// 用户的移除操作不得被备份恢复悄悄撤销。
+// 反向场景：注入 → Enable → 用户移除 → Disable。
+// 字段级恢复不得重新注入用户已经移除的 MCP 条目。
 func TestCodexDisableProxyRespectsMcpRemoval(t *testing.T) {
 	m := newCodexManager(t)
 	if err := m.InjectMcp(); err != nil {

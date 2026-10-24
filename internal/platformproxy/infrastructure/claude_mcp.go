@@ -42,6 +42,8 @@ func (m *ClaudeManager) mcpEntryPayload() map[string]any {
 
 // McpStatus 报告网关 MCP 条目是否已注入 ~/.claude.json。
 func (m *ClaudeManager) McpStatus() (bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	path, err := m.claudeConfigPath()
 	if err != nil {
 		return false, err
@@ -65,6 +67,8 @@ func (m *ClaudeManager) McpStatus() (bool, error) {
 // 一致跳过写入、原子写避免半截文件。残余的并发写 last-writer-wins 窗口
 // 可接受（最坏情况是条目被 CLI 覆写消失，用户在 UI 重新注入即可）。
 func (m *ClaudeManager) InjectMcp() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	path, err := m.claudeConfigPath()
 	if err != nil {
 		return err
@@ -92,6 +96,8 @@ func (m *ClaudeManager) InjectMcp() error {
 
 // RemoveMcp 外科式移除 MCP 条目；条目不存在或文件不存在均为 no-op。
 func (m *ClaudeManager) RemoveMcp() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	path, err := m.claudeConfigPath()
 	if err != nil {
 		return err

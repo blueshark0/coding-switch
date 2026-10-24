@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	platformproxydomain "codeswitch/internal/platformproxy/domain"
 )
@@ -13,21 +15,40 @@ import (
 const (
 	claudeSettingsDir      = ".claude"
 	claudeSettingsFileName = "settings.json"
-	claudeBackupFileName   = "cc-studio.back.settings.json"
 	claudeAuthTokenValue   = "code-switch"
 )
 
+var claudeProxyFieldPaths = []string{
+	"env.ANTHROPIC_AUTH_TOKEN",
+	"env.ANTHROPIC_BASE_URL",
+}
+
 type ClaudeManager struct {
-	relayAddr string
+	relayAddr  string
+	stateStore proxyStateStore
+	mu         sync.RWMutex
 }
 
 func NewClaudeManager(relayAddr string) *ClaudeManager {
-	return &ClaudeManager{relayAddr: relayAddr}
+	return &ClaudeManager{relayAddr: relayAddr, stateStore: newProxyStateStore("claude")}
 }
 
 func (m *ClaudeManager) ProxyStatus() (platformproxydomain.Status, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.proxyStatus()
+}
+
+func (m *ClaudeManager) proxyStatus() (platformproxydomain.Status, error) {
 	status := platformproxydomain.Status{Enabled: false, BaseURL: m.baseURL()}
-	settingsPath, _, err := m.paths()
+	state, exists, err := m.stateStore.load()
+	if err != nil {
+		return status, err
+	}
+	if exists && !state.Active {
+		return status, nil
+	}
+	settingsPath, err := m.settingsPath()
 	if err != nil {
 		return status, err
 	}
@@ -42,89 +63,140 @@ func (m *ClaudeManager) ProxyStatus() (platformproxydomain.Status, error) {
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return status, nil
 	}
-	baseURL := m.baseURL()
 	status.Enabled = strings.EqualFold(payload.Env["ANTHROPIC_AUTH_TOKEN"], claudeAuthTokenValue) &&
-		strings.EqualFold(payload.Env["ANTHROPIC_BASE_URL"], baseURL)
+		strings.EqualFold(payload.Env["ANTHROPIC_BASE_URL"], m.baseURL())
 	return status, nil
 }
 
 func (m *ClaudeManager) EnableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	settingsPath, err := m.settingsPath()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(settingsPath), 0o755); err != nil {
-		return err
-	}
-	// 已处于代理状态时跳过备份：重复 Enable 会用已代理内容覆盖唯一备份，
-	// 导致用户原始配置永久丢失。
-	alreadyProxied := false
-	if status, statusErr := m.ProxyStatus(); statusErr == nil {
-		alreadyProxied = status.Enabled
-	}
-	var raw map[string]any
-	if _, err := os.Stat(settingsPath); err == nil {
-		content, readErr := os.ReadFile(settingsPath)
-		if readErr != nil {
-			return readErr
-		}
-		if !alreadyProxied {
-			if err := os.WriteFile(backupPath, content, 0o600); err != nil {
-				return err
-			}
-		}
-		if err := json.Unmarshal(content, &raw); err != nil {
-			raw = make(map[string]any)
-		}
-	} else {
-		raw = make(map[string]any)
-	}
-	if raw == nil {
-		raw = make(map[string]any)
-	}
-	var envMap map[string]any
-	if envVal, ok := raw["env"]; ok {
-		if envMapTyped, ok := envVal.(map[string]any); ok {
-			envMap = envMapTyped
-		} else {
-			envMap = make(map[string]any)
-		}
-	} else {
-		envMap = make(map[string]any)
-	}
-	envMap["ANTHROPIC_AUTH_TOKEN"] = claudeAuthTokenValue
-	envMap["ANTHROPIC_BASE_URL"] = m.baseURL()
-	raw["env"] = envMap
-	payload, err := json.MarshalIndent(raw, "", "  ")
+	data, fileExisted, err := readConfigFile(settingsPath, []byte("{}\n"))
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(settingsPath, payload, 0o600)
+	state, stateExists, err := m.stateStore.load()
+	if err != nil {
+		return err
+	}
+	newCycle := !stateExists || !state.Active
+	if newCycle {
+		fields, err := readJSONFieldValues(data, claudeProxyFieldPaths)
+		if err != nil {
+			return err
+		}
+		containers, err := jsonContainerPresence(data, []string{"env"})
+		if err != nil {
+			return err
+		}
+		state = proxyState{Active: true, Files: map[string]proxyFileSnapshot{
+			"settings": {Existed: fileExisted, Fields: fields, Containers: containers},
+		}}
+	} else if _, err := m.claudeSnapshot(state); err != nil {
+		return err
+	}
+	updated, err := applyJSONFieldEdits(data, m.claudeDesiredEdits())
+	if err != nil {
+		return err
+	}
+	if newCycle {
+		if err := m.stateStore.save(state); err != nil {
+			return err
+		}
+	}
+	return writeConfigFileIfChanged(settingsPath, data, updated)
 }
 
 func (m *ClaudeManager) DisableProxy() error {
-	settingsPath, backupPath, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	state, exists, err := m.stateStore.load()
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(settingsPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	if _, err := os.Stat(backupPath); err == nil {
-		return os.Rename(backupPath, settingsPath)
-	} else if errors.Is(err, os.ErrNotExist) {
+	if exists && !state.Active {
 		return nil
 	}
-	return nil
+	if !exists {
+		// 旧版本没有字段快照：当前 CLI 文件就是用户要求的原状，不做任何读写。
+		return m.stateStore.save(proxyState{Active: false})
+	}
+	snapshot, err := m.claudeSnapshot(state)
+	if err != nil {
+		return err
+	}
+	settingsPath, err := m.settingsPath()
+	if err != nil {
+		return err
+	}
+	data, currentExists, err := readConfigFile(settingsPath, []byte("{}\n"))
+	if err != nil {
+		return err
+	}
+	edits, err := jsonSnapshotEdits(snapshot.Fields, claudeProxyFieldPaths)
+	if err != nil {
+		return err
+	}
+	updated, err := applyJSONFieldEdits(data, edits)
+	if err != nil {
+		return err
+	}
+	if !snapshot.Containers["env"] {
+		updated, err = pruneJSONContainers(updated, []string{"env"})
+		if err != nil {
+			return err
+		}
+	}
+	if !snapshot.Existed {
+		empty, err := jsonRootIsEmpty(updated)
+		if err != nil {
+			return err
+		}
+		if empty {
+			if currentExists {
+				if err := removeConfigFile(settingsPath); err != nil {
+					return err
+				}
+			}
+			return m.stateStore.save(proxyState{Active: false})
+		}
+	}
+	if err := writeConfigFileIfChanged(settingsPath, data, updated); err != nil {
+		return err
+	}
+	return m.stateStore.save(proxyState{Active: false})
 }
 
-func (m *ClaudeManager) paths() (settingsPath string, backupPath string, err error) {
+func (m *ClaudeManager) claudeDesiredEdits() []jsonFieldEdit {
+	return []jsonFieldEdit{
+		{Path: claudeProxyFieldPaths[0], Raw: strconv.Quote(claudeAuthTokenValue), Present: true},
+		{Path: claudeProxyFieldPaths[1], Raw: strconv.Quote(m.baseURL()), Present: true},
+	}
+}
+
+func (m *ClaudeManager) claudeSnapshot(state proxyState) (proxyFileSnapshot, error) {
+	snapshot, ok := state.Files["settings"]
+	if !ok {
+		return proxyFileSnapshot{}, errors.New("Claude 接入快照缺少 settings 原值")
+	}
+	if _, err := jsonSnapshotEdits(snapshot.Fields, claudeProxyFieldPaths); err != nil {
+		return proxyFileSnapshot{}, err
+	}
+	return snapshot, nil
+}
+
+func (m *ClaudeManager) settingsPath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	dir := filepath.Join(home, claudeSettingsDir)
-	return filepath.Join(dir, claudeSettingsFileName), filepath.Join(dir, claudeBackupFileName), nil
+	return filepath.Join(home, claudeSettingsDir, claudeSettingsFileName), nil
 }
 
 func (m *ClaudeManager) baseURL() string {

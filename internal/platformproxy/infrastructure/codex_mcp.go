@@ -24,6 +24,8 @@ func (m *CodexManager) mcpEntryPayload() map[string]any {
 
 // McpStatus 报告网关 MCP 条目是否已注入 config.toml。
 func (m *CodexManager) McpStatus() (bool, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	raw, err := m.readRawConfig()
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
@@ -39,7 +41,9 @@ func (m *CodexManager) McpStatus() (bool, error) {
 // InjectMcp 外科式注入 MCP 条目（幂等：内容一致则跳过写盘）。
 // 与模型代理的 Enable/Disable 完全解耦，由用户在前端显式触发。
 func (m *CodexManager) InjectMcp() error {
-	settingsPath, _, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	settingsPath, err := m.configPath()
 	if err != nil {
 		return err
 	}
@@ -69,7 +73,9 @@ func (m *CodexManager) InjectMcp() error {
 
 // RemoveMcp 外科式移除 MCP 条目；条目不存在或文件不存在均为 no-op。
 func (m *CodexManager) RemoveMcp() error {
-	settingsPath, _, err := m.paths()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	settingsPath, err := m.configPath()
 	if err != nil {
 		return err
 	}
@@ -96,7 +102,7 @@ func (m *CodexManager) RemoveMcp() error {
 // readRawConfig 把 config.toml 读成 raw map，保留全部未知字段。
 // TOML 解析失败时返回错误而不是覆盖损坏文件。
 func (m *CodexManager) readRawConfig() (map[string]any, error) {
-	settingsPath, _, err := m.paths()
+	settingsPath, err := m.configPath()
 	if err != nil {
 		return nil, err
 	}

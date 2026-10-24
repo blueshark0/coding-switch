@@ -3,6 +3,7 @@ package domain
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"codeswitch/internal/shared/kernel"
 )
@@ -61,6 +62,35 @@ func TestRouteProfileValidateAllowsArchivedNonDefault(t *testing.T) {
 
 	if err := profile.Normalize().Validate(); err != nil {
 		t.Fatalf("archived non-default provider should validate, got %v", err)
+	}
+}
+
+func TestRouteProfileNormalizeClearsArchivedAtWhenRestored(t *testing.T) {
+	archivedAt := time.Date(2026, 10, 22, 14, 32, 0, 0, time.FixedZone("test", 8*60*60))
+	profile := RouteProfile{
+		Platform: kernel.PlatformClaude,
+		Providers: []Provider{{
+			ID: 1, Name: "Alpha", Position: 1, APIURL: "https://alpha.example",
+			ArchivedAt: &archivedAt,
+		}},
+	}
+
+	normalized := profile.Normalize()
+	if normalized.Providers[0].ArchivedAt != nil {
+		t.Fatalf("expected active provider timestamp to be cleared, got %v", normalized.Providers[0].ArchivedAt)
+	}
+
+	profile.Providers[0].Archived = true
+	normalized = profile.Normalize()
+	if normalized.Providers[0].ArchivedAt == nil {
+		t.Fatal("expected archived timestamp to be preserved")
+	}
+	if normalized.Providers[0].ArchivedAt.Location() != time.UTC {
+		t.Fatalf("expected archived timestamp in UTC, got %v", normalized.Providers[0].ArchivedAt.Location())
+	}
+	normalized.Providers[0].ArchivedAt = nil
+	if profile.Providers[0].ArchivedAt == nil {
+		t.Fatal("expected normalize to clone archived timestamp pointer")
 	}
 }
 

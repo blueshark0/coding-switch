@@ -111,6 +111,7 @@ func ensureProviderColumns(db *sql.DB) error {
 		{Name: "request_body_replacements_json", Definition: "TEXT NOT NULL DEFAULT '[]'"},
 		{Name: "insecure_skip_verify", Definition: "INTEGER NOT NULL DEFAULT 0"},
 		{Name: "archived", Definition: "INTEGER NOT NULL DEFAULT 0"},
+		{Name: "archived_at", Definition: "DATETIME NULL"},
 	})
 }
 

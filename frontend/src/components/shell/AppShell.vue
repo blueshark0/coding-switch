@@ -22,6 +22,7 @@ const activeNav = computed(() => (route.meta.nav as string) || 'dashboard')
 const crumb = computed(() => {
   const section = t(`shell.nav.${activeNav.value}`)
   const sub = route.meta.crumb ? t(`shell.nav.${route.meta.crumb as string}`) : ''
+  if (route.meta.crumbOnly && sub) return `CODE SWITCH  /  ${sub}`
   return sub ? `CODE SWITCH  /  ${section}  /  ${sub}` : `CODE SWITCH  /  ${section}`
 })
 

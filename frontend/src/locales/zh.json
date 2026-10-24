@@ -290,12 +290,14 @@
     "close": "关闭",
     "save": "保存",
     "saving": "保存中…",
-    "deleting": "删除中…"
+    "deleting": "删除中…",
+    "loading": "加载中…"
   },
   "shell": {
     "nav": {
       "dashboard": "工作台",
       "providers": "供应商",
+      "providerArchive": "归档管理",
       "logs": "使用记录",
       "sessions": "会话",
       "mcp": "MCP 服务",
@@ -364,10 +366,14 @@
     "subtitle": "管理服务端点、模型和凭证；各 CLI 独立使用。",
     "actions": {
       "copyAcross": "跨 CLI 快速复制",
+      "archiveManagement": "归档管理",
+      "back": "返回供应商",
       "create": "新增供应商",
       "edit": "编辑配置",
       "test": "测试连接",
       "testing": "测试中…",
+      "restore": "恢复供应商",
+      "restoring": "恢复中…",
       "setCurrent": "设为当前",
       "current": "当前生效"
     },
@@ -384,7 +390,8 @@
       "active": "当前生效",
       "verified": "已验证",
       "failed": "检测失败",
-      "unverified": "未验证"
+      "unverified": "未验证",
+      "archived": "已归档"
     },
     "detail": {
       "title": "当前配置详情",
@@ -398,15 +405,40 @@
       "privacyNote": "本地 Key 明文可见；分享屏幕前请注意隐私。"
     },
     "menu": {
+      "open": "供应商操作",
       "edit": "编辑配置",
       "advanced": "高级配置",
       "copyAcross": "跨 CLI 复制",
-      "archive": "归档",
+      "archive": "归档供应商",
       "restore": "恢复",
       "delete": "删除"
     },
-    "archived": {
-      "title": "已归档（{count}）"
+    "archiveConfirm": {
+      "title": "确认归档供应商",
+      "subtitle": "归档后可随时恢复，不会删除配置",
+      "warningTitle": "归档后将从选择列表隐藏",
+      "warningBody": "不会自动修改当前默认供应商，原有配置会完整保留。",
+      "target": "供应商：{name}",
+      "confirm": "确认归档",
+      "confirming": "归档中…"
+    },
+    "archivedPage": {
+      "title": "已归档供应商",
+      "subtitle": "归档的供应商不会出现在选择列表；恢复后可重新选择。",
+      "all": "全部归档",
+      "count": "{count} 个已归档",
+      "listTitle": "已归档的供应商",
+      "listSubtitle": "归档时间、所属客户端与恢复操作",
+      "empty": "暂无已归档供应商",
+      "detailTitle": "归档详情",
+      "archivedAt": "归档时间",
+      "unknownTime": "未记录",
+      "archivedOn": "归档于 {date}",
+      "archivedOnUnknown": "归档时间未记录",
+      "rulesTitle": "恢复规则",
+      "rulesBody": "恢复后重新出现在供应商选择列表，不会自动切换当前供应商；API Key、模型映射和高级配置都会保留。",
+      "restoreNote": "恢复后重新进入选择列表，不会自动应用到 CLI。",
+      "delete": "删除供应商"
     },
     "editor": {
       "titleNew": "新增供应商",
@@ -505,6 +537,8 @@
       "copied": "已复制",
       "copyFailed": "复制失败",
       "testFailed": "测试连接失败",
+      "archived": "已归档「{name}」",
+      "restored": "已恢复「{name}」",
       "archiveBlockedBecauseDefault": "默认供应商不能归档，请先切换默认配置"
     },
     "form": {

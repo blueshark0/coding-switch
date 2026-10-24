@@ -138,7 +138,7 @@ func TestSQLiteStoreEnsureSchema_CreatesDefaultAppPreferencesRow(t *testing.T) {
 	}
 }
 
-func TestSQLiteStoreEnsureSchema_MigratesLegacyProviderRequestBodyReplacementsColumn(t *testing.T) {
+func TestSQLiteStoreEnsureSchema_MigratesLegacyProviderColumns(t *testing.T) {
 	dbName := "routing_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
@@ -187,14 +187,32 @@ func TestSQLiteStoreEnsureSchema_MigratesLegacyProviderRequestBodyReplacementsCo
 		t.Fatalf("EnsureSchema: %v", err)
 	}
 
-	var count int
-	if err := db.QueryRow(
-		"SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = ?",
-		"request_body_replacements_json",
-	).Scan(&count); err != nil {
-		t.Fatalf("query request_body_replacements_json column: %v", err)
+	for _, column := range []string{"request_body_replacements_json", "archived", "archived_at"} {
+		var count int
+		if err := db.QueryRow(
+			"SELECT COUNT(*) FROM pragma_table_info('providers') WHERE name = ?",
+			column,
+		).Scan(&count); err != nil {
+			t.Fatalf("query %s column: %v", column, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected %s column to exist once, got %d", column, count)
+		}
 	}
-	if count != 1 {
-		t.Fatalf("expected request_body_replacements_json column to exist once, got %d", count)
+
+	// 升级前已经归档的记录没有可靠时间，保持 NULL 而不是回填迁移时间。
+	if _, err := db.Exec(`INSERT INTO providers(platform, id, name, position, archived)
+		VALUES ('claude', 1, 'legacy-archived', 1, 1)`); err != nil {
+		t.Fatalf("seed legacy archived provider: %v", err)
+	}
+	profile, err := store.GetProfile(context.Background(), "claude")
+	if err != nil {
+		t.Fatalf("GetProfile: %v", err)
+	}
+	if len(profile.Providers) != 1 || !profile.Providers[0].Archived {
+		t.Fatalf("expected legacy archived provider, got %+v", profile.Providers)
+	}
+	if profile.Providers[0].ArchivedAt != nil {
+		t.Fatalf("expected legacy archived timestamp to remain unknown, got %v", profile.Providers[0].ArchivedAt)
 	}
 }

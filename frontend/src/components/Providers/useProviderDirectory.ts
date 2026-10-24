@@ -6,11 +6,39 @@ import type { ProviderRecord } from '../../services/providers'
 import { getErrorMessage } from '../../utils/errors'
 import { showToast } from '../../utils/toast'
 import type { TranslateFn } from '../../types/i18n'
+import { formatDateTime, parseDateTime } from '../../utils/dateTime'
 
 export type DirectoryEntry = {
   platform: ProviderTab
   platformLabel: string
   provider: ProviderRecord
+}
+
+export type ProviderDirectoryView = 'active' | 'archived'
+
+export const hostOf = (apiUrl: string) => {
+  try {
+    return new URL(apiUrl).host
+  } catch {
+    return apiUrl
+  }
+}
+
+export const modelOf = (entry: DirectoryEntry) => {
+  const models = Object.keys(entry.provider.supportedModels ?? {}).filter(
+    (key) => entry.provider.supportedModels?.[key] !== false,
+  )
+  return models[0] ?? ''
+}
+
+export const entrySubtitle = (entry: DirectoryEntry) =>
+  [entry.platformLabel, modelOf(entry) || hostOf(entry.provider.apiUrl)].filter(Boolean).join(' · ')
+
+export const formatArchivedAt = (value: unknown, includeTime = false) => {
+  const parsed = parseDateTime(value)
+  if (!parsed) return ''
+  const formatted = formatDateTime(parsed)
+  return includeTime ? formatted.slice(0, 16) : formatted.slice(0, 10)
 }
 
 export type ProviderForm = {
@@ -76,7 +104,7 @@ export const formToProviderPatch = (form: ProviderForm) => ({
 
 const PROXY_PREFIXES = ['http://', 'https://', 'socks5://', 'socks5h://']
 
-export const useProviderDirectory = (t: TranslateFn) => {
+export const useProviderDirectory = (t: TranslateFn, view: ProviderDirectoryView = 'active') => {
   const profiles = reactive<Record<ProviderTab, RouteProfile | null>>({
     claude: null,
     codex: null,
@@ -109,6 +137,8 @@ export const useProviderDirectory = (t: TranslateFn) => {
 
   const deleteState = reactive({ open: false, entryKey: '', busy: false })
   const copyState = reactive({ open: false, entryKey: '' })
+  const archiveState = reactive({ open: false, entryKey: '', busy: false })
+  const restoringKey = ref('')
 
   const entries = computed<DirectoryEntry[]>(() => {
     const list: DirectoryEntry[] = []
@@ -123,10 +153,11 @@ export const useProviderDirectory = (t: TranslateFn) => {
 
   const activeEntries = computed(() => entries.value.filter((e) => !e.provider.archived))
   const archivedEntries = computed(() => entries.value.filter((e) => e.provider.archived))
+  const viewEntries = computed(() => (view === 'archived' ? archivedEntries.value : activeEntries.value))
 
   const filteredEntries = computed(() => {
-    if (filter.value === 'all') return activeEntries.value
-    return activeEntries.value.filter((e) => e.platform === filter.value)
+    if (filter.value === 'all') return viewEntries.value
+    return viewEntries.value.filter((e) => e.platform === filter.value)
   })
 
   const entryKey = (entry: DirectoryEntry) => `${entry.platform}:${entry.provider.id}`
@@ -136,9 +167,8 @@ export const useProviderDirectory = (t: TranslateFn) => {
   }
 
   const selectedEntry = computed(() => {
-    const selected = findEntry(selectedKey.value)
-    if (selected && !selected.provider.archived) return selected
-    return filteredEntries.value[0] ?? null
+    const selected = filteredEntries.value.find((entry) => entryKey(entry) === selectedKey.value)
+    return selected ?? filteredEntries.value[0] ?? null
   })
 
   const isDefault = (entry: DirectoryEntry) =>
@@ -361,6 +391,18 @@ export const useProviderDirectory = (t: TranslateFn) => {
     }
   }
 
+  const probeSummary = (entry: DirectoryEntry | null) => {
+    if (!entry) return ''
+    const probe = probeResults[entryKey(entry)]
+    if (!probe) return t('providersPage.detail.neverTested')
+    const time = new Date(probe.at)
+    const hhmm = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
+    if (probe.success) {
+      return t('providersPage.detail.testOk', { ms: probe.durationMs, time: hhmm })
+    }
+    return t('providersPage.detail.testErr', { error: probe.error ?? '', time: hhmm })
+  }
+
   const requestDelete = (entry: DirectoryEntry) => {
     deleteState.open = true
     deleteState.entryKey = entryKey(entry)
@@ -390,21 +432,83 @@ export const useProviderDirectory = (t: TranslateFn) => {
     }
   }
 
-  const toggleArchive = async (entry: DirectoryEntry) => {
-    if (!entry.provider.archived && isDefault(entry)) {
+  const closeArchive = () => {
+    if (archiveState.busy) return
+    archiveState.open = false
+    archiveState.entryKey = ''
+  }
+
+  const requestArchive = (entry: DirectoryEntry) => {
+    if (entry.provider.archived) return
+    if (isDefault(entry)) {
       showToast(t('providersPage.messages.archiveBlockedBecauseDefault'), 'error')
       return
     }
-    await withPlatformMutation(
-      entry.platform,
-      (providers) => {
-        const target = providers.find((p) => p.id === entry.provider.id)
-        if (!target) return false
-        target.archived = !target.archived
-        return true
-      },
-      'providersPage.messages.saveFailed',
-    )
+    archiveState.open = true
+    archiveState.entryKey = entryKey(entry)
+    archiveState.busy = false
+  }
+
+  const confirmArchive = async () => {
+    const entry = findEntry(archiveState.entryKey)
+    if (!entry || entry.provider.archived) {
+      archiveState.open = false
+      archiveState.entryKey = ''
+      return false
+    }
+    if (isDefault(entry)) {
+      showToast(t('providersPage.messages.archiveBlockedBecauseDefault'), 'error')
+      archiveState.open = false
+      archiveState.entryKey = ''
+      return false
+    }
+    if (archiveState.busy) return false
+    archiveState.busy = true
+    try {
+      const ok = await withPlatformMutation(
+        entry.platform,
+        (providers) => {
+          const target = providers.find((p) => p.id === entry.provider.id)
+          if (!target) return false
+          target.archived = true
+          target.archivedAt = null
+          return true
+        },
+        'providersPage.messages.saveFailed',
+      )
+      if (ok) {
+        archiveState.open = false
+        archiveState.entryKey = ''
+        showToast(t('providersPage.messages.archived', { name: entry.provider.name }))
+      }
+      return ok
+    } finally {
+      archiveState.busy = false
+    }
+  }
+
+  const restoreProvider = async (entry: DirectoryEntry) => {
+    if (!entry.provider.archived || restoringKey.value) return false
+    restoringKey.value = entryKey(entry)
+    try {
+      const ok = await withPlatformMutation(
+        entry.platform,
+        (providers) => {
+          const target = providers.find((p) => p.id === entry.provider.id)
+          if (!target) return false
+          target.archived = false
+          target.archivedAt = null
+          return true
+        },
+        'providersPage.messages.saveFailed',
+      )
+      if (ok) {
+        showToast(t('providersPage.messages.restored', { name: entry.provider.name }))
+      }
+      return ok
+    } finally {
+      restoringKey.value = ''
+    }
   }
 
   // ---- 跨 CLI 快速复制 ----
@@ -448,11 +552,14 @@ export const useProviderDirectory = (t: TranslateFn) => {
     advancedState,
     deleteState,
     copyState,
+    archiveState,
+    restoringKey,
     filteredEntries,
     archivedEntries,
     selectedEntry,
     selectedKey,
     entryKey,
+    findEntry,
     isDefault,
     loadAll,
     openCreate,
@@ -462,9 +569,13 @@ export const useProviderDirectory = (t: TranslateFn) => {
     submitAdvanced,
     setDefault,
     testConnection,
+    probeSummary,
     requestDelete,
     confirmDelete,
-    toggleArchive,
+    closeArchive,
+    requestArchive,
+    confirmArchive,
+    restoreProvider,
     requestCopy,
     confirmCopy,
   }

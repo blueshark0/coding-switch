@@ -290,12 +290,14 @@
     "close": "Close",
     "save": "Save",
     "saving": "Saving…",
-    "deleting": "Deleting…"
+    "deleting": "Deleting…",
+    "loading": "Loading…"
   },
   "shell": {
     "nav": {
       "dashboard": "Dashboard",
       "providers": "Providers",
+      "providerArchive": "Archive management",
       "logs": "Logs",
       "sessions": "Sessions",
       "mcp": "MCP Servers",
@@ -364,10 +366,14 @@
     "subtitle": "Manage endpoints, models and credentials; each CLI uses its own.",
     "actions": {
       "copyAcross": "Copy across CLIs",
+      "archiveManagement": "Archive management",
+      "back": "Back to providers",
       "create": "Add provider",
       "edit": "Edit",
       "test": "Test connection",
       "testing": "Testing…",
+      "restore": "Restore provider",
+      "restoring": "Restoring…",
       "setCurrent": "Set as current",
       "current": "Active"
     },
@@ -384,7 +390,8 @@
       "active": "Active",
       "verified": "Verified",
       "failed": "Failed",
-      "unverified": "Unverified"
+      "unverified": "Unverified",
+      "archived": "Archived"
     },
     "detail": {
       "title": "Current profile details",
@@ -398,15 +405,40 @@
       "privacyNote": "Keys are shown in plaintext locally; mind your screen before sharing."
     },
     "menu": {
+      "open": "Provider actions",
       "edit": "Edit",
       "advanced": "Advanced",
       "copyAcross": "Copy across CLIs",
-      "archive": "Archive",
+      "archive": "Archive provider",
       "restore": "Restore",
       "delete": "Delete"
     },
-    "archived": {
-      "title": "Archived ({count})"
+    "archiveConfirm": {
+      "title": "Archive provider?",
+      "subtitle": "You can restore it at any time; its configuration is not deleted",
+      "warningTitle": "This provider will be hidden from selection lists",
+      "warningBody": "The current default provider will not be changed automatically, and all configuration will be preserved.",
+      "target": "Provider: {name}",
+      "confirm": "Archive provider",
+      "confirming": "Archiving…"
+    },
+    "archivedPage": {
+      "title": "Archived providers",
+      "subtitle": "Archived providers are hidden from selection lists; restore them to make them selectable again.",
+      "all": "All archived",
+      "count": "{count} archived",
+      "listTitle": "Archived providers",
+      "listSubtitle": "Archive time, client scope and restore actions",
+      "empty": "No archived providers",
+      "detailTitle": "Archive details",
+      "archivedAt": "Archived at",
+      "unknownTime": "Not recorded",
+      "archivedOn": "Archived {date}",
+      "archivedOnUnknown": "Archive time not recorded",
+      "rulesTitle": "Restore rules",
+      "rulesBody": "Restoring returns the provider to selection lists without switching the current provider. API keys, model mappings and advanced configuration are preserved.",
+      "restoreNote": "Restoring makes this provider selectable again without applying it to a CLI.",
+      "delete": "Delete provider"
     },
     "editor": {
       "titleNew": "Add provider",
@@ -505,6 +537,8 @@
       "copied": "Copied",
       "copyFailed": "Copy failed",
       "testFailed": "Connection test failed",
+      "archived": "\"{name}\" archived",
+      "restored": "\"{name}\" restored",
       "archiveBlockedBecauseDefault": "The default provider cannot be archived; switch the default first"
     },
     "form": {

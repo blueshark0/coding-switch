@@ -29,7 +29,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 	}
 
 	rows, err := db.QueryContext(ctx, `SELECT id, name, api_url, api_key, official_site, tint, accent,
-		position, supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived
+		position, supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived, archived_at
 		FROM providers
 		WHERE platform = ?
 		ORDER BY position ASC, id ASC`, platform.String())
@@ -45,6 +45,7 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 		var requestBodyReplacementsJSON string
 		var insecureSkipVerify int
 		var archived int
+		var archivedAt sql.NullTime
 		if err := rows.Scan(
 			&provider.ID,
 			&provider.Name,
@@ -61,11 +62,16 @@ func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) 
 			&provider.ProxyURL,
 			&insecureSkipVerify,
 			&archived,
+			&archivedAt,
 		); err != nil {
 			return domain.RouteProfile{}, err
 		}
 		provider.InsecureSkipVerify = insecureSkipVerify == 1
 		provider.Archived = archived == 1
+		if archivedAt.Valid {
+			value := archivedAt.Time.UTC()
+			provider.ArchivedAt = &value
+		}
 		provider.SupportedModels = map[string]bool{}
 		provider.ModelMapping = map[string]string{}
 		if err := decodeJSONMap(supportedModelsJSON, &provider.SupportedModels); err != nil {
@@ -187,10 +193,14 @@ func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile)
 		if err != nil {
 			return err
 		}
+		var archivedAt any
+		if provider.Archived && provider.ArchivedAt != nil {
+			archivedAt = provider.ArchivedAt.UTC()
+		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO providers(
 			platform, id, name, api_url, api_key, official_site, tint, accent, position,
-			supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			supported_models_json, model_mapping_json, request_body_replacements_json, proxy_mode, proxy_url, insecure_skip_verify, archived, archived_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, id) DO UPDATE SET
 			name = excluded.name,
 			api_url = excluded.api_url,
@@ -205,7 +215,12 @@ func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile)
 			proxy_mode = excluded.proxy_mode,
 			proxy_url = excluded.proxy_url,
 			insecure_skip_verify = excluded.insecure_skip_verify,
-			archived = excluded.archived`,
+			archived = excluded.archived,
+			archived_at = CASE
+				WHEN excluded.archived = 0 THEN NULL
+				WHEN providers.archived = 0 THEN COALESCE(excluded.archived_at, CURRENT_TIMESTAMP)
+				ELSE COALESCE(providers.archived_at, excluded.archived_at)
+			END`,
 			profile.Platform.String(),
 			provider.ID,
 			provider.Name,
@@ -222,6 +237,7 @@ func saveProfileTx(ctx context.Context, tx *sql.Tx, profile domain.RouteProfile)
 			provider.ProxyURL,
 			boolToInt(provider.InsecureSkipVerify),
 			boolToInt(provider.Archived),
+			archivedAt,
 		); err != nil {
 			return err
 		}

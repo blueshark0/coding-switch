@@ -179,6 +179,10 @@ func cloneRouteProfile(profile domain.RouteProfile) domain.RouteProfile {
 	}
 	for _, provider := range profile.Providers {
 		next := provider
+		if provider.ArchivedAt != nil {
+			archivedAt := *provider.ArchivedAt
+			next.ArchivedAt = &archivedAt
+		}
 		next.SupportedModels = cloneBoolMap(provider.SupportedModels)
 		next.ModelMapping = cloneStringMap(provider.ModelMapping)
 		next.RequestBodyReplacements = cloneRequestBodyReplacements(provider.RequestBodyReplacements)

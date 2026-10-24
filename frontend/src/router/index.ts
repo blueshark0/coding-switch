@@ -3,6 +3,11 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 const routes = [
   { path: '/', component: () => import('../components/Dashboard/Index.vue'), meta: { nav: 'dashboard' } },
   { path: '/providers', component: () => import('../components/Providers/Index.vue'), meta: { nav: 'providers' } },
+  {
+    path: '/providers/archived',
+    component: () => import('../components/Providers/Archived.vue'),
+    meta: { nav: 'providers', crumb: 'providerArchive', crumbOnly: true },
+  },
   { path: '/logs', component: () => import('../components/Logs/Index.vue'), meta: { nav: 'logs' } },
   { path: '/logs/session', component: () => import('../components/Logs/SessionTrace.vue'), meta: { nav: 'logs' } },
   { path: '/sessions', component: () => import('../components/Session/Index.vue'), meta: { nav: 'sessions' } },

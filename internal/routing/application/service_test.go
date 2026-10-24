@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"testing"
+	"time"
 
 	"codeswitch/internal/routing/domain"
 	"codeswitch/internal/shared/kernel"
@@ -41,12 +42,13 @@ func (r *routingRepoStub) ReplaceAll(_ context.Context, _ domain.AppPreferences,
 }
 
 func TestServiceGetProfileUsesCache(t *testing.T) {
+	archivedAt := time.Date(2026, 10, 22, 14, 32, 0, 0, time.UTC)
 	repo := &routingRepoStub{
 		profiles: map[kernel.Platform]domain.RouteProfile{
 			kernel.PlatformClaude: {
 				Platform: kernel.PlatformClaude,
 				Providers: []domain.Provider{
-					{ID: 1, Name: "alpha", Position: 1},
+					{ID: 1, Name: "alpha", Position: 1, Archived: true, ArchivedAt: &archivedAt},
 				},
 			},
 		},
@@ -58,6 +60,7 @@ func TestServiceGetProfileUsesCache(t *testing.T) {
 		t.Fatalf("first get profile: %v", err)
 	}
 	first.Providers[0].Name = "mutated"
+	*first.Providers[0].ArchivedAt = first.Providers[0].ArchivedAt.Add(time.Hour)
 
 	second, err := service.GetProfile(context.Background(), kernel.PlatformClaude.String())
 	if err != nil {
@@ -69,6 +72,9 @@ func TestServiceGetProfileUsesCache(t *testing.T) {
 	}
 	if second.Providers[0].Name != "alpha" {
 		t.Fatalf("expected cached profile clone, got %+v", second.Providers[0])
+	}
+	if second.Providers[0].ArchivedAt == nil || !second.Providers[0].ArchivedAt.Equal(archivedAt) {
+		t.Fatalf("expected cached archived timestamp clone, got %v", second.Providers[0].ArchivedAt)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
 	"codeswitch/internal/shared/kernel"
 )
@@ -68,6 +69,8 @@ type Provider struct {
 	// Archived 归档状态：保留配置但彻底退出路由（不可被解析为默认或
 	// 会话绑定供应商），可在 UI 中恢复。
 	Archived bool `json:"archived,omitempty"`
+	// ArchivedAt 记录最近一次归档时间；历史数据可能为空。
+	ArchivedAt *time.Time `json:"archivedAt,omitempty"`
 }
 
 func (p *Provider) ResolveProxyURL(globalEnabled bool, globalURL string) string {
@@ -113,6 +116,12 @@ func (p RouteProfile) Normalize() RouteProfile {
 		next.Name = strings.TrimSpace(next.Name)
 		if next.Position <= 0 {
 			next.Position = idx + 1
+		}
+		if !next.Archived {
+			next.ArchivedAt = nil
+		} else if next.ArchivedAt != nil {
+			archivedAt := next.ArchivedAt.UTC()
+			next.ArchivedAt = &archivedAt
 		}
 		if next.SupportedModels == nil {
 			next.SupportedModels = map[string]bool{}

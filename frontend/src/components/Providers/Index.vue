@@ -1,16 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
-import { Copy, Ellipsis, Plus, Server } from 'lucide-vue-next'
+import { RouterLink, useRoute } from 'vue-router'
+import { Archive, Copy, Ellipsis, Pencil, Plus, Settings2, Trash2 } from 'lucide-vue-next'
 import { providerTabs, type ProviderTab } from '../../constants/platforms'
-import { useProviderDirectory, type DirectoryEntry } from './useProviderDirectory'
+import {
+  entrySubtitle,
+  useProviderDirectory,
+  type DirectoryEntry,
+} from './useProviderDirectory'
+import ProviderListRow from './ProviderListRow.vue'
+import ProviderDetailCard from './ProviderDetailCard.vue'
 import ProviderEditorModal from './ProviderEditorModal.vue'
 import ProviderAdvancedModal from './ProviderAdvancedModal.vue'
 import ProviderDeleteModal from './ProviderDeleteModal.vue'
 import ProviderCopyModal from './ProviderCopyModal.vue'
-import { getErrorMessage } from '../../utils/errors'
-import { showToast } from '../../utils/toast'
+import ProviderArchiveModal from './ProviderArchiveModal.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -18,7 +23,6 @@ const directory = useProviderDirectory(t)
 const {
   filter,
   filteredEntries,
-  archivedEntries,
   selectedEntry,
   selectedKey,
   entryKey,
@@ -27,6 +31,7 @@ const {
   advancedState,
   deleteState,
   copyState,
+  archiveState,
   probeResults,
   probing,
 } = directory
@@ -36,9 +41,11 @@ const filterTabs = computed(() => [
   ...providerTabs.map((tab) => ({ id: tab.id, label: tab.label })),
 ])
 
-const totalCount = computed(() =>
-  filteredEntries.value.length,
-)
+const totalCount = computed(() => filteredEntries.value.length)
+const archiveRoute = computed(() => ({
+  path: '/providers/archived',
+  query: filter.value === 'all' ? {} : { platform: filter.value },
+}))
 
 onMounted(async () => {
   await directory.loadAll()
@@ -48,25 +55,9 @@ onMounted(async () => {
   }
 })
 
-const hostOf = (apiUrl: string) => {
-  try {
-    return new URL(apiUrl).host
-  } catch {
-    return apiUrl
-  }
-}
+type ProviderStatus = { tone: 'success' | 'warning' | 'danger'; label: string }
 
-const modelOf = (entry: DirectoryEntry) => {
-  const models = Object.keys(entry.provider.supportedModels ?? {}).filter(
-    (key) => entry.provider.supportedModels?.[key] !== false,
-  )
-  return models[0] ?? ''
-}
-
-const entrySubtitle = (entry: DirectoryEntry) =>
-  [entry.platformLabel, modelOf(entry) || hostOf(entry.provider.apiUrl)].filter(Boolean).join(' · ')
-
-const statusOf = (entry: DirectoryEntry) => {
+const statusOf = (entry: DirectoryEntry): ProviderStatus => {
   if (isDefault(entry)) return { tone: 'success', label: t('providersPage.status.active') }
   const probe = probeResults[entryKey(entry)]
   if (probe?.success) return { tone: 'success', label: t('providersPage.status.verified') }
@@ -74,55 +65,53 @@ const statusOf = (entry: DirectoryEntry) => {
   return { tone: 'warning', label: t('providersPage.status.unverified') }
 }
 
-const probeSummary = computed(() => {
-  const entry = selectedEntry.value
-  if (!entry) return ''
-  const probe = probeResults[entryKey(entry)]
-  if (!probe) return t('providersPage.detail.neverTested')
-  const time = new Date(probe.at)
-  const hhmm = `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`
-  if (probe.success) {
-    return t('providersPage.detail.testOk', { ms: probe.durationMs, time: hhmm })
-  }
-  return t('providersPage.detail.testErr', { error: probe.error ?? '', time: hhmm })
-})
+const probeSummary = computed(() => directory.probeSummary(selectedEntry.value))
 
 // ---- 行内菜单 ----
 const menuFor = ref('')
-const toggleMenu = (key: string) => {
-  menuFor.value = menuFor.value === key ? '' : key
+const menuStyle = ref<Record<string, string>>({})
+const toggleMenu = (key: string, event: MouseEvent) => {
+  if (menuFor.value === key) {
+    closeMenu()
+    return
+  }
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const menuWidth = 180
+  const menuHeight = 180
+  const openUpward = window.innerHeight - rect.bottom < menuHeight + 12 && rect.top > menuHeight + 12
+  const top = openUpward ? rect.top - menuHeight - 6 : rect.bottom + 6
+  const left = Math.min(window.innerWidth - menuWidth - 8, Math.max(8, rect.right - menuWidth))
+  menuStyle.value = {
+    top: `${Math.max(8, top)}px`,
+    left: `${left}px`,
+  }
+  menuFor.value = key
 }
 const closeMenu = () => {
   menuFor.value = ''
 }
-onMounted(() => window.addEventListener('click', closeMenu))
-onUnmounted(() => window.removeEventListener('click', closeMenu))
-
-const copyApiKey = async (value: string) => {
-  try {
-    await navigator.clipboard.writeText(value)
-    showToast(t('providersPage.messages.copied'))
-  } catch (error) {
-    showToast(getErrorMessage(error, t('providersPage.messages.copyFailed')), 'error')
-  }
-}
+onMounted(() => {
+  window.addEventListener('click', closeMenu)
+  window.addEventListener('resize', closeMenu)
+  window.addEventListener('scroll', closeMenu, true)
+})
+onUnmounted(() => {
+  window.removeEventListener('click', closeMenu)
+  window.removeEventListener('resize', closeMenu)
+  window.removeEventListener('scroll', closeMenu, true)
+})
 
 const copySourceEntry = computed(() =>
-  copyState.entryKey
-    ? filteredEntries.value.find((e) => entryKey(e) === copyState.entryKey) ??
-      archivedEntries.value.find((e) => entryKey(e) === copyState.entryKey) ??
-      null
-    : null,
+  copyState.entryKey ? directory.findEntry(copyState.entryKey) : null,
 )
 
-const deleteTarget = computed(() => {
-  if (!deleteState.entryKey) return null
-  return (
-    [...filteredEntries.value, ...archivedEntries.value].find(
-      (e) => entryKey(e) === deleteState.entryKey,
-    ) ?? null
-  )
-})
+const deleteTarget = computed(() =>
+  deleteState.entryKey ? directory.findEntry(deleteState.entryKey) : null,
+)
+
+const archiveTarget = computed(() =>
+  archiveState.entryKey ? directory.findEntry(archiveState.entryKey) : null,
+)
 </script>
 
 <template>
@@ -142,6 +131,10 @@ const deleteTarget = computed(() => {
           <Copy :size="14" :stroke-width="2" />
           {{ t('providersPage.actions.copyAcross') }}
         </button>
+        <RouterLink class="cs-btn prov-archive-link" :to="archiveRoute">
+          <Archive :size="14" :stroke-width="2" />
+          {{ t('providersPage.actions.archiveManagement') }}
+        </RouterLink>
         <button type="button" class="cs-btn cs-btn--primary" @click="directory.openCreate()">
           <Plus :size="14" :stroke-width="2" />
           {{ t('providersPage.actions.create') }}
@@ -173,83 +166,76 @@ const deleteTarget = computed(() => {
         </div>
 
         <div class="prov-rows">
-          <button
+          <ProviderListRow
             v-for="entry in filteredEntries"
             :key="entryKey(entry)"
-            type="button"
-            class="prov-row"
-            :class="{ selected: selectedEntry && entryKey(selectedEntry) === entryKey(entry) }"
-            @click.stop="selectedKey = entryKey(entry)"
+            :entry="entry"
+            :subtitle="entrySubtitle(entry)"
+            :selected="!!selectedEntry && entryKey(selectedEntry) === entryKey(entry)"
+            @select="selectedKey = entryKey(entry)"
           >
-            <span class="prov-avatar">
-              <Server :size="20" :stroke-width="2" />
-            </span>
-            <span class="prov-main">
-              <span class="prov-name">{{ entry.provider.name }}</span>
-              <span class="prov-sub cs-mono">{{ entrySubtitle(entry) }}</span>
-            </span>
-            <span class="cs-pill" :class="`cs-pill--${statusOf(entry).tone}`">
-              {{ statusOf(entry).label }}
-            </span>
+            <template #status>
+              <span class="cs-pill" :class="`cs-pill--${statusOf(entry).tone}`">
+                {{ statusOf(entry).label }}
+              </span>
+            </template>
+
             <span class="cs-menu-anchor" @click.stop>
-              <button type="button" class="prov-kebab" @click="toggleMenu(entryKey(entry))">
+              <button
+                type="button"
+                class="prov-kebab"
+                :aria-label="t('providersPage.menu.open')"
+                :aria-expanded="menuFor === entryKey(entry)"
+                @click="toggleMenu(entryKey(entry), $event)"
+              >
                 <Ellipsis :size="16" :stroke-width="2" />
               </button>
-              <div v-if="menuFor === entryKey(entry)" class="cs-menu">
+              <Teleport to="body">
+                <div
+                  v-if="menuFor === entryKey(entry)"
+                  class="cs-menu prov-action-menu"
+                  :style="menuStyle"
+                  @click.stop
+                >
                 <button type="button" class="cs-menu-item" @click="directory.openEdit(entry); closeMenu()">
+                  <Pencil :size="14" :stroke-width="2" />
                   {{ t('providersPage.menu.edit') }}
                 </button>
                 <button type="button" class="cs-menu-item" @click="directory.openAdvanced(entry); closeMenu()">
+                  <Settings2 :size="14" :stroke-width="2" />
                   {{ t('providersPage.menu.advanced') }}
                 </button>
                 <button type="button" class="cs-menu-item" @click="directory.requestCopy(entry); closeMenu()">
+                  <Copy :size="14" :stroke-width="2" />
                   {{ t('providersPage.menu.copyAcross') }}
                 </button>
-                <button type="button" class="cs-menu-item" @click="directory.toggleArchive(entry); closeMenu()">
+                <hr class="cs-divider prov-menu-divider" />
+                <button type="button" class="cs-menu-item" @click="directory.requestArchive(entry); closeMenu()">
+                  <Archive :size="14" :stroke-width="2" />
                   {{ t('providersPage.menu.archive') }}
                 </button>
                 <button type="button" class="cs-menu-item cs-menu-item--danger" @click="directory.requestDelete(entry); closeMenu()">
+                  <Trash2 :size="14" :stroke-width="2" />
                   {{ t('providersPage.menu.delete') }}
                 </button>
-              </div>
+                </div>
+              </Teleport>
             </span>
-          </button>
+          </ProviderListRow>
         </div>
       </div>
 
-      <div class="cs-card cs-card-pad prov-detail" v-if="selectedEntry">
-        <h2 class="cs-card-title">{{ t('providersPage.detail.title') }}</h2>
-        <p class="cs-section-sub">{{ selectedEntry.platformLabel }}</p>
-
-        <p class="prov-detail-name">{{ selectedEntry.provider.name }}</p>
-        <span class="cs-pill" :class="`cs-pill--${statusOf(selectedEntry).tone}`">
-          {{ statusOf(selectedEntry).label }}
-        </span>
-
-        <p class="prov-detail-label">{{ t('providersPage.detail.baseUrl') }}</p>
-        <p class="prov-detail-value cs-mono">{{ selectedEntry.provider.apiUrl }}</p>
-
-        <hr class="cs-divider" />
-
-        <p class="prov-detail-label">{{ t('providersPage.detail.apiKey') }}</p>
-        <div class="prov-key-row">
-          <span class="prov-key-value cs-mono">{{ selectedEntry.provider.apiKey || '—' }}</span>
-          <button
-            type="button"
-            class="cs-btn"
-            :disabled="!selectedEntry.provider.apiKey"
-            @click="copyApiKey(selectedEntry.provider.apiKey)"
-          >
-            {{ t('providersPage.detail.copy') }}
-          </button>
-        </div>
-
-        <hr class="cs-divider" />
-
-        <p class="prov-detail-label">{{ t('providersPage.detail.lastTest') }}</p>
-        <p class="prov-detail-probe">{{ probeSummary }}</p>
-
-        <div class="prov-detail-actions">
+      <ProviderDetailCard
+        v-if="selectedEntry"
+        :entry="selectedEntry"
+        :title="t('providersPage.detail.title')"
+        :status-tone="statusOf(selectedEntry).tone"
+        :status-label="statusOf(selectedEntry).label"
+        :meta-label="t('providersPage.detail.lastTest')"
+        :meta-value="probeSummary"
+        :note="t('providersPage.detail.privacyNote')"
+      >
+        <template #actions>
           <button type="button" class="cs-btn" @click="directory.openEdit(selectedEntry)">
             {{ t('providersPage.actions.edit') }}
           </button>
@@ -269,30 +255,8 @@ const deleteTarget = computed(() => {
           >
             {{ isDefault(selectedEntry) ? t('providersPage.actions.current') : t('providersPage.actions.setCurrent') }}
           </button>
-        </div>
-
-        <p class="prov-detail-note">{{ t('providersPage.detail.privacyNote') }}</p>
-      </div>
-    </div>
-
-    <div v-if="archivedEntries.length > 0" class="cs-card cs-card-pad">
-      <h2 class="cs-card-title">{{ t('providersPage.archived.title', { count: archivedEntries.length }) }}</h2>
-      <div
-        v-for="entry in archivedEntries"
-        :key="entryKey(entry)"
-        class="prov-archived-row"
-      >
-        <span class="prov-name">{{ entry.provider.name }}</span>
-        <span class="prov-sub">{{ entry.platformLabel }}</span>
-        <span class="prov-archived-actions">
-          <button type="button" class="cs-btn" @click="directory.toggleArchive(entry)">
-            {{ t('providersPage.menu.restore') }}
-          </button>
-          <button type="button" class="cs-btn" @click="directory.requestDelete(entry)">
-            {{ t('providersPage.menu.delete') }}
-          </button>
-        </span>
-      </div>
+        </template>
+      </ProviderDetailCard>
     </div>
 
     <ProviderEditorModal
@@ -317,6 +281,13 @@ const deleteTarget = computed(() => {
       :source="copySourceEntry"
       @close="copyState.open = false"
       @confirm="directory.confirmCopy"
+    />
+    <ProviderArchiveModal
+      :open="archiveState.open"
+      :name="archiveTarget?.provider.name ?? ''"
+      :busy="archiveState.busy"
+      @close="directory.closeArchive"
+      @confirm="directory.confirmArchive"
     />
   </div>
 </template>
@@ -346,75 +317,14 @@ const deleteTarget = computed(() => {
   gap: 10px;
 }
 
-/* 滚动容器会裁剪绝对定位的下拉菜单，末行改为向上弹出 */
-.prov-row:last-child .cs-menu {
-  top: auto;
-  bottom: calc(100% + 6px);
+.prov-action-menu {
+  position: fixed;
+  right: auto;
+  width: 180px;
 }
 
 .prov-list .cs-section-sub {
   margin-bottom: 8px;
-}
-
-.prov-row {
-  display: flex;
-  align-items: center;
-  gap: 13px;
-  min-height: 78px;
-  padding: 12px 11px;
-  border-radius: var(--cs-r-row);
-  border: 1px solid var(--cs-border);
-  background: var(--cs-surface);
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-.prov-row.selected {
-  background: var(--cs-brand-tint);
-  border-color: var(--cs-brand-tint-border);
-}
-
-.prov-avatar {
-  width: 43px;
-  height: 43px;
-  border-radius: 10px;
-  background: var(--cs-field);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--cs-text-secondary);
-  flex-shrink: 0;
-}
-
-.prov-row.selected .prov-avatar {
-  background: var(--cs-brand-tint);
-}
-
-.prov-main {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  flex: 1;
-}
-
-.prov-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--cs-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.prov-sub {
-  font-size: 10px;
-  color: var(--cs-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .prov-kebab {
@@ -433,103 +343,21 @@ const deleteTarget = computed(() => {
   background: var(--cs-row-hover);
 }
 
-.prov-detail {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-}
-
-.prov-detail-name {
-  margin: 10px 0 0;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--cs-text);
-}
-
-.prov-detail .cs-pill {
-  align-self: flex-start;
-}
-
-.prov-detail-label {
-  margin: 6px 0 0;
-  font-size: 10px;
-  color: var(--cs-text-secondary);
-}
-
-.prov-detail-value {
-  margin: 0;
-  font-size: 11px;
-  color: var(--cs-text);
-  word-break: break-all;
-  user-select: text;
-}
-
-.prov-key-row {
-  display: flex;
-  align-items: center;
+.cs-menu-item {
   gap: 8px;
-  background: var(--cs-field);
-  border: 1px solid var(--cs-border);
-  border-radius: var(--cs-r-field);
-  padding: 2px 2px 2px 10px;
 }
 
-.prov-key-value {
-  flex: 1;
-  font-size: 10px;
-  color: var(--cs-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  user-select: text;
+.prov-menu-divider {
+  margin: 4px 0;
 }
 
-.prov-detail-probe {
-  margin: 0;
-  font-size: 12px;
-  color: var(--cs-text);
-}
-
-.prov-detail-actions {
-  display: flex;
-  gap: 9px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-}
-
-.prov-detail-note {
-  margin: 4px 0 0;
-  font-size: 10px;
-  color: var(--cs-text-secondary);
-}
-
-.prov-archived-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 4px;
-  border-top: 1px solid var(--cs-border);
-}
-
-.prov-archived-row:first-of-type {
-  border-top: none;
-}
-
-.prov-archived-actions {
-  margin-left: auto;
-  display: flex;
-  gap: 8px;
+.prov-archive-link {
+  text-decoration: none;
 }
 
 @media (max-width: 1100px) {
   .prov-grid {
     grid-template-columns: 1fr;
-  }
-
-  .prov-detail {
-    position: static;
   }
 }
 </style>

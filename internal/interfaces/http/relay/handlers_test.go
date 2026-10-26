@@ -58,6 +58,49 @@ func TestCodexHandlerExtractRequestMetaFallsBackToLegacySessionHeader(t *testing
 	}
 }
 
+func TestCodexHandlerClassifiesBackgroundTasks(t *testing.T) {
+	handler := NewCodexHandler("/responses")
+	tests := []struct {
+		name       string
+		body       string
+		headers    map[string]string
+		background bool
+	}{
+		{name: "main conversation", body: `{"model":"gpt-5"}`, headers: map[string]string{"session-id": "main"}},
+		{
+			name:       "memory consolidation subagent",
+			body:       `{"model":"gpt-5"}`,
+			headers:    map[string]string{"X-OpenAI-Subagent": "memory_consolidation"},
+			background: true,
+		},
+		{
+			name:       "temporary structured title",
+			body:       `{"model":"gpt-5","text":{"format":{"name":"codex_output_schema","type":"json_schema"}}}`,
+			background: true,
+		},
+		{
+			name:       "memory request metadata",
+			body:       `{"model":"gpt-5"}`,
+			headers:    map[string]string{"x-codex-turn-metadata": `{"request_kind":"memory"}`},
+			background: true,
+		},
+		{
+			name:    "custom structured output is not enough to hide a session",
+			body:    `{"model":"gpt-5","text":{"format":{"name":"customer_schema","type":"json_schema"}}}`,
+			headers: map[string]string{"session-id": "main"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			meta := handler.ExtractRequestMeta("/responses", []byte(tt.body), nil, tt.headers)
+			if meta.IsBackgroundTask != tt.background {
+				t.Fatalf("unexpected background classification: got=%v want=%v", meta.IsBackgroundTask, tt.background)
+			}
+		})
+	}
+}
+
 func TestGeminiHandlerExtractRequestMeta(t *testing.T) {
 	handler := NewGeminiHandler()
 	meta := handler.ExtractRequestMeta(

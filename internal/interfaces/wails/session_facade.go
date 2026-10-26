@@ -8,10 +8,10 @@ import (
 	sessionapp "codeswitch/internal/sessions/application"
 )
 
-// SessionUsageQuerier 按平台返回 request_log 的会话级聚合，见
-// observability/infrastructure.SessionUsageByPlatform。
+// SessionUsageQuerier 返回指定平台有效会话的 request_log 聚合，见
+// observability/infrastructure.SessionUsageForSessions。
 type SessionUsageQuerier interface {
-	SessionUsageByPlatform(platform string) (map[string]observabilitydomain.SessionUsage, error)
+	SessionUsageForSessions(platform string, sessionIDs []string) (map[string]observabilitydomain.SessionUsage, error)
 }
 
 // SessionSummary 是会话绑定 + 用量聚合的视图模型：前端用它把不可读的
@@ -45,8 +45,12 @@ func (f *SessionFacade) ListByPlatform(platform string) ([]SessionSummary, error
 	}
 	// 用量查询失败不应拖垮会话列表：绑定信息才是主体，降级为无用量。
 	usageBySession := map[string]observabilitydomain.SessionUsage{}
-	if f.usage != nil {
-		if usage, err := f.usage.SessionUsageByPlatform(platform); err != nil {
+	if f.usage != nil && len(bindings) > 0 {
+		sessionIDs := make([]string, 0, len(bindings))
+		for _, binding := range bindings {
+			sessionIDs = append(sessionIDs, binding.SessionID)
+		}
+		if usage, err := f.usage.SessionUsageForSessions(platform, sessionIDs); err != nil {
 			log.Printf("查询会话用量聚合失败: platform=%s err=%v", platform, err)
 		} else {
 			usageBySession = usage

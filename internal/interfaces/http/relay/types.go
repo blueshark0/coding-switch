@@ -23,6 +23,7 @@ type RequestMeta struct {
 	SessionID         string
 	IsStream          bool
 	IsFast            bool
+	IsBackgroundTask  bool
 	BodyHasModelField bool
 	RouteOptions      *relayRouteOptions
 }
@@ -38,17 +39,18 @@ type RelayContext struct {
 }
 
 type ForwardContext struct {
-	GinCtx    *gin.Context
-	Platform  kernel.Platform
-	Provider  *routingdomain.Provider
-	Endpoint  string
-	Query     map[string]string
-	Headers   map[string]string
-	BodyBytes []byte
-	IsStream  bool
-	IsFast    bool
-	Model     string
-	SessionID string
+	GinCtx           *gin.Context
+	Platform         kernel.Platform
+	Provider         *routingdomain.Provider
+	Endpoint         string
+	Query            map[string]string
+	Headers          map[string]string
+	BodyBytes        []byte
+	IsStream         bool
+	IsFast           bool
+	IsBackgroundTask bool
+	Model            string
+	SessionID        string
 }
 
 type PlatformHandler interface {

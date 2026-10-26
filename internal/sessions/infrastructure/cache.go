@@ -28,7 +28,7 @@ type sessionCacheEntry struct {
 // Cache 的 entry 会被 gin 请求 goroutine、sessionUpdateWorker 后台 goroutine
 // 与 Wails UI goroutine（Unbind→InvalidateSession）并发读写；lru.Cache 只保证
 // 自身 Get/Add 线程安全，entry 字段的读改写必须由 mu 统一串行化。
-// 公开方法负责加锁，内部一律走 *Locked 无锁版本（sync.Mutex 不可重入）。
+// mu 只保护内存状态；数据库 I/O 在锁外执行，并通过 Service 的会话锁与解绑串行化。
 type Cache struct {
 	mu      sync.Mutex
 	cache   *lru.Cache[string, *sessionCacheEntry]
@@ -64,45 +64,56 @@ func (sc *Cache) GetSessionProviderSnapshot(platform, sessionID string) (string,
 	if sessionID == "" {
 		return "", 0, nil
 	}
+	// Hits never wait for repository I/O, even for another session's write.
+	sc.mu.Lock()
+	providerName, generation, hit := sc.cachedProviderLocked(platform, sessionID)
+	sc.mu.Unlock()
+	if hit || sc.service == nil {
+		return providerName, generation, nil
+	}
+	unlock := sc.service.LockSession(platform, sessionID)
+	defer unlock()
+	sc.mu.Lock()
+	providerName, generation, hit = sc.cachedProviderLocked(platform, sessionID)
+	sc.mu.Unlock()
+	if hit {
+		return providerName, generation, nil
+	}
+	providerName, err := sc.service.GetSessionProvider(platform, sessionID)
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
+	// Direct invalidation or a success recorded during the query takes priority.
+	currentProvider, currentGeneration, currentHit := sc.cachedProviderLocked(platform, sessionID)
+	if currentGeneration != generation || currentHit {
+		return currentProvider, currentGeneration, nil
+	}
+	if err != nil {
+		return "", generation, err
+	}
+	if providerName != "" && sc.cache != nil {
+		sc.cache.Add(sc.cacheKey(platform, sessionID), &sessionCacheEntry{
+			providerName:  providerName,
+			lastSuccessAt: time.Now(),
+			generation:    generation,
+		})
+	}
+	return providerName, generation, nil
+}
 
-	key := sc.cacheKey(platform, sessionID)
-	generation := uint64(0)
+func (sc *Cache) cachedProviderLocked(platform, sessionID string) (string, uint64, bool) {
 	if sc.cache != nil {
-		if entry, ok := sc.cache.Get(key); ok {
-			generation = entry.generation
+		if entry, ok := sc.cache.Get(sc.cacheKey(platform, sessionID)); ok {
 			if !sc.isExpired(platform, entry.lastSuccessAt) {
-				return entry.providerName, generation, nil
+				return entry.providerName, entry.generation, true
 			}
 			entry.providerName = ""
 			entry.lastSuccessAt = time.Time{}
 			entry.lastPersistedAt = time.Time{}
 			entry.pendingPersistAt = time.Time{}
+			return "", entry.generation, false
 		}
 	}
-	if sc.service == nil {
-		return "", generation, nil
-	}
-	providerName, err := sc.service.GetSessionProvider(platform, sessionID)
-	if err != nil {
-		return "", generation, err
-	}
-	if providerName != "" && sc.cache != nil {
-		if entry, ok := sc.cache.Get(key); ok && entry != nil {
-			entry.providerName = providerName
-			entry.lastSuccessAt = time.Now()
-			entry.lastPersistedAt = time.Time{}
-			return providerName, entry.generation, nil
-		}
-		sc.cache.Add(key, &sessionCacheEntry{
-			providerName:    providerName,
-			lastSuccessAt:   time.Now(),
-			lastPersistedAt: time.Time{},
-			generation:      generation,
-		})
-	}
-	return providerName, generation, nil
+	return "", 0, false
 }
 
 func (sc *Cache) BindSessionToProvider(platform, sessionID, providerName string) error {
@@ -116,15 +127,24 @@ func (sc *Cache) BindSessionToProviderGeneration(platform, sessionID, providerNa
 	if sessionID == "" || providerName == "" {
 		return nil
 	}
+	if sc.service != nil {
+		unlock := sc.service.LockSession(platform, sessionID)
+		defer unlock()
+	}
+	if !sc.IsCurrentGeneration(platform, sessionID, generation) {
+		return nil
+	}
+	var err error
+	if sc.service != nil {
+		err = sc.service.BindSessionToProvider(platform, sessionID, providerName)
+	}
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
-		return nil
+		return err
 	}
-	if sc.service != nil {
-		if err := sc.service.BindSessionToProvider(platform, sessionID, providerName); err != nil {
-			return err
-		}
+	if err != nil {
+		return err
 	}
 	if sc.cache != nil {
 		key := sc.cacheKey(platform, sessionID)
@@ -150,17 +170,25 @@ func (sc *Cache) UpdateSessionSuccessGeneration(platform, sessionID string, gene
 	if sessionID == "" {
 		return nil
 	}
+	if sc.service != nil {
+		unlock := sc.service.LockSession(platform, sessionID)
+		defer unlock()
+	}
+	if !sc.IsCurrentGeneration(platform, sessionID, generation) {
+		return nil
+	}
+	var err error
+	if sc.service != nil {
+		err = sc.service.UpdateSessionSuccess(platform, sessionID)
+	}
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
-		sc.clearPendingSessionSuccessLocked(platform, sessionID)
-		return nil
+		return err
 	}
-	if sc.service != nil {
-		if err := sc.service.UpdateSessionSuccess(platform, sessionID); err != nil {
-			sc.clearPendingSessionSuccessLocked(platform, sessionID)
-			return err
-		}
+	if err != nil {
+		sc.clearPendingSessionSuccessLocked(platform, sessionID)
+		return err
 	}
 	if sc.cache != nil {
 		now := time.Now()
@@ -178,20 +206,23 @@ func (sc *Cache) RecordSessionSuccess(platform, sessionID, providerName string) 
 	sc.mu.Lock()
 	generation := sc.sessionGenerationLocked(platform, sessionID)
 	sc.mu.Unlock()
-	return sc.RecordSessionSuccessGeneration(platform, sessionID, providerName, generation)
+	_, persist := sc.RecordSessionSuccessGeneration(platform, sessionID, providerName, generation)
+	return persist
 }
 
-func (sc *Cache) RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) bool {
+// RecordSessionSuccessGeneration 分别返回 generation 是否仍有效、是否需要落盘。
+// 展示状态等按请求更新的逻辑使用第一个返回值，不受持久化节流影响。
+func (sc *Cache) RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) (bool, bool) {
 	if sessionID == "" {
-		return false
+		return false, false
 	}
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	if sc.cache == nil {
-		return true
+		return true, true
 	}
 	if !sc.isCurrentGenerationLocked(platform, sessionID, generation) {
-		return false
+		return false, false
 	}
 	now := time.Now()
 	key := sc.cacheKey(platform, sessionID)
@@ -210,10 +241,10 @@ func (sc *Cache) RecordSessionSuccessGeneration(platform, sessionID, providerNam
 		referenceTime = entry.pendingPersistAt
 	}
 	if !referenceTime.IsZero() && now.Sub(referenceTime) < sessionPersistInterval {
-		return false
+		return true, false
 	}
 	entry.pendingPersistAt = now
-	return true
+	return true, true
 }
 
 func (sc *Cache) InvalidateSession(platform, sessionID string) {

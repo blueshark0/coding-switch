@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/daodao97/xgo/xdb"
 )
 
-func TestSessionUsageByPlatform_AggregatesPerSession(t *testing.T) {
+func TestSessionUsageForSessions_AggregatesPerSession(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "request_log.db")
 	if err := xdb.Init(map[string]*xdb.Config{
 		storage.RequestLogDBName: {
@@ -53,9 +54,24 @@ func TestSessionUsageByPlatform_AggregatesPerSession(t *testing.T) {
 		t.Fatalf("Process: %v", err)
 	}
 
-	usage, err := NewSQLiteQueries().SessionUsageByPlatform("claude")
+	selected, err := NewSQLiteQueries().SessionUsageForSessions("claude", []string{"s-1", "s-1", "", "c-1", "missing"})
+	if err != nil || len(selected) != 1 || selected["s-1"].Requests != 2 {
+		t.Fatalf("must include only requested platform/session pairs without double counting: %+v, %v", selected, err)
+	}
+	// Cross a parameter batch boundary; the requested session in the last batch
+	// must still be returned and a repeated ID must not double-count usage.
+	ids := make([]string, 0, 1003)
+	for i := 0; i < 1000; i++ {
+		ids = append(ids, fmt.Sprintf("missing-%d", i))
+	}
+	ids = append(ids, "s-1", "s-2", "s-1")
+	batched, err := NewSQLiteQueries().SessionUsageForSessions("claude", ids)
+	if err != nil || len(batched) != 2 || batched["s-1"].Requests != 2 || batched["s-2"].Requests != 1 {
+		t.Fatalf("batched session usage: %+v, %v", batched, err)
+	}
+	usage, err := NewSQLiteQueries().SessionUsageForSessions("claude", []string{"s-1", "s-2"})
 	if err != nil {
-		t.Fatalf("SessionUsageByPlatform: %v", err)
+		t.Fatalf("SessionUsageForSessions: %v", err)
 	}
 	if len(usage) != 2 {
 		t.Fatalf("expected 2 claude sessions, got %d", len(usage))
@@ -94,11 +110,22 @@ func TestSessionUsageByPlatform_AggregatesPerSession(t *testing.T) {
 		t.Fatalf("expected s-2 requests 1, got %d", usage["s-2"].Requests)
 	}
 
-	codexUsage, err := NewSQLiteQueries().SessionUsageByPlatform("codex")
+	codexUsage, err := NewSQLiteQueries().SessionUsageForSessions("codex", []string{"c-1", "s-1"})
 	if err != nil {
-		t.Fatalf("SessionUsageByPlatform codex: %v", err)
+		t.Fatalf("SessionUsageForSessions codex: %v", err)
 	}
 	if len(codexUsage) != 1 || codexUsage["c-1"].Requests != 1 {
 		t.Fatalf("expected 1 codex session with 1 request, got %+v", codexUsage)
+	}
+}
+
+func TestSessionUsageForSessionsEmptyInputDoesNotAccessDB(t *testing.T) {
+	// The preceding tests may have left a closed registry connection. Empty IDs
+	// must succeed regardless of database availability.
+	for _, ids := range [][]string{nil, {}, {"", ""}} {
+		result, err := (&SQLiteQueries{}).SessionUsageForSessions("claude", ids)
+		if err != nil || len(result) != 0 {
+			t.Fatalf("empty query: %+v, %v", result, err)
+		}
 	}
 }

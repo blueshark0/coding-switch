@@ -26,6 +26,10 @@ func (s *sessionRepoStub) UpdateSessionSuccess(platform, sessionID string) error
 	return nil
 }
 
+func (s *sessionRepoStub) RecordSessionBackground(platform, sessionID string, background bool) error {
+	return nil
+}
+
 func (s *sessionRepoStub) GetProviderSessions(platform, providerName string) ([]sessiondomain.SessionBinding, error) {
 	return nil, nil
 }
@@ -101,4 +105,30 @@ func TestCleanupRunner_StartStop(t *testing.T) {
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatalf("expected cleanup runner to invoke service at least once")
+}
+
+func TestSessionLocksReleaseIdleEntries(t *testing.T) {
+	service := NewService(&sessionRepoStub{})
+	unlockFirst := service.LockSession("claude", "s")
+	unlockOther := service.LockSession("codex", "s")
+	unlockOther()
+	acquired, release := make(chan struct{}), make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		unlock := service.LockSession("claude", "s")
+		close(acquired)
+		<-release
+		unlock()
+		close(done)
+	}()
+	unlockFirst()
+	<-acquired
+	service.sessionLocksMu.Lock()
+	remaining := len(service.sessionLocks)
+	service.sessionLocksMu.Unlock()
+	close(release)
+	<-done
+	if remaining != 1 || len(service.sessionLocks) != 0 {
+		t.Fatalf("lock registry must retain active entries only: active=%d idle=%d", remaining, len(service.sessionLocks))
+	}
 }

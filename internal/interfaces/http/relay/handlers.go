@@ -43,6 +43,7 @@ func (h *CodexHandler) ExtractRequestMeta(path string, bodyBytes []byte, query, 
 		SessionID:         codexSessionID(headers),
 		IsStream:          gjson.GetBytes(bodyBytes, "stream").Bool(),
 		IsFast:            isCodexFastRequest(bodyBytes),
+		IsBackgroundTask:  isCodexBackgroundTask(bodyBytes, headers),
 		BodyHasModelField: modelResult.Exists(),
 	}
 }
@@ -52,6 +53,20 @@ func codexSessionID(headers map[string]string) string {
 		return sessionID
 	}
 	return headerValue(headers, "session_id")
+}
+
+// isCodexBackgroundTask 识别 Codex 自动创建的非用户会话。子代理和记忆整理
+// 会带专用元数据；自动标题等 temporary structured 请求使用内部输出 schema。
+// 这些请求仍按原 session-id 路由和记录日志，只是不在会话管理中占一个用户会话。
+func isCodexBackgroundTask(bodyBytes []byte, headers map[string]string) bool {
+	if strings.TrimSpace(headerValue(headers, "x-openai-subagent")) != "" {
+		return true
+	}
+	if gjson.GetBytes(bodyBytes, "text.format.name").String() == "codex_output_schema" {
+		return true
+	}
+	turnMetadata := headerValue(headers, "x-codex-turn-metadata")
+	return gjson.Get(turnMetadata, "request_kind").String() == "memory"
 }
 
 func isCodexFastRequest(bodyBytes []byte) bool {

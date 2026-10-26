@@ -40,7 +40,7 @@ type SessionBinder interface {
 	SessionGeneration(platform, sessionID string) uint64
 	InvalidateSession(platform, sessionID string)
 	BindSessionToProviderGeneration(platform, sessionID, providerName string, generation uint64) error
-	RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) bool
+	RecordSessionSuccessGeneration(platform, sessionID, providerName string, generation uint64) (current, persist bool)
 	UpdateSessionSuccessGeneration(platform, sessionID string, generation uint64) error
 	ClearPendingSessionSuccess(platform, sessionID string)
 }

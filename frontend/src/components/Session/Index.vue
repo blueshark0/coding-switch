@@ -11,7 +11,7 @@ import {
 import { parseDateTime } from '../../utils/dateTime'
 import { getErrorMessage } from '../../utils/errors'
 import { formatTokenCount } from '../../utils/number'
-import { shortSessionId } from '../../utils/sessionId'
+import { displaySessionId } from '../../utils/sessionId'
 import { formatUsd } from '../../utils/currency'
 import { showToast } from '../../utils/toast'
 
@@ -88,8 +88,6 @@ const formatTime = (value: unknown) => {
     minute: '2-digit',
   }).format(date)
 }
-
-const shortId = (sessionId: string) => shortSessionId(sessionId)
 
 const modelsLabel = (row: SessionRow) => {
   const models = row.models ?? []
@@ -178,7 +176,7 @@ onUnmounted(() => {
         class="sess-row"
       >
         <div class="sess-main">
-          <span class="sess-id cs-mono" :title="row.session_id">{{ shortId(row.session_id) }}</span>
+          <span class="sess-id cs-mono" :title="displaySessionId(row.session_id)">{{ displaySessionId(row.session_id) }}</span>
           <span class="sess-sub">
             {{ row.platformLabel }} · {{ row.provider_name }}<template v-if="modelsLabel(row)"> · {{ modelsLabel(row) }}</template>
           </span>
@@ -260,9 +258,7 @@ onUnmounted(() => {
   font-size: 13px;
   font-weight: 500;
   color: var(--cs-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .sess-sub {

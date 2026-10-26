@@ -62,10 +62,11 @@ func (r *relayRoutingRepoStub) ReplaceAll(_ context.Context, _ routingdomain.App
 }
 
 type relaySessionRepoStub struct {
-	bindings    map[string]string
-	bindCalls   int
-	updateCalls int
-	unbindCalls int
+	bindings          map[string]string
+	backgroundRecords map[string]bool
+	bindCalls         int
+	updateCalls       int
+	unbindCalls       int
 }
 
 func (r *relaySessionRepoStub) GetSessionProvider(platform, sessionID string) (string, error) {
@@ -86,6 +87,14 @@ func (r *relaySessionRepoStub) BindSessionToProvider(platform, sessionID, provid
 
 func (r *relaySessionRepoStub) UpdateSessionSuccess(platform, sessionID string) error {
 	r.updateCalls++
+	return nil
+}
+
+func (r *relaySessionRepoStub) RecordSessionBackground(platform, sessionID string, background bool) error {
+	if r.backgroundRecords == nil {
+		r.backgroundRecords = make(map[string]bool)
+	}
+	r.backgroundRecords[r.key(platform, sessionID)] = background
 	return nil
 }
 

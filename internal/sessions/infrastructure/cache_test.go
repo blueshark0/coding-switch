@@ -30,8 +30,9 @@ func TestCacheRecordSessionSuccessRespectsPersistInterval(t *testing.T) {
 		lastPersistedAt: timeNow().Add(-30 * time.Second),
 	})
 
-	if cache.RecordSessionSuccess("claude", "session-2", "beta") {
-		t.Fatal("expected recent persisted entry to be skipped")
+	current, persist := cache.RecordSessionSuccessGeneration("claude", "session-2", "beta", 0)
+	if !current || persist {
+		t.Fatal("expected throttled success to remain current without scheduling persistence")
 	}
 
 	entry, ok := cache.cache.Get(key)
@@ -57,7 +58,8 @@ func TestCacheInvalidationAdvancesGenerationAndSkipsStaleSuccess(t *testing.T) {
 	}
 	cache.InvalidateSession("claude", "session-3")
 
-	if cache.RecordSessionSuccessGeneration("claude", "session-3", "alpha", generation) {
+	current, persist := cache.RecordSessionSuccessGeneration("claude", "session-3", "alpha", generation)
+	if current || persist {
 		t.Fatal("expected stale success to be ignored after invalidation")
 	}
 	if got, err := cache.GetSessionProvider("claude", "session-3"); err != nil || got != "" {

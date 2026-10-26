@@ -155,17 +155,18 @@ func (s *Server) prepareForwardContext(ctx *RelayContext, provider *routingdomai
 		targetHeaders = make(map[string]string)
 	}
 	return &ForwardContext{
-		GinCtx:    ctx.GinCtx,
-		Platform:  ctx.Platform,
-		Provider:  provider,
-		Endpoint:  targetEndpoint,
-		Query:     targetQuery,
-		Headers:   targetHeaders,
-		BodyBytes: currentBodyBytes,
-		IsStream:  ctx.RequestMeta.IsStream,
-		IsFast:    ctx.RequestMeta.IsFast,
-		Model:     rewrite.EffectiveModel,
-		SessionID: ctx.RequestMeta.SessionID,
+		GinCtx:           ctx.GinCtx,
+		Platform:         ctx.Platform,
+		Provider:         provider,
+		Endpoint:         targetEndpoint,
+		Query:            targetQuery,
+		Headers:          targetHeaders,
+		BodyBytes:        currentBodyBytes,
+		IsStream:         ctx.RequestMeta.IsStream,
+		IsFast:           ctx.RequestMeta.IsFast,
+		IsBackgroundTask: ctx.RequestMeta.IsBackgroundTask,
+		Model:            rewrite.EffectiveModel,
+		SessionID:        ctx.RequestMeta.SessionID,
 	}, nil
 }
 
@@ -181,7 +182,7 @@ func (s *Server) executeAndHandleSession(
 	ok, err := s.forwardRequest(fwdCtx)
 	duration := time.Since(startTime)
 	if ok {
-		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound, sessionGeneration)
+		s.handleSuccessfulSession(kind, sessionID, fwdCtx.Provider.Name, sessionAlreadyBound, sessionGeneration, fwdCtx.IsBackgroundTask)
 		relayDebugf("request succeeded provider=%s duration=%.2fs", fwdCtx.Provider.Name, duration.Seconds())
 		return true, nil
 	}
@@ -193,17 +194,24 @@ func (s *Server) executeAndHandleSession(
 	return false, err
 }
 
-func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, alreadyBound bool, generation uint64) {
+func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, alreadyBound bool, generation uint64, backgroundTask bool) {
 	if sessionID == "" || s.sessionCache == nil {
 		return
 	}
 	if !alreadyBound {
 		if err := s.sessionCache.BindSessionToProviderGeneration(kind, sessionID, providerName, generation); err != nil {
 			relayWarnf("绑定会话失败: %v", err)
+			return
 		}
+		s.recordCodexSessionVisibility(kind, sessionID, backgroundTask)
 		return
 	}
-	if !s.sessionCache.RecordSessionSuccessGeneration(kind, sessionID, providerName, generation) {
+	currentGeneration, persist := s.sessionCache.RecordSessionSuccessGeneration(kind, sessionID, providerName, generation)
+	if !currentGeneration {
+		return
+	}
+	s.recordCodexSessionVisibility(kind, sessionID, backgroundTask)
+	if !persist {
 		return
 	}
 	if s.sessionUpdateWorker != nil {
@@ -212,5 +220,14 @@ func (s *Server) handleSuccessfulSession(kind, sessionID, providerName string, a
 	}
 	if err := s.sessionCache.UpdateSessionSuccessGeneration(kind, sessionID, generation); err != nil {
 		relayWarnf("更新会话时间失败: %v", err)
+	}
+}
+
+func (s *Server) recordCodexSessionVisibility(kind, sessionID string, backgroundTask bool) {
+	if kind != kernel.PlatformCodex.String() || s.sessionService == nil {
+		return
+	}
+	if err := s.sessionService.RecordSessionBackground(kind, sessionID, backgroundTask); err != nil {
+		relayWarnf("更新 Codex 会话可见性失败: %v", err)
 	}
 }

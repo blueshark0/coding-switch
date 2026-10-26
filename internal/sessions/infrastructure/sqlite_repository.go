@@ -75,12 +75,19 @@ func (r *SQLiteRepository) BindSessionToProvider(platform, sessionID, providerNa
 	}
 
 	now := time.Now()
-	query := `INSERT INTO session_provider_binding (platform, session_id, provider_name, last_success_at, created_at)
-		VALUES (?, ?, ?, ?, ?)
+	// Codex 新绑定先标记为未分类（2），请求成功后再由 RecordSessionBackground
+	// 归为主会话（0）或纯后台任务（1），避免后台任务短暂出现在列表中。
+	// 其他平台没有后台任务分类，沿用历史行为，直接保持可见。
+	initialVisibility := 0
+	if platform == kernel.PlatformCodex.String() {
+		initialVisibility = 2
+	}
+	query := `INSERT INTO session_provider_binding (platform, session_id, provider_name, last_success_at, created_at, hidden)
+		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(platform, session_id)
 		DO UPDATE SET provider_name = excluded.provider_name, last_success_at = excluded.last_success_at`
 
-	if _, err := db.Exec(query, platform, sessionID, providerName, now, now); err != nil {
+	if _, err := db.Exec(query, platform, sessionID, providerName, now, now, initialVisibility); err != nil {
 		return fmt.Errorf("绑定会话失败: %w", err)
 	}
 	return nil
@@ -100,6 +107,33 @@ func (r *SQLiteRepository) UpdateSessionSuccess(platform, sessionID string) erro
 
 	if _, err := db.Exec(query, time.Now(), platform, sessionID); err != nil {
 		return fmt.Errorf("更新会话时间失败: %w", err)
+	}
+	return nil
+}
+
+func (r *SQLiteRepository) RecordSessionBackground(platform, sessionID string, background bool) error {
+	if sessionID == "" {
+		return nil
+	}
+	db, err := xdb.DB(r.dbName)
+	if err != nil {
+		return fmt.Errorf("获取数据库连接失败: %w", err)
+	}
+	backgroundValue := 0
+	if background {
+		backgroundValue = 1
+	}
+	// 主会话可见性具有优先性：记忆提取等后台请求可能复用主会话 ID，
+	// 不能把已确认的主会话重新隐藏；隐藏会话出现主请求时则恢复可见。
+	query := `UPDATE session_provider_binding
+		SET hidden = CASE
+			WHEN ? = 0 THEN 0
+			WHEN hidden = 0 THEN 0
+			ELSE 1
+		END
+		WHERE platform = ? AND session_id = ?`
+	if _, err := db.Exec(query, backgroundValue, platform, sessionID); err != nil {
+		return fmt.Errorf("更新会话可见性失败: %w", err)
 	}
 	return nil
 }
@@ -142,7 +176,7 @@ func (r *SQLiteRepository) GetProviderSessions(platform, providerName string) ([
 	}
 	query := `SELECT platform, session_id, provider_name, last_success_at, created_at
 		FROM session_provider_binding
-		WHERE platform = ? AND provider_name = ?
+		WHERE platform = ? AND provider_name = ? AND hidden = 0
 		ORDER BY last_success_at DESC`
 	return scanActiveSessions(db, query, platform, providerName)
 }
@@ -157,7 +191,7 @@ func (r *SQLiteRepository) GetPlatformSessions(platform string) ([]sessiondomain
 	}
 	query := `SELECT platform, session_id, provider_name, last_success_at, created_at
 		FROM session_provider_binding
-		WHERE platform = ?
+		WHERE platform = ? AND hidden = 0
 		ORDER BY provider_name ASC, last_success_at DESC`
 	return scanActiveSessions(db, query, platform)
 }
@@ -211,9 +245,15 @@ func ensureSessionBindingTableWithDB(db *sql.DB) error {
 		provider_name TEXT NOT NULL,
 		last_success_at DATETIME NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		hidden INTEGER NOT NULL DEFAULT 0,
 		UNIQUE(platform, session_id)
 	)`
 	if _, err := db.Exec(createTableSQL); err != nil {
+		return err
+	}
+	if err := storage.EnsureColumns(db, "session_provider_binding", []storage.ColumnDef{
+		{Name: "hidden", Definition: "INTEGER NOT NULL DEFAULT 0"},
+	}); err != nil {
 		return err
 	}
 

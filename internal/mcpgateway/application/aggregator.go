@@ -71,9 +71,11 @@ const (
 	connectTimeout = 10 * time.Second
 	// sessionTimeout 与 Codex 从不 DELETE 会话（实测 1.8% 关闭率）的行为互补，
 	// 同时缓解 go-sdk #499 的 abandoned session goroutine 泄漏。
-	sessionTimeout   = 30 * time.Minute
-	reconcileTick    = time.Second
-	maxCallToolTools = 2048 // Codex MAX_MCP_CATALOG_ITEMS，超过则该端点 tools/list 整体失败
+	sessionTimeout = 30 * time.Minute
+	// 只有同步失败或存在失败上游时才需要定时唤醒；正常空闲不读数据库。
+	reconcileErrorInitialDelay = time.Second
+	reconcileErrorMaxDelay     = 30 * time.Second
+	maxCallToolTools           = 2048 // Codex MAX_MCP_CATALOG_ITEMS，超过则该端点 tools/list 整体失败
 )
 
 // 重连退避：2s→5s→15s→30s 封顶，持续重试（上游可能只是慢启动）。
@@ -180,8 +182,15 @@ func (a *Aggregator) Sync(ctx context.Context) error {
 }
 
 func (a *Aggregator) reconcileLoop(ctx context.Context) {
-	ticker := time.NewTicker(reconcileTick)
-	defer ticker.Stop()
+	var retryTimer *time.Timer
+	var retryC <-chan time.Time
+	defer func() {
+		if retryTimer != nil {
+			retryTimer.Stop()
+		}
+	}()
+	var syncErrorDelay time.Duration
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -189,12 +198,85 @@ func (a *Aggregator) reconcileLoop(ctx context.Context) {
 		case <-a.stopCh:
 			return
 		case <-a.syncCh:
-		case <-ticker.C: // 周期 tick 驱动失败重连
+		case <-retryC: // 仅失败重连或同步失败重试时启用
 		}
+
 		if err := a.syncOnce(ctx); err != nil {
 			log.Printf("mcpgateway: sync: %v", err)
+			// 数据库暂时不可用不能热循环，也不能永久睡着；成功后清零退避。
+			if syncErrorDelay == 0 {
+				syncErrorDelay = reconcileErrorInitialDelay
+			} else {
+				syncErrorDelay *= 2
+				if syncErrorDelay > reconcileErrorMaxDelay {
+					syncErrorDelay = reconcileErrorMaxDelay
+				}
+			}
+			retryC = resetReconcileTimer(&retryTimer, syncErrorDelay)
+			continue
+		}
+		syncErrorDelay = 0
+
+		if delay, ok := a.nextRetryDelay(); ok {
+			retryC = resetReconcileTimer(&retryTimer, delay)
+		} else {
+			retryC = stopReconcileTimer(&retryTimer)
 		}
 	}
+}
+
+// nextRetryDelay 返回最早一个失败上游的等待时间；没有失败重试时返回 false。
+// 只读内存状态，不访问 repo。
+func (a *Aggregator) nextRetryDelay() (time.Duration, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	var earliest time.Time
+	for _, up := range a.ups {
+		if up.state != StateFailed || up.nextRetry.IsZero() {
+			continue
+		}
+		if earliest.IsZero() || up.nextRetry.Before(earliest) {
+			earliest = up.nextRetry
+		}
+	}
+	if earliest.IsZero() {
+		return 0, false
+	}
+	delay := earliest.Sub(a.now())
+	if delay < 0 {
+		delay = 0
+	}
+	return delay, true
+}
+
+// resetReconcileTimer 只由 reconciler goroutine 调用，避免并发 Reset 和 stale tick。
+func resetReconcileTimer(timer **time.Timer, delay time.Duration) <-chan time.Time {
+	if delay < 0 {
+		delay = 0
+	}
+	if *timer == nil {
+		*timer = time.NewTimer(delay)
+		return (*timer).C
+	}
+	if !(*timer).Stop() {
+		select {
+		case <-(*timer).C:
+		default:
+		}
+	}
+	(*timer).Reset(delay)
+	return (*timer).C
+}
+
+func stopReconcileTimer(timer **time.Timer) <-chan time.Time {
+	if *timer != nil && !(*timer).Stop() {
+		select {
+		case <-(*timer).C:
+		default:
+		}
+	}
+	return nil
 }
 
 // syncOnce 以 repo 当前配置为基准做 diff：
@@ -319,6 +401,9 @@ func (a *Aggregator) finishConnect(id int64, gen int64, session UpstreamSession,
 		name := up.cfg.Name
 		a.mu.Unlock()
 		log.Printf("mcpgateway: 上游 %q 连接失败: %v", name, connErr)
+		// connect 是异步的；本轮 syncOnce 可能早已结束，必须唤醒 loop
+		// 让它根据刚落账的 nextRetry 安装重试 timer。
+		a.NotifyChanged()
 		return
 	}
 

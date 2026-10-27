@@ -20,14 +20,20 @@ import (
 // ---- 假存储 ----
 
 type fakeRepo struct {
-	mu      sync.Mutex
-	servers []domain.McpServer
-	nextID  int64
+	mu        sync.Mutex
+	servers   []domain.McpServer
+	nextID    int64
+	listCalls atomic.Int32
+	listErr   error
 }
 
 func (r *fakeRepo) List(context.Context) ([]domain.McpServer, error) {
+	r.listCalls.Add(1)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.listErr != nil {
+		return nil, r.listErr
+	}
 	out := make([]domain.McpServer, len(r.servers))
 	copy(out, r.servers)
 	return out, nil

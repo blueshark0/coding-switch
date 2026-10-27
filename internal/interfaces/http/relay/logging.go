@@ -105,6 +105,11 @@ func (s *Server) enqueueRequestLog(logEntry *observabilitydomain.RequestLog) {
 	if s == nil || logEntry == nil {
 		return
 	}
+	if logEntry.CreatedAt == "" {
+		// 批量落盘会延迟写入；时间必须表示请求结束并入队的时刻，而不是
+		// worker 真正拿到数据库连接的时刻，避免统计区间随批量间隔漂移。
+		logEntry.CreatedAt = time.Now().UTC().Format(time.DateTime)
+	}
 	if s.requestLogWorker == nil {
 		s.writeRequestLogSync(logEntry)
 		return

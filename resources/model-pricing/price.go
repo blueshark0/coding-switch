@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -20,10 +21,23 @@ var (
 	nameReplacer   = strings.NewReplacer("-", "", "_", "", ".", "", ":", "", "/", "", " ", "")
 )
 
+// pricingLookup 缓存一次完整的模型名解析，包括未命中结果。
+type pricingLookup struct {
+	entry      *PricingEntry
+	hasPricing bool
+}
+
+type fuzzyPricingKey struct {
+	key        string
+	normalized string
+}
+
 // Service 提供模型价格相关的计算能力。
 type Service struct {
 	pricingMap   map[string]*PricingEntry
 	normalized   map[string]string
+	fuzzyKeys    []fuzzyPricingKey
+	lookupCache  map[string]pricingLookup
 	ephemeral1h  map[string]float64
 	longContexts map[string]LongContextPricing
 	mu           sync.RWMutex
@@ -93,8 +107,13 @@ func NewService() (*Service, error) {
 	}
 	pricing := make(map[string]*PricingEntry, len(raw))
 	normalized := make(map[string]string, len(raw))
-	for key, entry := range raw {
-		item := entry
+	keys := make([]string, 0, len(raw))
+	for key := range raw {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		item := raw[key]
 		ensureCachePricing(&item)
 		pricing[key] = &item
 		norm := normalizeName(key)
@@ -102,12 +121,15 @@ func NewService() (*Service, error) {
 			normalized[norm] = key
 		}
 	}
-	return &Service{
+	svc := &Service{
 		pricingMap:   pricing,
 		normalized:   normalized,
+		lookupCache:  make(map[string]pricingLookup),
 		ephemeral1h:  buildEphemeral1hPricing(),
 		longContexts: buildLongContextPricing(),
-	}, nil
+	}
+	svc.rebuildFuzzyKeysLocked()
+	return svc, nil
 }
 
 // CalculateCost 根据模型与 token 用量返回费用明细（美元）。
@@ -163,34 +185,72 @@ func applyCostMultiplier(breakdown *CostBreakdown, multiplier float64) {
 }
 
 func (s *Service) getPricing(model string) (*PricingEntry, bool) {
-	if model == "" {
+	if s == nil || model == "" {
 		return nil, false
 	}
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	lookup, ok := s.lookupCache[model]
+	s.mu.RUnlock()
+	if ok {
+		return lookup.entry, lookup.hasPricing
+	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if lookup, ok := s.lookupCache[model]; ok {
+		return lookup.entry, lookup.hasPricing
+	}
+	if s.fuzzyKeys == nil {
+		s.rebuildFuzzyKeysLocked()
+	}
+	lookup = s.resolvePricingLocked(model)
+	if s.lookupCache == nil {
+		s.lookupCache = make(map[string]pricingLookup)
+	}
+	s.lookupCache[model] = lookup
+	return lookup.entry, lookup.hasPricing
+}
+
+// resolvePricingLocked 保留原有匹配优先级；fuzzy 只按预排序候选取第一个，
+// 不再受 Go map 遍历顺序影响。调用方必须持有 s.mu 的写锁。
+func (s *Service) resolvePricingLocked(model string) pricingLookup {
 	if entry, ok := s.pricingMap[model]; ok {
-		return entry, true
+		return pricingLookup{entry: entry, hasPricing: true}
 	}
 	withoutRegion := stripRegionPrefix(model)
 	if entry, ok := s.pricingMap[withoutRegion]; ok {
-		return entry, true
+		return pricingLookup{entry: entry, hasPricing: true}
 	}
 	withoutProvider := strings.TrimPrefix(withoutRegion, "anthropic.")
 	if entry, ok := s.pricingMap[withoutProvider]; ok {
-		return entry, true
+		return pricingLookup{entry: entry, hasPricing: true}
 	}
 	normalizedTarget := normalizeName(model)
 	if key, ok := s.normalized[normalizedTarget]; ok {
-		return s.pricingMap[key], true
+		return pricingLookup{entry: s.pricingMap[key], hasPricing: true}
 	}
-	for key, entry := range s.pricingMap {
-		normKey := normalizeName(key)
-		if strings.Contains(normKey, normalizedTarget) || strings.Contains(normalizedTarget, normKey) {
-			return entry, true
+	for _, candidate := range s.fuzzyKeys {
+		if strings.Contains(candidate.normalized, normalizedTarget) || strings.Contains(normalizedTarget, candidate.normalized) {
+			return pricingLookup{entry: s.pricingMap[candidate.key], hasPricing: true}
 		}
 	}
-	return nil, false
+	return pricingLookup{}
+}
+
+// rebuildFuzzyKeysLocked 预计算并排序候选，避免每次未命中都重复规范化整张表。
+// 调用方必须持有 s.mu 的写锁；构造阶段尚无并发，可直接调用。
+func (s *Service) rebuildFuzzyKeysLocked() {
+	candidates := make([]fuzzyPricingKey, 0, len(s.pricingMap))
+	for key := range s.pricingMap {
+		candidates = append(candidates, fuzzyPricingKey{key: key, normalized: normalizeName(key)})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].normalized != candidates[j].normalized {
+			return candidates[i].normalized < candidates[j].normalized
+		}
+		return candidates[i].key < candidates[j].key
+	})
+	s.fuzzyKeys = candidates
 }
 
 func (s *Service) longContextTier(model string, usage UsageSnapshot) (LongContextPricing, bool) {
@@ -337,8 +397,13 @@ func (s *Service) mergeExternal(external map[string]PricingEntry) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for key, entry := range external {
-		item := entry
+	keys := make([]string, 0, len(external))
+	for key := range external {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		item := external[key]
 		ensureCachePricing(&item)
 		s.pricingMap[key] = &item
 
@@ -347,4 +412,8 @@ func (s *Service) mergeExternal(external map[string]PricingEntry) {
 			s.normalized[norm] = key
 		}
 	}
+	// 外部文件可能覆盖旧价格，也可能让之前未命中的模型变为可计价；
+	// 正向和负向缓存都必须失效，候选的规范化结果也一并重建。
+	s.rebuildFuzzyKeysLocked()
+	s.lookupCache = make(map[string]pricingLookup)
 }

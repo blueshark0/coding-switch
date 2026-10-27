@@ -13,7 +13,6 @@ import (
 	observabilitydomain "codeswitch/internal/observability/domain"
 	routingdomain "codeswitch/internal/routing/domain"
 	"codeswitch/internal/shared/kernel"
-	"github.com/daodao97/xgo/xrequest"
 	"github.com/gin-gonic/gin"
 )
 
@@ -131,6 +130,10 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	if _, ok := headers["Accept"]; !ok {
 		headers["Accept"] = "application/json"
 	}
+	if _, ok := headers["Content-Type"]; !ok {
+		// xrequest 原来会为带 body 的请求补这个默认值；保留该兼容行为。
+		headers["Content-Type"] = "application/json"
+	}
 	requestLog := &observabilitydomain.RequestLog{
 		Platform:  fwdCtx.Platform.String(),
 		Provider:  provider.Name,
@@ -151,23 +154,39 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("invalid proxy URL: %w", err)
 	}
-	// WithContext 让客户端断开/取消立即取消上游请求；不再设置 SetTimeout，
-	// 一是 xrequest 会把超时写到共享 client 上（并发数据竞态），二是整体
-	// 超时会掐断超长 SSE 流——期限由共享 Transport 的各阶段超时控制。
-	req := xrequest.New().
-		WithContext(c.Request.Context()).
-		SetHeaders(headers).
-		SetQueryParams(fwdCtx.Query).
-		SetClient(client).
-		SetBody(bytes.NewReader(fwdCtx.BodyBytes))
-	resp, err := req.Post(targetURL)
+	// 使用客户端请求 context，让断开/取消立即取消上游请求；不设置整体超时，
+	// 避免掐断超长 SSE 流。直接使用共享 client，避免第三方库为每个请求构造
+	// 完整 curl 调试串（其中包含请求体和凭证）。
+	req, err := http.NewRequestWithContext(
+		c.Request.Context(),
+		http.MethodPost,
+		targetURL,
+		bytes.NewReader(fwdCtx.BodyBytes),
+	)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("创建上游请求失败: %w", err)
+	}
+	if fwdCtx.Query != nil {
+		query := req.URL.Query()
+		for key, value := range fwdCtx.Query {
+			query.Add(key, value)
+		}
+		req.URL.RawQuery = query.Encode()
+	}
+	for key, value := range headers {
+		req.Header[key] = []string{value}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("请求上游失败: %w", err)
 	}
 	if resp == nil {
 		return false, fmt.Errorf("empty response")
 	}
-	status := resp.StatusCode()
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	status := resp.StatusCode
 	requestLog.HttpCode = status
 	if status >= http.StatusOK && status < http.StatusMultipleChoices {
 		responseHook := withFirstTokenTiming(start, requestLog, s.requestLogHook(fwdCtx.Platform, requestLog))
@@ -180,7 +199,7 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 				return logHook(data)
 			}
 		}
-		_, copyErr := resp.ToHttpResponseWriter(c.Writer, responseHook)
+		_, copyErr := writeUpstreamResponse(c.Writer, resp, responseHook)
 		if codexOutcome != nil {
 			switch codexOutcome.Status() {
 			case codexStreamCompleted:
@@ -210,7 +229,7 @@ func (s *Server) forwardRequest(fwdCtx *ForwardContext) (bool, error) {
 	// 让会话粘滞不绑定该供应商。错误体另经 collector 截断后打进应用日志，
 	// 否则 UI 里只剩一个状态码，排查不到真实原因。
 	var errBody upstreamErrorCollector
-	if _, copyErr := resp.ToHttpResponseWriter(c.Writer, errBody.hook); copyErr != nil {
+	if _, copyErr := writeBufferedUpstreamResponse(c.Writer, resp, errBody.hook); copyErr != nil {
 		relayWarnf("透传上游错误响应失败: %v", copyErr)
 	}
 	errBody.logWith(provider.Name, fwdCtx.Model, status)

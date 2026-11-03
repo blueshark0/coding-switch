@@ -50,13 +50,30 @@ const refreshTools = async () => {
   tools.value = list ?? []
 }
 
+let pollTimer: number | undefined
+let runtimeRefreshing = false
+
+// 启用上游后连接是异步完成的；持续刷新内存快照，避免状态停留在“连接中”。
+const refreshRuntime = async () => {
+  if (runtimeRefreshing || document.hidden) return
+  runtimeRefreshing = true
+  try {
+    await refreshStatuses()
+    await refreshTools()
+  } finally {
+    runtimeRefreshing = false
+  }
+}
+
 onMounted(async () => {
   await loadAll()
   await refreshTools()
+  pollTimer = window.setInterval(() => void refreshRuntime(), 1000)
   window.addEventListener('click', closeMenu)
 })
 
 onUnmounted(() => {
+  if (pollTimer !== undefined) window.clearInterval(pollTimer)
   window.removeEventListener('click', closeMenu)
 })
 

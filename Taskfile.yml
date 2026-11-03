@@ -11,6 +11,14 @@ vars:
   BIN_DIR: "bin"
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
 
+env:
+  HTTP_PROXY: "http://127.0.0.1:9890"
+  HTTPS_PROXY: "http://127.0.0.1:9890"
+  http_proxy: "http://127.0.0.1:9890"
+  https_proxy: "http://127.0.0.1:9890"
+  NO_PROXY: "localhost,127.0.0.1"
+  no_proxy: "localhost,127.0.0.1"
+
 tasks:
   build:
     summary: Builds the application

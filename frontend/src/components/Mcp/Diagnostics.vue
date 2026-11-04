@@ -10,8 +10,6 @@ import {
   fetchMcpServers,
   fetchMcpStatuses,
   fetchMcpTools,
-  injectMcp,
-  removeMcpInjection,
   testMcpConnection,
   type McpServerRecord,
   type ToolInfo,
@@ -33,7 +31,6 @@ const statuses = ref<UpstreamStatus[]>([])
 const tools = ref<ToolInfo[]>([])
 const endpoint = ref('')
 const injections = ref<Record<string, boolean>>({ claude: false, codex: false })
-const injecting = ref<Record<string, boolean>>({})
 // 单上游重新诊断结果（会话内保留）：serverId → 探测结果
 const probes = ref<Record<number, { latencyMs: number; toolCount: number; at: number; ok: boolean }>>({})
 const probingId = ref(0)
@@ -106,28 +103,6 @@ const copyEndpoint = async () => {
     showToast(t('mcpDiag.messages.copied'))
   } catch (error) {
     showToast(getErrorMessage(error, t('mcpDiag.messages.copyFailed')), 'error')
-  }
-}
-
-const toggleInjection = async (platform: 'claude' | 'codex') => {
-  if (injecting.value[platform]) return
-  injecting.value[platform] = true
-  try {
-    if (injections.value[platform]) {
-      await removeMcpInjection(platform)
-    } else {
-      await injectMcp(platform)
-    }
-    injections.value[platform] = !injections.value[platform]
-    showToast(
-      injections.value[platform]
-        ? t('mcpDiag.messages.injected')
-        : t('mcpDiag.messages.injectionRemoved'),
-    )
-  } catch (error) {
-    showToast(getErrorMessage(error, t('mcpDiag.messages.injectionFailed')), 'error')
-  } finally {
-    injecting.value[platform] = false
   }
 }
 
@@ -296,14 +271,6 @@ const serverCommand = (server: McpServerRecord) => {
                   <span class="cs-pill" :class="injections[platform] ? 'cs-pill--success' : 'cs-pill--muted'">
                     {{ injections[platform] ? t('mcpDiag.gateway.injected') : t('mcpDiag.gateway.notInjected') }}
                   </span>
-                  <button
-                    type="button"
-                    class="cs-btn diag-client-btn"
-                    :disabled="injecting[platform]"
-                    @click="toggleInjection(platform)"
-                  >
-                    {{ injections[platform] ? t('mcpDiag.gateway.remove') : t('mcpDiag.gateway.inject') }}
-                  </button>
                 </span>
               </dd>
             </div>
@@ -671,12 +638,6 @@ const serverCommand = (server: McpServerRecord) => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.diag-client-btn {
-  height: 26px;
-  font-size: 10px;
-  padding: 0 10px;
 }
 
 .diag-tools-head,

@@ -306,13 +306,13 @@ export function useMcpServers(t: (key: string, ...args: unknown[]) => string) {
     if (injecting[platform]) return
     injecting[platform] = true
     const currently = injections[platform] === true
+    injections[platform] = !currently // optimistic
     try {
       if (currently) {
         await removeMcpInjection(platform)
       } else {
         await injectMcp(platform)
       }
-      injections[platform] = !currently
       showToast(
         currently
           ? t('components.mcp.messages.injectionRemoved')
@@ -320,6 +320,7 @@ export function useMcpServers(t: (key: string, ...args: unknown[]) => string) {
         'success',
       )
     } catch (err) {
+      injections[platform] = currently // rollback
       showToast(
         getErrorMessage(err, t('components.mcp.messages.injectionFailed')),
         'error',

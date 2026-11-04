@@ -806,6 +806,14 @@
       "testing": "Testing…",
       "openDiagnostics": "Open MCP diagnostics & tools"
     },
+    "cli": {
+      "title": "CLI integration",
+      "subtitle": "Manage local MCP aggregation gateway injection for Claude Code and Codex independently.",
+      "injected": "Written to local config · restart {client} to apply",
+      "notInjected": "Not yet written to {client}'s local config",
+      "toggle": "Toggle MCP injection for {client}",
+      "help": "Injection only changes Code Switch-managed MCP entries and leaves other client MCP configuration untouched. Restart the corresponding CLI after changes."
+    },
     "list": {
       "title": "Configured servers",
       "summary": "{enabled} enabled · {tools} tools",
@@ -884,8 +892,6 @@
       },
       "injected": "Injected",
       "notInjected": "Not injected",
-      "inject": "Inject",
-      "remove": "Remove",
       "toolsTitle": "Tools visible downstream",
       "toolsSub": "Upstream names, name transformation and Schema publish status",
       "colName": "Downstream name",
@@ -975,9 +981,6 @@
       "loadFailed": "Failed to load diagnostics",
       "copied": "Endpoint copied",
       "copyFailed": "Copy failed",
-      "injected": "Injected; restart the CLI to take effect",
-      "injectionRemoved": "Injection removed",
-      "injectionFailed": "Injection failed",
       "rediagnosed": "Diagnostics refreshed",
       "testErr": "Connection failed: {error}",
       "testFailed": "Connection test failed"

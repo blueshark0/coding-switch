@@ -806,6 +806,14 @@
       "testing": "测试中…",
       "openDiagnostics": "打开 MCP 诊断与工具详情"
     },
+    "cli": {
+      "title": "CLI 接入",
+      "subtitle": "分别管理本地聚合 MCP 网关在 Claude Code 与 Codex 中的配置注入。",
+      "injected": "已写入本地配置 · 重启 {client} 后生效",
+      "notInjected": "尚未写入 {client} 本地配置",
+      "toggle": "切换 {client} 的 MCP 注入",
+      "help": "注入或取消只修改 Code Switch 管理的 MCP 配置项，不影响客户端其他 MCP 配置；变更后需重启对应 CLI。"
+    },
     "list": {
       "title": "已配置的服务",
       "summary": "{enabled} 个已启用 · {tools} 个工具",
@@ -884,8 +892,6 @@
       },
       "injected": "已注入",
       "notInjected": "未注入",
-      "inject": "注入",
-      "remove": "移除",
       "toolsTitle": "下游实际可见的 Tools",
       "toolsSub": "对照上游原始名称、命名转换与 Schema 发布状态",
       "colName": "下游工具名",
@@ -975,9 +981,6 @@
       "loadFailed": "加载诊断数据失败",
       "copied": "端点已复制",
       "copyFailed": "复制失败",
-      "injected": "已注入，重启 CLI 后生效",
-      "injectionRemoved": "已移除注入",
-      "injectionFailed": "注入操作失败",
       "rediagnosed": "诊断已刷新",
       "testErr": "连接失败：{error}",
       "testFailed": "测试连接失败"

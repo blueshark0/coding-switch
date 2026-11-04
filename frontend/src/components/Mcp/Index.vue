@@ -27,6 +27,9 @@ const {
   confirmState,
   loadAll,
   refreshStatuses,
+  injections,
+  injecting,
+  toggleInjection,
   openCreate,
   openEdit,
   closeEditor,
@@ -186,6 +189,39 @@ const onSubmitAndTest = async () => {
       </div>
     </div>
 
+    <section class="cs-card mcp-cli" aria-labelledby="mcp-cli-title">
+      <h2 id="mcp-cli-title" class="cs-card-title">{{ t('mcpPage.cli.title') }}</h2>
+      <p class="cs-section-sub">{{ t('mcpPage.cli.subtitle') }}</p>
+      <div class="mcp-cli-grid">
+        <div
+          v-for="platform in (['claude', 'codex'] as const)"
+          :key="platform"
+          class="mcp-cli-item"
+        >
+          <span class="mcp-cli-avatar" :class="`mcp-cli-avatar--${platform}`" aria-hidden="true">
+            {{ platform === 'claude' ? 'C' : '⌘' }}
+          </span>
+          <span class="mcp-cli-copy">
+            <span class="mcp-cli-name">{{ platform === 'claude' ? 'Claude Code' : 'Codex' }}</span>
+            <span class="mcp-cli-description">
+              {{ t(injections[platform] ? 'mcpPage.cli.injected' : 'mcpPage.cli.notInjected', { client: platform === 'claude' ? 'Claude Code' : 'Codex' }) }}
+            </span>
+          </span>
+          <label class="cs-switch mcp-cli-switch">
+            <input
+              type="checkbox"
+              :checked="injections[platform] === true"
+              :disabled="injections[platform] === null || injecting[platform]"
+              :aria-label="t('mcpPage.cli.toggle', { client: platform === 'claude' ? 'Claude Code' : 'Codex' })"
+              @change="toggleInjection(platform)"
+            />
+            <span></span>
+          </label>
+        </div>
+      </div>
+      <p class="mcp-cli-help">{{ t('mcpPage.cli.help') }}</p>
+    </section>
+
     <div class="mcp-grid">
       <div class="cs-card cs-card-pad mcp-list">
         <h2 class="cs-card-title">{{ t('mcpPage.list.title') }}</h2>
@@ -315,6 +351,96 @@ const onSubmitAndTest = async () => {
 </template>
 
 <style scoped>
+.mcp-cli {
+  padding: 12px 16px 10px;
+}
+
+.mcp-cli-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.mcp-cli-item {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 10px;
+  min-height: 49px;
+  padding: 9px;
+  border: 1px solid var(--cs-border);
+  border-radius: var(--cs-r-row);
+}
+
+.mcp-cli-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 7px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mcp-cli-avatar--claude {
+  background: var(--cs-brand-tint);
+  color: var(--cs-metric-reasoning);
+}
+
+.mcp-cli-avatar--codex {
+  background: var(--cs-field);
+  color: var(--cs-text);
+}
+
+.mcp-cli-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mcp-cli-name {
+  color: var(--cs-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.mcp-cli-description {
+  overflow: hidden;
+  color: var(--cs-text-secondary);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-cli-switch {
+  width: 36px;
+  height: 20px;
+}
+
+.mcp-cli-switch span::before {
+  width: 14px;
+  height: 14px;
+}
+
+.mcp-cli-switch input:checked + span::before {
+  transform: translateX(16px);
+}
+
+.mcp-cli-switch input:focus-visible + span {
+  outline: 2px solid var(--cs-brand);
+  outline-offset: 2px;
+}
+
+.mcp-cli-help {
+  margin: 8px 0 0;
+  color: var(--cs-text-secondary);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .mcp-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.9fr) minmax(340px, 1fr);
@@ -492,6 +618,10 @@ const onSubmitAndTest = async () => {
 }
 
 @media (max-width: 1100px) {
+  .mcp-cli-grid {
+    grid-template-columns: 1fr;
+  }
+
   .mcp-grid {
     grid-template-columns: 1fr;
   }

@@ -65,8 +65,8 @@ const parseKvLines = (text: string): Record<string, string> | undefined => {
   return Object.keys(out).length > 0 ? out : undefined
 }
 
-const kvToText = (m?: Record<string, string>): string =>
-  m ? Object.entries(m).map(([k, v]) => `${k}=${v}`).join('\n') : ''
+const kvToText = (m?: Partial<Record<string, string>>): string =>
+  m ? Object.entries(m).map(([k, v]) => `${k}=${v ?? ''}`).join('\n') : ''
 
 export const formToRecord = (form: McpServerForm, position: number): McpServerRecord =>
   new McpServer({

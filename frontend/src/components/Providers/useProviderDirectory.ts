@@ -72,8 +72,12 @@ export const providerToForm = (provider: ProviderRecord): ProviderForm => ({
   apiUrl: provider.apiUrl,
   apiKey: provider.apiKey,
   officialSite: provider.officialSite ?? '',
-  supportedModels: { ...(provider.supportedModels ?? {}) },
-  modelMapping: { ...(provider.modelMapping ?? {}) },
+  supportedModels: Object.fromEntries(
+    Object.entries(provider.supportedModels ?? {}).map(([key, value]) => [key, value ?? false]),
+  ),
+  modelMapping: Object.fromEntries(
+    Object.entries(provider.modelMapping ?? {}).map(([key, value]) => [key, value ?? '']),
+  ),
   requestBodyReplacements: (provider.requestBodyReplacements ?? []).map((r) => ({
     path: r.path,
     matchValue: r.matchValue,

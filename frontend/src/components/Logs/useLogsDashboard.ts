@@ -5,12 +5,14 @@ import {
   DEFAULT_LOG_PAGE_SIZE,
   fetchRequestLogs,
   fetchLogProviders,
+  fetchLogStats,
   LOG_PAGE_SIZE_OPTIONS,
   LOG_RANGE_OPTIONS,
   normalizeLogPageSize,
   normalizeLogRangeKey,
   type LogHttpStatus,
   type LogRangeKey,
+  type LogStats,
   type RequestLog,
 } from '../../services/logs'
 import { showToast } from '../../utils/toast'
@@ -27,6 +29,7 @@ const EXPORT_MAX_ROWS = 5000
 
 export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
   const logs = ref<RequestLog[]>([])
+  const summaryStats = ref<LogStats | null>(null)
   const loading = ref(false)
   const exporting = ref(false)
   const filters = reactive<{
@@ -91,15 +94,26 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
           queuedDashboardReload = false
           const requestedPage = Math.max(1, Math.floor(page.value))
           const requestedPageSize = normalizeLogPageSize(pageSize.value)
-          const logData = await fetchRequestLogs({
+          const filterQuery = {
             platform: filters.platform,
             provider: filters.provider,
             rangeKey: normalizeLogRangeKey(filters.rangeKey),
             costTier: filters.costTier,
             httpStatus: filters.httpStatus,
-            page: requestedPage,
-            pageSize: requestedPageSize,
-          })
+          }
+          const [logData, statsData] = await Promise.all([
+            fetchRequestLogs({
+              ...filterQuery,
+              page: requestedPage,
+              pageSize: requestedPageSize,
+            }),
+            // 汇总失败时保留请求列表，避免统计数据不可用拖垮整个页面。
+            fetchLogStats(filterQuery).catch((error) => {
+              console.error('failed to load filtered log summary', error)
+              return null
+            }),
+          ])
+          summaryStats.value = statsData ?? null
           const nextLogs = logData?.items ?? []
           logs.value = nextLogs
           totalLogs.value = logData?.total ?? 0
@@ -306,6 +320,7 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
     prevPage,
     providerOptions,
     rangeOptions,
+    summaryStats,
     totalLogs,
     totalPages,
     updatePageSize,

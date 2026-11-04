@@ -628,6 +628,18 @@
       "subtitle": "Token 按「输入 / 输出」与「缓存读取 / 写入」双行展示",
       "tokenHint": "输入 / 输出与缓存读取 / 写入采用双行展示；推理 Token 可能已计入输出。"
     },
+    "filteredSummary": {
+      "title": "筛选结果汇总",
+      "subtitle": "按全部匹配记录统计",
+      "cost": "金额合计",
+      "requests": "请求数",
+      "totalTokens": "Token 总量",
+      "inputTokens": "输入 Token",
+      "outputTokens": "输出 Token",
+      "cacheRead": "缓存读取",
+      "cacheCreate": "缓存写入",
+      "reasoning": "推理 Token"
+    },
     "columns": {
       "time": "时间",
       "client": "客户端",

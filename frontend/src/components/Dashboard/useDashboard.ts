@@ -31,7 +31,7 @@ export type RecentSession = {
   lastSuccessAt: unknown
 }
 
-const modelOf = (supported?: Record<string, boolean>) => {
+const modelOf = (supported?: Partial<Record<string, boolean>>) => {
   const models = Object.keys(supported ?? {}).filter((key) => supported?.[key] !== false)
   return models[0] ?? ''
 }

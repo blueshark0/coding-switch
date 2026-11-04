@@ -37,10 +37,11 @@
 ![日志暗色](resources/images/code-switch-logs-dark.png)
 
 ## 开发准备
-- Go 1.24+
+- Go 1.26+
 - Node.js 18+
 - npm / pnpm / yarn
-- Wails 3 CLI：`go install github.com/wailsapp/wails/v3/cmd/wails3@latest`
+- Wails 3.1.0 CLI：`go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0`
+- Linux 构建依赖：`libgtk-4-dev`、`libwebkitgtk-6.0-dev`
 
 ## 开发运行
 ```bash

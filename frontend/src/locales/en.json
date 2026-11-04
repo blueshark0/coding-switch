@@ -628,6 +628,18 @@
       "subtitle": "Input / output and cache read / write Tokens appear on two lines",
       "tokenHint": "Input / output and cache read / write use two rows; reasoning Tokens may already be included in output."
     },
+    "filteredSummary": {
+      "title": "Filtered results",
+      "subtitle": "Totals across all matching records",
+      "cost": "Total cost",
+      "requests": "Requests",
+      "totalTokens": "Total Tokens",
+      "inputTokens": "Input Tokens",
+      "outputTokens": "Output Tokens",
+      "cacheRead": "Cache read",
+      "cacheCreate": "Cache write",
+      "reasoning": "Reasoning Tokens"
+    },
     "columns": {
       "time": "Time",
       "client": "Client",

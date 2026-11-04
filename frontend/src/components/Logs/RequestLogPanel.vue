@@ -15,6 +15,7 @@ const {
   providerOptions,
   rangeOptions,
   httpStatusOptions,
+  summaryStats,
   pagedLogs,
   loading,
   exporting,
@@ -41,6 +42,29 @@ const costTierOptions = computed<Array<{ value: LogCostTier; label: string }>>((
   { value: 'medium', label: t('logsPage.filters.costTiers.medium') },
   { value: 'high', label: t('logsPage.filters.costTiers.high') },
 ])
+
+const summaryMetrics = computed(() => {
+  const stats = summaryStats.value
+  const count = (value: number | undefined) => stats ? (value ?? 0).toLocaleString() : '—'
+  return [
+    {
+      key: 'cost',
+      label: t('logsPage.filteredSummary.cost'),
+      value: stats ? formatUsdPrecise(stats.cost_total) : '—',
+    },
+    { key: 'requests', label: t('logsPage.filteredSummary.requests'), value: count(stats?.total_requests) },
+    {
+      key: 'total',
+      label: t('logsPage.filteredSummary.totalTokens'),
+      value: count(stats ? stats.input_tokens + stats.output_tokens : undefined),
+    },
+    { key: 'input', label: t('logsPage.filteredSummary.inputTokens'), value: count(stats?.input_tokens) },
+    { key: 'output', label: t('logsPage.filteredSummary.outputTokens'), value: count(stats?.output_tokens) },
+    { key: 'cacheRead', label: t('logsPage.filteredSummary.cacheRead'), value: count(stats?.cache_read_tokens) },
+    { key: 'cacheCreate', label: t('logsPage.filteredSummary.cacheCreate'), value: count(stats?.cache_create_tokens) },
+    { key: 'reasoning', label: t('logsPage.filteredSummary.reasoning'), value: count(stats?.reasoning_tokens) },
+  ]
+})
 
 const platformLabel = (platform: string) => providerTabs.find((tab) => tab.id === platform)?.label ?? platform
 const formatTime = (value: string) => formatBeijingDateTime(value)
@@ -120,6 +144,28 @@ const traceSession = (log: RequestLog) => {
           <span class="logs-cost-hint">{{ t('logsPage.filters.costHint') }}</span>
         </div>
       </div>
+
+      <section
+        class="logs-filter-summary"
+        :class="{ 'logs-filter-summary--loading': loading }"
+        aria-labelledby="filtered-summary-title"
+      >
+        <div class="logs-summary-scope">
+          <h3 id="filtered-summary-title">{{ t('logsPage.filteredSummary.title') }}</h3>
+          <p>{{ t('logsPage.filteredSummary.subtitle') }}</p>
+        </div>
+        <span class="logs-summary-divider" aria-hidden="true" />
+        <div v-for="metric in summaryMetrics" :key="metric.key" class="logs-summary-metric">
+          <p class="logs-summary-label">{{ metric.label }}</p>
+          <p
+            class="logs-summary-value cs-mono"
+            :class="{ 'logs-summary-value--brand': metric.key === 'cost' }"
+            :title="metric.value"
+          >
+            {{ metric.value }}
+          </p>
+        </div>
+      </section>
 
       <div class="logs-table-scroll" :class="{ 'logs-table-scroll--loading': loading }">
         <div class="logs-rows" role="table" :aria-label="t('logsPage.recent.title')">
@@ -217,7 +263,7 @@ const traceSession = (log: RequestLog) => {
 .logs-request-panel {
   display: flex;
   flex-direction: column;
-  height: 611px;
+  height: 649px;
   overflow: hidden;
   border-radius: 13px;
 }
@@ -263,7 +309,7 @@ const traceSession = (log: RequestLog) => {
   flex-shrink: 0;
   gap: 6px;
   height: 90px;
-  margin: 19px 17px 0;
+  margin: 0 17px;
   padding: 9px;
   border-radius: 10px;
   background: var(--cs-field);
@@ -334,10 +380,95 @@ const traceSession = (log: RequestLog) => {
   white-space: nowrap;
 }
 
+.logs-filter-summary {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 15px;
+  height: 56px;
+  margin: 10px 17px 0;
+  padding: 0 13px;
+  overflow: hidden;
+  border: 1px solid var(--cs-border);
+  border-radius: 10px;
+  background: var(--cs-field);
+  transition: opacity 0.15s ease;
+}
+
+.logs-filter-summary--loading {
+  opacity: 0.65;
+}
+
+.logs-summary-scope {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 3px;
+  width: 150px;
+}
+
+.logs-summary-scope h3,
+.logs-summary-scope p,
+.logs-summary-metric p {
+  margin: 0;
+}
+
+.logs-summary-scope h3 {
+  color: var(--cs-text);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.logs-summary-scope p {
+  color: var(--cs-text-secondary);
+  font-size: 10px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.logs-summary-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 29px;
+  background: var(--cs-border);
+}
+
+.logs-summary-metric {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.logs-summary-label {
+  overflow: hidden;
+  color: var(--cs-text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-summary-value {
+  overflow: hidden;
+  color: var(--cs-text);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-summary-value--brand {
+  color: var(--cs-brand);
+}
+
 .logs-table-scroll {
   flex: 1;
   min-height: 0;
-  margin: 17px 17px 0;
+  margin: 8px 17px 0;
   overflow: auto;
   transition: opacity 0.15s ease;
 }
@@ -532,11 +663,23 @@ const traceSession = (log: RequestLog) => {
   .logs-cost-hint {
     display: none;
   }
+
+  .logs-filter-summary {
+    gap: 10px;
+  }
+
+  .logs-summary-scope {
+    width: 130px;
+  }
+
+  .logs-summary-value {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 980px) {
   .logs-request-panel {
-    height: 720px;
+    height: 758px;
   }
 
   .logs-request-filters {

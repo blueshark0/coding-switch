@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@wailsio/runtime':
-        specifier: ^3.0.0-alpha.72
-        version: 3.0.0-alpha.73
+        specifier: 3.1.0
+        version: 3.1.0
       lucide-vue-next:
         specifier: ^1.0.0
         version: 1.0.0(vue@3.5.24(typescript@5.9.3))
@@ -534,8 +534,8 @@ packages:
   '@vue/shared@3.5.24':
     resolution: {integrity: sha512-9cwHL2EsJBdi8NY22pngYYWzkTDhld6fAD6jlaeloNGciNSJL6bLpbxVgXl96X00Jtc6YWQv96YA/0sxex/k1A==}
 
-  '@wailsio/runtime@3.0.0-alpha.73':
-    resolution: {integrity: sha512-r6/fIAKGAr5iJSkNw0zwSOvuOyXGKYR3dlat0gu59ZGYqsaZhdnlWTlPgOrtnSCV4BJf2DbTdorUQTTnkcYECA==}
+  '@wailsio/runtime@3.1.0':
+    resolution: {integrity: sha512-noEAedvRyO8TLCrqhGwzrp+mbMxAIDa2rYmdJQOzvJV9MxgaZeXAJGNBiMiKMTSSy4ESOtQi4VH/5heSzi6ZmA==}
 
   alien-signals@3.1.0:
     resolution: {integrity: sha512-yufC6VpSy8tK3I0lO67pjumo5JvDQVQyr38+3OHqe6CHl1t2VZekKZ7EKKZSqk0cRmE7U7tfZbpXiKNzuc+ckg==}
@@ -1140,7 +1140,7 @@ snapshots:
 
   '@vue/shared@3.5.24': {}
 
-  '@wailsio/runtime@3.0.0-alpha.73': {}
+  '@wailsio/runtime@3.1.0': {}
 
   alien-signals@3.1.0: {}
 

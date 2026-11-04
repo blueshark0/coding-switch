@@ -1,5 +1,5 @@
-import { TestProvider } from '../../bindings/codeswitch/internal/interfaces/wails/routingfacade'
-import type { ProviderProbeResult } from '../../bindings/codeswitch/internal/routing/application/models'
+import { TestProvider } from '../../bindings/portico/internal/interfaces/wails/routingfacade'
+import type { ProviderProbeResult } from '../../bindings/portico/internal/routing/application/models'
 import type { ProviderRecord } from './routing'
 
 export type { ProviderRecord } from './routing'

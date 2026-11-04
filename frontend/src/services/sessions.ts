@@ -1,6 +1,6 @@
-import { ListByPlatform, Unbind } from '../../bindings/codeswitch/internal/interfaces/wails/sessionfacade'
-import { ListSessionRequestLogs } from '../../bindings/codeswitch/internal/interfaces/wails/observabilityfacade'
-import type { SessionSummary } from '../../bindings/codeswitch/internal/interfaces/wails/models'
+import { ListByPlatform, Unbind } from '../../bindings/portico/internal/interfaces/wails/sessionfacade'
+import { ListSessionRequestLogs } from '../../bindings/portico/internal/interfaces/wails/observabilityfacade'
+import type { SessionSummary } from '../../bindings/portico/internal/interfaces/wails/models'
 import type { RequestLog } from './logs'
 
 // ListByPlatform 现在返回「绑定 + 用量聚合」的 SessionSummary，

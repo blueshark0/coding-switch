@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
-	routingapp "codeswitch/internal/routing/application"
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
-	"codeswitch/internal/shared/storage"
+	configsyncdomain "portico/internal/configsync/domain"
+	routingapp "portico/internal/routing/application"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
+	"portico/internal/shared/storage"
 )
 
 type Repository interface {
@@ -87,7 +87,7 @@ func (s *Service) GetRemoteSnapshotMeta(ctx context.Context) (configsyncdomain.R
 		return configsyncdomain.RemoteSnapshotMeta{}, err
 	}
 
-	payload, err := s.remote.Download(ctx, settings, configsyncdomain.RemoteSnapshotFile)
+	payload, err := s.downloadRemoteSnapshot(ctx, settings)
 	if err != nil {
 		if errors.Is(err, ErrRemoteSnapshotNotFound) {
 			return configsyncdomain.RemoteSnapshotMeta{}, nil
@@ -122,6 +122,14 @@ func (s *Service) PushSnapshot(ctx context.Context, ui configsyncdomain.UIPrefer
 	return meta, nil
 }
 
+func (s *Service) downloadRemoteSnapshot(ctx context.Context, settings configsyncdomain.SyncSettings) ([]byte, error) {
+	payload, err := s.remote.Download(ctx, settings, configsyncdomain.RemoteSnapshotFile)
+	if !errors.Is(err, ErrRemoteSnapshotNotFound) {
+		return payload, err
+	}
+	return s.remote.Download(ctx, settings, configsyncdomain.LegacyRemoteSnapshotFile)
+}
+
 func (s *Service) PullSnapshot(ctx context.Context) (configsyncdomain.ConfigSnapshot, error) {
 	settings, err := s.GetSyncSettings(ctx)
 	if err != nil {
@@ -131,7 +139,7 @@ func (s *Service) PullSnapshot(ctx context.Context) (configsyncdomain.ConfigSnap
 		return configsyncdomain.ConfigSnapshot{}, err
 	}
 
-	payload, err := s.remote.Download(ctx, settings, configsyncdomain.RemoteSnapshotFile)
+	payload, err := s.downloadRemoteSnapshot(ctx, settings)
 	if err != nil {
 		return configsyncdomain.ConfigSnapshot{}, err
 	}

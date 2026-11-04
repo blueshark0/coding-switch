@@ -2,27 +2,28 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
-	configsyncapp "codeswitch/internal/configsync/application"
-	configsyncinfra "codeswitch/internal/configsync/infrastructure"
-	hotkeyinfra "codeswitch/internal/hotkeys/infrastructure"
-	relayhttp "codeswitch/internal/interfaces/http/relay"
-	facades "codeswitch/internal/interfaces/wails"
-	mcpgatewayapp "codeswitch/internal/mcpgateway/application"
-	mcpgatewayinfra "codeswitch/internal/mcpgateway/infrastructure"
-	observabilityinfra "codeswitch/internal/observability/infrastructure"
-	platformproxyapp "codeswitch/internal/platformproxy/application"
-	platformproxyinfra "codeswitch/internal/platformproxy/infrastructure"
-	routingapp "codeswitch/internal/routing/application"
-	routinginfra "codeswitch/internal/routing/infrastructure"
-	sessionapp "codeswitch/internal/sessions/application"
-	sessioninfra "codeswitch/internal/sessions/infrastructure"
-	"codeswitch/internal/shared/kernel"
-	"codeswitch/internal/shared/logging"
-	"codeswitch/internal/shared/storage"
+	configsyncapp "portico/internal/configsync/application"
+	configsyncinfra "portico/internal/configsync/infrastructure"
+	hotkeyinfra "portico/internal/hotkeys/infrastructure"
+	relayhttp "portico/internal/interfaces/http/relay"
+	facades "portico/internal/interfaces/wails"
+	mcpgatewayapp "portico/internal/mcpgateway/application"
+	mcpgatewayinfra "portico/internal/mcpgateway/infrastructure"
+	observabilityinfra "portico/internal/observability/infrastructure"
+	platformproxyapp "portico/internal/platformproxy/application"
+	platformproxyinfra "portico/internal/platformproxy/infrastructure"
+	routingapp "portico/internal/routing/application"
+	routinginfra "portico/internal/routing/infrastructure"
+	sessionapp "portico/internal/sessions/application"
+	sessioninfra "portico/internal/sessions/infrastructure"
+	"portico/internal/shared/kernel"
+	"portico/internal/shared/logging"
+	"portico/internal/shared/storage"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/services/dock"
@@ -48,6 +49,9 @@ type Container struct {
 }
 
 func Initialize(appVersion string) (*Container, error) {
+	if err := storage.MigrateLegacyAppDataDir(); err != nil {
+		return nil, fmt.Errorf("迁移旧版应用数据失败: %w", err)
+	}
 	logFile := logging.Setup()
 	if err := NewInitializer().Initialize(); err != nil {
 		if logFile != nil {

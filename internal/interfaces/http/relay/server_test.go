@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	routingapp "codeswitch/internal/routing/application"
-	routingdomain "codeswitch/internal/routing/domain"
-	sessionapp "codeswitch/internal/sessions/application"
-	sessiondomain "codeswitch/internal/sessions/domain"
-	sessioninfra "codeswitch/internal/sessions/infrastructure"
-	"codeswitch/internal/shared/kernel"
-	"codeswitch/internal/shared/worker"
 	"github.com/gin-gonic/gin"
+	observabilitydomain "portico/internal/observability/domain"
+	routingapp "portico/internal/routing/application"
+	routingdomain "portico/internal/routing/domain"
+	sessionapp "portico/internal/sessions/application"
+	sessiondomain "portico/internal/sessions/domain"
+	sessioninfra "portico/internal/sessions/infrastructure"
+	"portico/internal/shared/kernel"
+	"portico/internal/shared/worker"
 )
 
 type relayRoutingRepoStub struct {
@@ -366,7 +366,7 @@ func TestRouteToManualProviderRewritesMappedModelAndInjectsCredentials(t *testin
 		Query:     map[string]string{},
 		Headers: map[string]string{
 			"Accept":        "application/json",
-			"Authorization": "Bearer code-switch",
+			"Authorization": "Bearer portico",
 			"X-Api-Key":     "sk-user-real",
 		},
 		Profile: routingdomain.RouteProfile{

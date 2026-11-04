@@ -1,11 +1,11 @@
 package main
 
 import (
-	appbootstrap "codeswitch/internal/app/bootstrap"
-	appdesktop "codeswitch/internal/app/desktop"
 	"embed"
 	"log"
 	"os"
+	appbootstrap "portico/internal/app/bootstrap"
+	appdesktop "portico/internal/app/desktop"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -25,7 +25,7 @@ func main() {
 
 	versionService := NewVersionService()
 	app := application.New(application.Options{
-		Name:        "Code Switch",
+		Name:        "Portico",
 		Description: "Claude Code and Codex provider manager",
 		Services: container.ApplicationServices(
 			application.NewService(versionService),

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 func TestFirstTokenTimingRecordsFirstDataEventWithoutChangingPayload(t *testing.T) {

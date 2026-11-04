@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 // withFirstTokenTiming 只观察首个响应数据事件，始终调用原 hook 并原样返回其数据。

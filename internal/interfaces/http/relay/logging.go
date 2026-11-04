@@ -7,15 +7,15 @@ import (
 	"strings"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	"codeswitch/internal/shared/kernel"
+	observabilitydomain "portico/internal/observability/domain"
+	"portico/internal/shared/kernel"
 )
 
 // maxUpstreamErrorBodyBytes 限制写入应用日志的上游错误体大小，避免超大 HTML
 // 错误页撑爆单条日志（app_log_reader 的回扫窗口为 2MB）。
 const maxUpstreamErrorBodyBytes = 8 * 1024
 
-var relayDebugEnabled = os.Getenv("CODE_SWITCH_DEBUG_RELAY") == "1"
+var relayDebugEnabled = os.Getenv("PORTICO_DEBUG_RELAY") == "1" || os.Getenv("CODE_SWITCH_DEBUG_RELAY") == "1"
 
 func relayDebugf(format string, args ...any) {
 	if !relayDebugEnabled {

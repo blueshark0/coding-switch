@@ -339,7 +339,7 @@
       "currentProvider": "Current provider",
       "none": "Not set",
       "switch": "Switch",
-      "relay": "Managed by Code Switch",
+      "relay": "Managed by Portico",
       "toggleFailed": "Failed to toggle integration"
     },
     "frequent": {
@@ -824,7 +824,7 @@
       "injected": "Written to local config · restart {client} to apply",
       "notInjected": "Not yet written to {client}'s local config",
       "toggle": "Toggle MCP injection for {client}",
-      "help": "Injection only changes Code Switch-managed MCP entries and leaves other client MCP configuration untouched. Restart the corresponding CLI after changes."
+      "help": "Injection only changes Portico-managed MCP entries and leaves other client MCP configuration untouched. Restart the corresponding CLI after changes."
     },
     "list": {
       "title": "Configured servers",

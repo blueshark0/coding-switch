@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"codeswitch/internal/routing/domain"
+	"portico/internal/routing/domain"
 )
 
 func (s *SQLiteStore) GetAppPreferences(ctx context.Context) (domain.AppPreferences, error) {

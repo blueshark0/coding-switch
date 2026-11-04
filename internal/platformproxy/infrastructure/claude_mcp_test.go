@@ -45,12 +45,12 @@ func TestClaudeInjectIntoMissingFile(t *testing.T) {
 	}
 	raw := readClaudeConfig(t)
 	servers, _ := raw["mcpServers"].(map[string]any)
-	entry, _ := servers["code-switch"].(map[string]any)
+	entry, _ := servers["portico"].(map[string]any)
 	if entry["type"] != "http" || entry["url"] != "http://127.0.0.1:18100/mcp" {
 		t.Fatalf("条目内容: %v", entry)
 	}
 	headers, _ := entry["headers"].(map[string]any)
-	if headers["Authorization"] != "Bearer code-switch" {
+	if headers["Authorization"] != "Bearer portico" {
 		t.Fatalf("headers: %v", headers)
 	}
 	if ok, _ := m.McpStatus(); !ok {
@@ -82,8 +82,29 @@ func TestClaudeInjectPreservesOtherContent(t *testing.T) {
 	if _, ok := servers["user-own"]; !ok {
 		t.Fatal("用户既有 MCP 条目被覆盖")
 	}
-	if _, ok := servers["code-switch"]; !ok {
+	if _, ok := servers["portico"]; !ok {
 		t.Fatal("网关条目未注入")
+	}
+}
+
+func TestClaudeInjectReplacesLegacyEntry(t *testing.T) {
+	m := newClaudeManager(t)
+	seed := `{"mcpServers":{"code-switch":{"type":"http","url":"http://127.0.0.1:18100/mcp"},"user-own":{"type":"stdio","command":"x"}}}`
+	if err := os.WriteFile(claudeConfigPath(t), []byte(seed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.InjectMcp(); err != nil {
+		t.Fatal(err)
+	}
+	servers := readClaudeConfig(t)["mcpServers"].(map[string]any)
+	if _, ok := servers[legacyMcpEntryName]; ok {
+		t.Fatal("旧 MCP 条目应被移除")
+	}
+	if _, ok := servers[mcpEntryName]; !ok {
+		t.Fatal("新 MCP 条目应被注入")
+	}
+	if _, ok := servers["user-own"]; !ok {
+		t.Fatal("用户条目应保留")
 	}
 }
 
@@ -118,7 +139,7 @@ func TestClaudeRemoveOnlyOwnEntry(t *testing.T) {
 	}
 	raw := readClaudeConfig(t)
 	servers := raw["mcpServers"].(map[string]any)
-	if _, ok := servers["code-switch"]; ok {
+	if _, ok := servers["portico"]; ok {
 		t.Fatal("网关条目应被移除")
 	}
 	if _, ok := servers["user-own"]; !ok {
@@ -193,12 +214,12 @@ func TestClaudeProxyToggleKeepsMcpEntry(t *testing.T) {
 }
 
 func TestStripRedundantTableHeaders(t *testing.T) {
-	input := "[model_providers]\n[mcp_servers]\n[mcp_servers.code-switch]\nurl = \"x\"\n[other]\nkey = 1\n"
+	input := "[model_providers]\n[mcp_servers]\n[mcp_servers.portico]\nurl = \"x\"\n[other]\nkey = 1\n"
 	out := string(stripRedundantTableHeaders([]byte(input), "model_providers", "mcp_servers"))
 	if strings.Contains(out, "[model_providers]") || strings.Contains(out, "\n[mcp_servers]\n") {
 		t.Fatalf("冗余父表头未剔除: %q", out)
 	}
-	if !strings.Contains(out, "[mcp_servers.code-switch]") || !strings.Contains(out, "[other]") {
+	if !strings.Contains(out, "[mcp_servers.portico]") || !strings.Contains(out, "[other]") {
 		t.Fatalf("正常表头应保留: %q", out)
 	}
 }

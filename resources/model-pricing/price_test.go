@@ -15,7 +15,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	modelpricing "codeswitch/resources/model-pricing"
+	modelpricing "portico/resources/model-pricing"
 )
 
 // 内置价格表中的真实单价（美元/token）。

@@ -30,7 +30,7 @@ func NewShell(app *application.App, dockService *dock.DockService, trayIcons fs.
 
 func (s *Shell) Configure() {
 	s.mainWindow = s.app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:     "Code Switch",
+		Title:     "Portico",
 		Width:     1150,
 		Height:    800,
 		MinWidth:  600,
@@ -93,7 +93,7 @@ func (s *Shell) showMainWindow(withFocus bool) {
 
 func (s *Shell) configureTray() {
 	systray := s.app.SystemTray.New()
-	systray.SetTooltip("Code Switch")
+	systray.SetTooltip("Portico")
 	if lightIcon := s.loadTrayIcon("assets/icon.png"); len(lightIcon) > 0 {
 		systray.SetIcon(lightIcon)
 	}

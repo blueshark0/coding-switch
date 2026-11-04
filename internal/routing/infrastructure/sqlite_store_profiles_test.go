@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"
+	"portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func TestSQLiteStoreSaveProfilePersistsRequestBodyReplacements(t *testing.T) {

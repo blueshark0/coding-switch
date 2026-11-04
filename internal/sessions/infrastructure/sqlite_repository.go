@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	sessiondomain "codeswitch/internal/sessions/domain"
-	"codeswitch/internal/shared/kernel"
-	"codeswitch/internal/shared/storage"
+	sessiondomain "portico/internal/sessions/domain"
+	"portico/internal/shared/kernel"
+	"portico/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
 )

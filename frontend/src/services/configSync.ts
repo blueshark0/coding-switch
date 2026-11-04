@@ -7,14 +7,14 @@ import {
   PushSnapshot,
   SaveSyncSettings,
   TestConnection,
-} from '../../bindings/codeswitch/internal/interfaces/wails/configsyncfacade'
+} from '../../bindings/portico/internal/interfaces/wails/configsyncfacade'
 import type {
   BackendSnapshot,
   ConfigSnapshot,
   RemoteSnapshotMeta,
   SyncSettings,
   UIPreferences,
-} from '../../bindings/codeswitch/internal/configsync/domain/models'
+} from '../../bindings/portico/internal/configsync/domain/models'
 
 export type { BackendSnapshot, ConfigSnapshot, RemoteSnapshotMeta, SyncSettings, UIPreferences }
 

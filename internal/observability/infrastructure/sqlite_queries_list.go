@@ -3,7 +3,7 @@ package infrastructure
 import (
 	"strings"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 
 	"github.com/daodao97/xgo/xdb"
 )

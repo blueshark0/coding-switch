@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	sessionapp "codeswitch/internal/sessions/application"
-	"codeswitch/internal/shared/kernel"
+	sessionapp "portico/internal/sessions/application"
+	"portico/internal/shared/kernel"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 )

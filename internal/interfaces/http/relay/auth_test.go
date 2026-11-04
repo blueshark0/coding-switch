@@ -4,8 +4,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func TestIsAuthorizedInboundRequest(t *testing.T) {
@@ -15,12 +15,12 @@ func TestIsAuthorizedInboundRequest(t *testing.T) {
 		query  string
 		want   bool
 	}{
-		{name: "claude bearer placeholder", header: map[string]string{"Authorization": "Bearer code-switch"}, want: true},
+		{name: "claude bearer placeholder", header: map[string]string{"Authorization": "Bearer portico"}, want: true},
 		{name: "bearer prefix case-insensitive", header: map[string]string{"Authorization": "bearer CODE-SWITCH"}, want: true},
-		{name: "raw token in authorization", header: map[string]string{"Authorization": "code-switch"}, want: true},
-		{name: "x-api-key placeholder", header: map[string]string{"X-Api-Key": "code-switch"}, want: true},
-		{name: "gemini header placeholder", header: map[string]string{"X-Goog-Api-Key": "code-switch"}, want: true},
-		{name: "gemini query key placeholder", query: "key=code-switch", want: true},
+		{name: "raw token in authorization", header: map[string]string{"Authorization": "portico"}, want: true},
+		{name: "x-api-key placeholder", header: map[string]string{"X-Api-Key": "portico"}, want: true},
+		{name: "gemini header placeholder", header: map[string]string{"X-Goog-Api-Key": "portico"}, want: true},
+		{name: "gemini query key placeholder", query: "key=portico", want: true},
 		{name: "no credentials", want: false},
 		{name: "foreign real key is rejected", header: map[string]string{"Authorization": "Bearer sk-real-key"}, want: false},
 		{name: "foreign x-api-key is rejected", header: map[string]string{"X-Api-Key": "sk-user-key"}, want: false},
@@ -44,7 +44,7 @@ func TestIsAuthorizedInboundRequest(t *testing.T) {
 
 func TestStripInboundCredentialHeaders(t *testing.T) {
 	headers := map[string]string{
-		"Authorization":  "Bearer code-switch",
+		"Authorization":  "Bearer portico",
 		"X-Api-Key":      "user-real-key",
 		"x-goog-api-key": "lowercase-variant",
 		"Cookie":         "session=1",
@@ -78,7 +78,7 @@ func TestApplyProviderCredentialsInjectsUnconditionally(t *testing.T) {
 
 	// Gemini：只注入 canonical 的 X-Goog-Api-Key，客户端占位头必须被清除，
 	// 不能出现两个大小写不同、取值不同的认证头并存。
-	geminiHeaders := map[string]string{"X-Goog-Api-Key": "code-switch"}
+	geminiHeaders := map[string]string{"X-Goog-Api-Key": "portico"}
 	applyProviderCredentials(geminiHeaders, kernel.PlatformGemini, provider)
 	if geminiHeaders["X-Goog-Api-Key"] != "sk-provider" {
 		t.Fatalf("X-Goog-Api-Key = %q, want provider key", geminiHeaders["X-Goog-Api-Key"])
@@ -89,7 +89,7 @@ func TestApplyProviderCredentialsInjectsUnconditionally(t *testing.T) {
 
 	// 供应商未配置 key：仅剥离客户端凭证，不注入空值。
 	emptyProvider := &routingdomain.Provider{}
-	headers := map[string]string{"Authorization": "Bearer code-switch"}
+	headers := map[string]string{"Authorization": "Bearer portico"}
 	applyProviderCredentials(headers, kernel.PlatformCodex, emptyProvider)
 	if len(headers) != 0 {
 		t.Fatalf("expected all credential headers stripped, got %v", headers)

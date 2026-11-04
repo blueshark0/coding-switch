@@ -1,8 +1,8 @@
 package wails
 
 import (
-	platformproxyapp "codeswitch/internal/platformproxy/application"
-	platformproxydomain "codeswitch/internal/platformproxy/domain"
+	platformproxyapp "portico/internal/platformproxy/application"
+	platformproxydomain "portico/internal/platformproxy/domain"
 )
 
 type PlatformProxyFacade struct {

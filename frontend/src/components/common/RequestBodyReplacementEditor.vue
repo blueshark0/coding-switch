@@ -188,7 +188,7 @@ import BaseInput from './BaseInput.vue'
 import BaseTextarea from './BaseTextarea.vue'
 import EditorHelpBox from './EditorHelpBox.vue'
 import FieldHelpLabel from './FieldHelpLabel.vue'
-import type { RequestBodyReplacement } from '../../../bindings/codeswitch/internal/routing/domain/models'
+import type { RequestBodyReplacement } from '../../../bindings/portico/internal/routing/domain/models'
 
 interface Props {
   modelValue?: RequestBodyReplacement[]

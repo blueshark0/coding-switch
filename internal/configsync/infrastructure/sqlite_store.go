@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
-	"codeswitch/internal/shared/storage"
+	configsyncdomain "portico/internal/configsync/domain"
+	"portico/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
 )
@@ -35,7 +35,7 @@ func (s *SQLiteStore) EnsureSchema() error {
 		endpoint TEXT NOT NULL DEFAULT '',
 		username TEXT NOT NULL DEFAULT '',
 		app_password TEXT NOT NULL DEFAULT '',
-		remote_path TEXT NOT NULL DEFAULT '/CodeSwitch',
+		remote_path TEXT NOT NULL DEFAULT '/Portico',
 		sync_passphrase TEXT NOT NULL DEFAULT '',
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`); err != nil {
@@ -45,7 +45,7 @@ func (s *SQLiteStore) EnsureSchema() error {
 		return err
 	}
 	_, err = db.Exec(`INSERT INTO sync_settings (id, endpoint, username, app_password, remote_path, sync_passphrase)
-		VALUES (1, '', '', '', '/CodeSwitch', '')
+		VALUES (1, '', '', '', '/Portico', '')
 		ON CONFLICT(id) DO NOTHING`)
 	return err
 }
@@ -55,7 +55,7 @@ func ensureSyncSettingsColumns(db *sql.DB) error {
 		{Name: "endpoint", Definition: "TEXT NOT NULL DEFAULT ''"},
 		{Name: "username", Definition: "TEXT NOT NULL DEFAULT ''"},
 		{Name: "app_password", Definition: "TEXT NOT NULL DEFAULT ''"},
-		{Name: "remote_path", Definition: "TEXT NOT NULL DEFAULT '/CodeSwitch'"},
+		{Name: "remote_path", Definition: "TEXT NOT NULL DEFAULT '/Portico'"},
 		{Name: "sync_passphrase", Definition: "TEXT NOT NULL DEFAULT ''"},
 		{Name: "updated_at", Definition: "DATETIME"},
 	})

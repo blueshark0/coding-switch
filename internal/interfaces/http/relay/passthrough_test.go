@@ -14,10 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	routingapp "codeswitch/internal/routing/application"
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/gin-gonic/gin"
+	routingapp "portico/internal/routing/application"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func TestCloneHeadersJoinsMultiValueHeaders(t *testing.T) {
@@ -117,8 +117,8 @@ func TestForwardRequestPassthroughSSEByteIdentical(t *testing.T) {
 					StatusCode: http.StatusOK,
 					Status:     "200 OK",
 					Header: http.Header{
-						"Content-Type":          []string{"text/event-stream"},
-						"X-Safeguard-Decision":  []string{"allow"},
+						"Content-Type":         []string{"text/event-stream"},
+						"X-Safeguard-Decision": []string{"allow"},
 					},
 					Body:    io.NopCloser(strings.NewReader(payload)),
 					Request: req,
@@ -171,9 +171,9 @@ func TestForwardRequestForwardsCustomHeadersToUpstream(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name        string
-		headers     map[string]string
-		wantAccept  string
+		name       string
+		headers    map[string]string
+		wantAccept string
 	}{
 		{
 			name: "client accept preserved",
@@ -186,9 +186,9 @@ func TestForwardRequestForwardsCustomHeadersToUpstream(t *testing.T) {
 			wantAccept: "text/event-stream",
 		},
 		{
-			name:        "default accept injected when absent",
-			headers:     map[string]string{"Anthropic-Beta": "tools-2025"},
-			wantAccept:  "application/json",
+			name:       "default accept injected when absent",
+			headers:    map[string]string{"Anthropic-Beta": "tools-2025"},
+			wantAccept: "application/json",
 		},
 	}
 
@@ -291,7 +291,7 @@ func TestRelayEndToEndPassthroughThroughGinRouter(t *testing.T) {
 		`"safeguards":[{"type":"command","cmd":"ls"}],"future_unknown_field":{"a":1}}`)
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/v1/messages", bytes.NewReader(body))
-	req.Header.Set("Authorization", "Bearer code-switch")
+	req.Header.Set("Authorization", "Bearer portico")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Anthropic-Beta", "tools-2025")
 	router.ServeHTTP(recorder, req)

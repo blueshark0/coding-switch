@@ -6,8 +6,8 @@ import (
 	"sort"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	"codeswitch/internal/shared/storage"
+	observabilitydomain "portico/internal/observability/domain"
+	"portico/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
 )

@@ -1,5 +1,5 @@
-import { Disable, Enable, GetStatus } from '../../bindings/codeswitch/internal/interfaces/wails/platformproxyfacade'
-import type { Status as ClaudeProxyStatus } from '../../bindings/codeswitch/internal/platformproxy/domain/models'
+import { Disable, Enable, GetStatus } from '../../bindings/portico/internal/interfaces/wails/platformproxyfacade'
+import type { Status as ClaudeProxyStatus } from '../../bindings/portico/internal/platformproxy/domain/models'
 import type { ProviderTab } from '../constants/platforms'
 
 type Platform = ProviderTab

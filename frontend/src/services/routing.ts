@@ -3,12 +3,12 @@ import {
   GetProfile,
   SaveAppPreferences,
   SaveProfile,
-} from '../../bindings/codeswitch/internal/interfaces/wails/routingfacade'
+} from '../../bindings/portico/internal/interfaces/wails/routingfacade'
 import type {
   AppPreferences,
   Provider,
   RouteProfile,
-} from '../../bindings/codeswitch/internal/routing/domain/models'
+} from '../../bindings/portico/internal/routing/domain/models'
 
 export type ProviderRecord = Provider
 export type { AppPreferences, RouteProfile }

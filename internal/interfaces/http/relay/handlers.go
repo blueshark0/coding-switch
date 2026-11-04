@@ -3,9 +3,9 @@ package relay
 import (
 	"strings"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/tidwall/gjson"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 type ClaudeHandler struct {

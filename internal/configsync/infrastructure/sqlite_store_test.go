@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
+	configsyncdomain "portico/internal/configsync/domain"
 
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"
@@ -72,7 +72,7 @@ func TestSQLiteStoreEnsureSchema_MigratesLegacySyncSettingsColumns(t *testing.T)
 		Endpoint:       "https://dav.example.com",
 		Username:       "user",
 		AppPassword:    "password",
-		RemotePath:     "/CodeSwitch",
+		RemotePath:     "/Portico",
 		SyncPassphrase: "secret",
 	})
 	if err != nil {

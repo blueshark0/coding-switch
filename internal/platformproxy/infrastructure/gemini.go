@@ -7,13 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	platformproxydomain "codeswitch/internal/platformproxy/domain"
+	platformproxydomain "portico/internal/platformproxy/domain"
 )
 
 const (
 	geminiSettingsDir      = ".gemini"
 	geminiSettingsFileName = ".env"
-	geminiAPIKeyValue      = "code-switch"
+	geminiAPIKeyValue      = "portico"
 )
 
 var geminiProxyFieldKeys = []string{"GEMINI_API_KEY", "GOOGLE_GEMINI_BASE_URL"}
@@ -55,7 +55,7 @@ func (m *GeminiManager) ProxyStatus() (platformproxydomain.Status, error) {
 	if err != nil {
 		return status, err
 	}
-	status.Enabled = strings.EqualFold(envMap["GEMINI_API_KEY"], geminiAPIKeyValue) &&
+	status.Enabled = isManagedPlaceholderToken(envMap["GEMINI_API_KEY"], geminiAPIKeyValue) &&
 		strings.EqualFold(envMap["GOOGLE_GEMINI_BASE_URL"], m.baseURL())
 	return status, nil
 }

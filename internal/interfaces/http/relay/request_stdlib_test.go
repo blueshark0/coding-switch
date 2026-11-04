@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"testing"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/gin-gonic/gin"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func TestForwardRequestMergesQueryAndDefaultsContentType(t *testing.T) {

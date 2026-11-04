@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
-	routingapp "codeswitch/internal/routing/application"
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	configsyncdomain "portico/internal/configsync/domain"
+	routingapp "portico/internal/routing/application"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 type fakeSettingsRepo struct {
@@ -109,7 +109,7 @@ func newSyncTestService(t *testing.T, remote *fakeRemote) (*Service, *syncRoutin
 		Endpoint:       "https://dav.example.com",
 		Username:       "user",
 		AppPassword:    "app-pass",
-		RemotePath:     "/CodeSwitch",
+		RemotePath:     "/Portico",
 		SyncPassphrase: "sync-secret",
 	}}
 	service := NewService(settingsRepo, remote, routingapp.NewService(routingRepo), "1.0.0")
@@ -117,6 +117,28 @@ func newSyncTestService(t *testing.T, remote *fakeRemote) (*Service, *syncRoutin
 	service.hostname = func() (string, error) { return "test-device", nil }
 	service.rollbackDir = t.TempDir()
 	return service, routingRepo
+}
+
+func TestLegacyRemoteSnapshotCanBeRead(t *testing.T) {
+	remote := newFakeRemote()
+	service, _ := newSyncTestService(t, remote)
+	ctx := context.Background()
+	if _, err := service.PushSnapshot(ctx, configsyncdomain.UIPreferences{Theme: "dark", Locale: "zh"}); err != nil {
+		t.Fatal(err)
+	}
+	remote.files[configsyncdomain.LegacyRemoteSnapshotFile] = remote.files[configsyncdomain.RemoteSnapshotFile]
+	delete(remote.files, configsyncdomain.RemoteSnapshotFile)
+
+	meta, err := service.GetRemoteSnapshotMeta(ctx)
+	if err != nil {
+		t.Fatalf("read legacy snapshot meta: %v", err)
+	}
+	if !meta.Exists || meta.DeviceName != "test-device" {
+		t.Fatalf("unexpected legacy snapshot meta: %+v", meta)
+	}
+	if _, err := service.PullSnapshot(ctx); err != nil {
+		t.Fatalf("pull legacy snapshot: %v", err)
+	}
 }
 
 func TestPushThenPullSnapshotEndToEnd(t *testing.T) {

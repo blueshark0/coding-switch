@@ -70,7 +70,7 @@ func TestSQLiteStore_MigrateLegacyHotkeys(t *testing.T) {
 		t.Fatalf("unexpected second hotkey: %+v", hotkeys[1])
 	}
 
-	newDBPath := filepath.Join(homeDir, ".code-switch", hotkeysDBFile)
+	newDBPath := filepath.Join(homeDir, ".portico", hotkeysDBFile)
 	if _, err := os.Stat(newDBPath); err != nil {
 		t.Fatalf("expected new hotkeys db at %s: %v", newDBPath, err)
 	}

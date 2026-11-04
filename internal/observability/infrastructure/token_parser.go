@@ -1,8 +1,8 @@
 package infrastructure
 
 import (
-	observabilitydomain "codeswitch/internal/observability/domain"
-	"codeswitch/internal/shared/kernel"
+	observabilitydomain "portico/internal/observability/domain"
+	"portico/internal/shared/kernel"
 
 	"github.com/tidwall/gjson"
 )

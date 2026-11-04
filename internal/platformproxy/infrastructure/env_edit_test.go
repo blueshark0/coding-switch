@@ -7,7 +7,7 @@ import (
 
 func TestEnvSetFieldPreservesLinesCommentsAndOrder(t *testing.T) {
 	input := []byte("# heading\nOTHER=keep\nexport GEMINI_API_KEY = \"old\" # key comment\n\nGOOGLE_GEMINI_BASE_URL='http://old'\nTAIL = unchanged\n")
-	updated, err := setEnvField(input, "GEMINI_API_KEY", "code-switch")
+	updated, err := setEnvField(input, "GEMINI_API_KEY", "portico")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -15,7 +15,7 @@ func TestEnvSetFieldPreservesLinesCommentsAndOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := strings.Replace(string(input), `"old"`, "code-switch", 1)
+	expected := strings.Replace(string(input), `"old"`, "portico", 1)
 	expected = strings.Replace(expected, `'http://old'`, "http://127.0.0.1:18100/gemini", 1)
 	if string(updated) != expected {
 		t.Fatalf("只应替换值区间:\n--- got ---\n%s\n--- want ---\n%s", updated, expected)
@@ -24,7 +24,7 @@ func TestEnvSetFieldPreservesLinesCommentsAndOrder(t *testing.T) {
 
 func TestEnvInsertThenRestoreMissingKeysRoundtrip(t *testing.T) {
 	input := []byte("# keep\nA=1\n")
-	updated, err := setEnvField(input, "GEMINI_API_KEY", "code-switch")
+	updated, err := setEnvField(input, "GEMINI_API_KEY", "portico")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestEnvInsertThenRestoreMissingKeysRoundtrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := "# keep\nA=1\nGEMINI_API_KEY=code-switch\nGOOGLE_GEMINI_BASE_URL=url"
+	expected := "# keep\nA=1\nGEMINI_API_KEY=portico\nGOOGLE_GEMINI_BASE_URL=url"
 	if string(updated) != expected {
 		t.Fatalf("追加字段不应改变已有行: got %q want %q", updated, expected)
 	}
@@ -58,12 +58,12 @@ func TestEnvDuplicateKeysSnapshotAndRestore(t *testing.T) {
 	if len(values["GEMINI_API_KEY"]) != 2 {
 		t.Fatalf("两个原始赋值都应保存: %#v", values)
 	}
-	updated, err := setEnvField(input, "GEMINI_API_KEY", "code-switch")
+	updated, err := setEnvField(input, "GEMINI_API_KEY", "portico")
 	if err != nil {
 		t.Fatal(err)
 	}
 	effective, err := envEffectiveValues(updated, []string{"GEMINI_API_KEY"})
-	if err != nil || effective["GEMINI_API_KEY"] != "code-switch" {
+	if err != nil || effective["GEMINI_API_KEY"] != "portico" {
 		t.Fatalf("所有重复赋值都应更新: %#v, %v", effective, err)
 	}
 	restored, err := restoreEnvField(updated, "GEMINI_API_KEY", values["GEMINI_API_KEY"])
@@ -93,8 +93,8 @@ func TestEnvRestoreChangedDuplicateCountKeepsOtherLines(t *testing.T) {
 }
 
 func TestEnvSemanticEqualKeepsQuotesAndCRLF(t *testing.T) {
-	input := []byte("export GEMINI_API_KEY = \"code-switch\" # keep\r\nOTHER=1\r\n")
-	updated, err := setEnvField(input, "GEMINI_API_KEY", "code-switch")
+	input := []byte("export GEMINI_API_KEY = \"portico\" # keep\r\nOTHER=1\r\n")
+	updated, err := setEnvField(input, "GEMINI_API_KEY", "portico")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,11 +105,11 @@ func TestEnvSemanticEqualKeepsQuotesAndCRLF(t *testing.T) {
 
 func TestEnvMalformedUnrelatedLineDoesNotBlockManagedField(t *testing.T) {
 	input := []byte("OTHER=\"unterminated\nGEMINI_API_KEY=old\n")
-	updated, err := setEnvField(input, "GEMINI_API_KEY", "code-switch")
+	updated, err := setEnvField(input, "GEMINI_API_KEY", "portico")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := "OTHER=\"unterminated\nGEMINI_API_KEY=code-switch\n"
+	expected := "OTHER=\"unterminated\nGEMINI_API_KEY=portico\n"
 	if string(updated) != expected {
 		t.Fatalf("未识别其他行应原样保留: got %q want %q", updated, expected)
 	}
@@ -117,7 +117,7 @@ func TestEnvMalformedUnrelatedLineDoesNotBlockManagedField(t *testing.T) {
 
 func TestEnvMalformedManagedLineReturnsError(t *testing.T) {
 	input := []byte("GEMINI_API_KEY=\"unterminated\n")
-	if _, err := setEnvField(input, "GEMINI_API_KEY", "code-switch"); err == nil {
+	if _, err := setEnvField(input, "GEMINI_API_KEY", "portico"); err == nil {
 		t.Fatal("受管字段引号未闭合时应报错")
 	}
 	if string(input) != "GEMINI_API_KEY=\"unterminated\n" {

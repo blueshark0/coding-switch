@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
+	configsyncdomain "portico/internal/configsync/domain"
 
 	"golang.org/x/crypto/scrypt"
 )

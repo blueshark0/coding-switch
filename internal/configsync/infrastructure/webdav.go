@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	configsyncapp "codeswitch/internal/configsync/application"
-	configsyncdomain "codeswitch/internal/configsync/domain"
+	configsyncapp "portico/internal/configsync/application"
+	configsyncdomain "portico/internal/configsync/domain"
 )
 
 type WebDAVClient struct {

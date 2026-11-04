@@ -23,7 +23,7 @@ type bearerRoundTripper struct{}
 
 func (bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	cloned := req.Clone(req.Context())
-	cloned.Header.Set("Authorization", "Bearer code-switch")
+	cloned.Header.Set("Authorization", "Bearer portico")
 	return http.DefaultTransport.RoundTrip(cloned)
 }
 
@@ -92,7 +92,7 @@ func TestMcpRouteAbsentWhenGatewayNil(t *testing.T) {
 
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/mcp", nil)
-	req.Header.Set("Authorization", "Bearer code-switch")
+	req.Header.Set("Authorization", "Bearer portico")
 	router.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusNotFound {
 		t.Fatalf("未装配网关时 /mcp 应 404，实际 %d", recorder.Code)

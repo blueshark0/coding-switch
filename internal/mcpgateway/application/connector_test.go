@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"codeswitch/internal/mcpgateway/domain"
+	"portico/internal/mcpgateway/domain"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )

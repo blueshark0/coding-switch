@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"codeswitch/internal/mcpgateway/domain"
+	"portico/internal/mcpgateway/domain"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -29,7 +29,7 @@ func defaultConnector(appVersion string, onToolsChanged func(serverID int64)) Co
 				},
 			}
 		}
-		client := mcp.NewClient(&mcp.Implementation{Name: "code-switch", Version: appVersion}, opts)
+		client := mcp.NewClient(&mcp.Implementation{Name: "portico", Version: appVersion}, opts)
 		var transport mcp.Transport
 		switch cfg.Type {
 		case domain.ServerTypeStdio:

@@ -3,8 +3,8 @@ package application
 import (
 	"fmt"
 
-	platformproxydomain "codeswitch/internal/platformproxy/domain"
-	"codeswitch/internal/shared/kernel"
+	platformproxydomain "portico/internal/platformproxy/domain"
+	"portico/internal/shared/kernel"
 )
 
 type Manager interface {

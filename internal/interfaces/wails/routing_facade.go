@@ -3,8 +3,8 @@ package wails
 import (
 	"context"
 
-	routingapp "codeswitch/internal/routing/application"
-	routingdomain "codeswitch/internal/routing/domain"
+	routingapp "portico/internal/routing/application"
+	routingdomain "portico/internal/routing/domain"
 )
 
 type RoutingFacade struct {

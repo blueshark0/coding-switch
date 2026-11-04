@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	sessionapp "codeswitch/internal/sessions/application"
+	sessionapp "portico/internal/sessions/application"
 )
 
 type blockingSessionRepo struct {

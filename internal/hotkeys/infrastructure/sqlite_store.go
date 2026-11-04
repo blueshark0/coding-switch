@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	hotkeydomain "codeswitch/internal/hotkeys/domain"
-	"codeswitch/internal/shared/storage"
+	hotkeydomain "portico/internal/hotkeys/domain"
+	"portico/internal/shared/storage"
 
 	_ "modernc.org/sqlite"
 )

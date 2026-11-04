@@ -17,7 +17,7 @@ func TestGeminiProxyTogglePreservesEnvLinesAndUserChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	enabled := readTestConfig(t, path)
-	expectedEnabled := strings.Replace(string(original), `"original"`, "code-switch", 1)
+	expectedEnabled := strings.Replace(string(original), `"original"`, "portico", 1)
 	expectedEnabled = strings.Replace(expectedEnabled, `'http://old'`, "http://127.0.0.1:18100/gemini", 1)
 	if string(enabled) != expectedEnabled {
 		t.Fatalf("Enable 只能修改值区间: got %q want %q", enabled, expectedEnabled)
@@ -29,7 +29,7 @@ func TestGeminiProxyTogglePreservesEnvLinesAndUserChanges(t *testing.T) {
 	if err := m.DisableProxy(); err != nil {
 		t.Fatal(err)
 	}
-	expectedRestored := strings.Replace(changed, "GEMINI_API_KEY=code-switch", `GEMINI_API_KEY="original"`, 1)
+	expectedRestored := strings.Replace(changed, "GEMINI_API_KEY=portico", `GEMINI_API_KEY="original"`, 1)
 	expectedRestored = strings.Replace(expectedRestored, "export GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:18100/gemini", "export GOOGLE_GEMINI_BASE_URL='http://old'", 1)
 	if got := readTestConfig(t, path); string(got) != expectedRestored {
 		t.Fatalf("Disable 应恢复原始行并保留其他当前行: got %q want %q", got, expectedRestored)
@@ -86,7 +86,7 @@ func TestGeminiProxyToggleMissingFieldsAndFile(t *testing.T) {
 func TestGeminiLegacyDisableLeavesCurrentFileUntouched(t *testing.T) {
 	m := newGeminiManagerForTest(t)
 	path := geminiSettingsPathForTest(t)
-	current := []byte("# current is baseline\nGEMINI_API_KEY=code-switch\nGOOGLE_GEMINI_BASE_URL=http://127.0.0.1:18100/gemini")
+	current := []byte("# current is baseline\nGEMINI_API_KEY=portico\nGOOGLE_GEMINI_BASE_URL=http://127.0.0.1:18100/gemini")
 	writeTestConfig(t, path, current)
 	if err := m.DisableProxy(); err != nil {
 		t.Fatal(err)

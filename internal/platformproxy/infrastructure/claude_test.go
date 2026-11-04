@@ -29,7 +29,7 @@ func TestClaudeProxyToggleRestoresOnlyManagedFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	enabled := readTestConfig(t, path)
-	expectedEnabled := strings.Replace(string(original), `"old-token"`, `"code-switch"`, 1)
+	expectedEnabled := strings.Replace(string(original), `"old-token"`, `"portico"`, 1)
 	expectedEnabled = strings.Replace(expectedEnabled, `"http://old"`, `"http://127.0.0.1:18100"`, 1)
 	if string(enabled) != expectedEnabled {
 		t.Fatalf("Enable 只能替换两个值:\n--- got ---\n%s\n--- want ---\n%s", enabled, expectedEnabled)
@@ -43,7 +43,7 @@ func TestClaudeProxyToggleRestoresOnlyManagedFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	restored := readTestConfig(t, path)
-	expectedRestored := strings.Replace(changed, `"code-switch"`, `"old-token"`, 1)
+	expectedRestored := strings.Replace(changed, `"portico"`, `"old-token"`, 1)
 	expectedRestored = strings.Replace(expectedRestored, `"http://127.0.0.1:18100"`, `"http://old"`, 1)
 	if string(restored) != expectedRestored {
 		t.Fatalf("Disable 应恢复原值并保留其他当前修改:\n--- got ---\n%s\n--- want ---\n%s", restored, expectedRestored)
@@ -86,7 +86,7 @@ func TestClaudeProxyDisableRemovesFileCreatedByEnable(t *testing.T) {
 func TestClaudeLegacyDisableDoesNotTouchCurrentFileOrBackup(t *testing.T) {
 	m := newClaudeManager(t)
 	path := claudeSettingsPathForTest(t)
-	current := []byte("{\n  \"env\": {\"ANTHROPIC_AUTH_TOKEN\": \"code-switch\", \"ANTHROPIC_BASE_URL\": \"http://127.0.0.1:18100\"},\n  \"keep\": 1\n}")
+	current := []byte("{\n  \"env\": {\"ANTHROPIC_AUTH_TOKEN\": \"portico\", \"ANTHROPIC_BASE_URL\": \"http://127.0.0.1:18100\"},\n  \"keep\": 1\n}")
 	writeTestConfig(t, path, current)
 	backupPath := filepath.Join(filepath.Dir(path), "cc-studio.back.settings.json")
 	backup := []byte("legacy backup must not be read")

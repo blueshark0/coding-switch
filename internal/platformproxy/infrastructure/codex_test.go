@@ -16,7 +16,7 @@ func TestCodexProxyTogglePreservesStandardTablesAndAuthFields(t *testing.T) {
 model = "gpt-5"
 model_provider = "openai"
 
-[model_providers.code-switch]
+[model_providers.portico]
 name = "old-name"
 base_url = "http://old"
 wire_api = "chat"
@@ -40,8 +40,8 @@ url = "http://mcp"
 	enabledConfig := readTestConfig(t, configPath)
 	expectedEnabled := string(originalConfig)
 	for _, replacement := range [][2]string{
-		{`model_provider = "openai"`, `model_provider = "code-switch"`},
-		{`name = "old-name"`, `name = "code-switch"`},
+		{`model_provider = "openai"`, `model_provider = "portico"`},
+		{`name = "old-name"`, `name = "portico"`},
 		{`base_url = "http://old"`, `base_url = "http://127.0.0.1:18100"`},
 		{`wire_api = "chat"`, `wire_api = "responses"`},
 		{`requires_openai_auth = true`, `requires_openai_auth = false`},
@@ -51,7 +51,7 @@ url = "http://mcp"
 	if string(enabledConfig) != expectedEnabled {
 		t.Fatalf("普通表只能替换五个 literal:\n--- got ---\n%s\n--- want ---\n%s", enabledConfig, expectedEnabled)
 	}
-	expectedAuth := strings.Replace(string(originalAuth), `"original"`, `"code-switch"`, 1)
+	expectedAuth := strings.Replace(string(originalAuth), `"original"`, `"portico"`, 1)
 	if got := readTestConfig(t, authPath); string(got) != expectedAuth {
 		t.Fatalf("auth.json 只能修改 OPENAI_API_KEY: got %s want %s", got, expectedAuth)
 	}
@@ -67,8 +67,8 @@ url = "http://mcp"
 
 	expectedRestored := changedConfig
 	for _, replacement := range [][2]string{
-		{`model_provider = "code-switch"`, `model_provider = "openai"`},
-		{`name = "code-switch"`, `name = "old-name"`},
+		{`model_provider = "portico"`, `model_provider = "openai"`},
+		{`name = "portico"`, `name = "old-name"`},
 		{`base_url = "http://127.0.0.1:18100"`, `base_url = "http://old"`},
 		{`wire_api = "responses"`, `wire_api = "chat"`},
 		{`requires_openai_auth = false`, `requires_openai_auth = true`},
@@ -78,7 +78,7 @@ url = "http://mcp"
 	if got := readTestConfig(t, configPath); string(got) != expectedRestored {
 		t.Fatalf("Disable 应恢复原 literal 并保留其他当前修改:\n--- got ---\n%s\n--- want ---\n%s", got, expectedRestored)
 	}
-	expectedAuthRestored := strings.Replace(changedAuth, `"code-switch"`, `"original"`, 1)
+	expectedAuthRestored := strings.Replace(changedAuth, `"portico"`, `"original"`, 1)
 	if got := readTestConfig(t, authPath); string(got) != expectedAuthRestored {
 		t.Fatalf("auth 原 key 应恢复且 tokens 当前修改应保留: got %s want %s", got, expectedAuthRestored)
 	}
@@ -88,7 +88,7 @@ func TestCodexProxyToggleInlineTableRoundTrip(t *testing.T) {
 	m := newCodexManager(t)
 	configPath := codexConfigPath(t)
 	authPath := codexAuthPathForTest(t)
-	original := []byte("model_provider = \"openai\"\nmodel_providers = { other = { name = \"other\" }, code-switch = { name = \"old\", custom = \"keep\", base_url = \"http://old\", wire_api = \"chat\", requires_openai_auth = true } }\n")
+	original := []byte("model_provider = \"openai\"\nmodel_providers = { other = { name = \"other\" }, portico = { name = \"old\", custom = \"keep\", base_url = \"http://old\", wire_api = \"chat\", requires_openai_auth = true } }\n")
 	writeTestConfig(t, configPath, original)
 	writeTestConfig(t, authPath, []byte(`{"tokens":{"access":"a"}}`))
 	if err := m.EnableProxy(); err != nil {
@@ -98,7 +98,7 @@ func TestCodexProxyToggleInlineTableRoundTrip(t *testing.T) {
 	if strings.Contains(string(enabled), "[model_providers") {
 		t.Fatalf("inline table 不得展开成标准表:\n%s", enabled)
 	}
-	if strings.Index(string(enabled), `other =`) > strings.Index(string(enabled), `code-switch =`) {
+	if strings.Index(string(enabled), `other =`) > strings.Index(string(enabled), `portico =`) {
 		t.Fatalf("已有 inline 条目顺序不得改变:\n%s", enabled)
 	}
 	if err := m.DisableProxy(); err != nil {
@@ -115,7 +115,7 @@ func TestCodexProxyToggleInlineTableRoundTrip(t *testing.T) {
 func TestCodexProxyToggleDottedKeysRoundTrip(t *testing.T) {
 	m := newCodexManager(t)
 	configPath := codexConfigPath(t)
-	original := []byte("model_provider = \"openai\"\nmodel_providers.code-switch.name = \"old\"\nmodel_providers.code-switch.base_url = \"http://old\"\nmodel_providers.code-switch.wire_api = \"chat\"\nmodel_providers.code-switch.requires_openai_auth = true\nmodel_providers.code-switch.custom = \"keep\"\n")
+	original := []byte("model_provider = \"openai\"\nmodel_providers.portico.name = \"old\"\nmodel_providers.portico.base_url = \"http://old\"\nmodel_providers.portico.wire_api = \"chat\"\nmodel_providers.portico.requires_openai_auth = true\nmodel_providers.portico.custom = \"keep\"\n")
 	writeTestConfig(t, configPath, original)
 	if err := m.EnableProxy(); err != nil {
 		t.Fatal(err)
@@ -156,8 +156,8 @@ func TestCodexLegacyDisableLeavesBothFilesAndBackupsUntouched(t *testing.T) {
 	m := newCodexManager(t)
 	configPath := codexConfigPath(t)
 	authPath := codexAuthPathForTest(t)
-	config := []byte("model_provider = \"code-switch\"\n[model_providers.code-switch]\nname = \"code-switch\"\nbase_url = \"http://127.0.0.1:18100\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n")
-	auth := []byte(`{"OPENAI_API_KEY":"code-switch","keep":1}`)
+	config := []byte("model_provider = \"portico\"\n[model_providers.portico]\nname = \"portico\"\nbase_url = \"http://127.0.0.1:18100\"\nwire_api = \"responses\"\nrequires_openai_auth = false\n")
+	auth := []byte(`{"OPENAI_API_KEY":"portico","keep":1}`)
 	writeTestConfig(t, configPath, config)
 	writeTestConfig(t, authPath, auth)
 	configBackup := filepath.Join(filepath.Dir(configPath), "cc-studio.back.config.toml")
@@ -233,7 +233,7 @@ func TestCodexProxyTogglePrunesOnlyNewInlineProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	enabled := readTestConfig(t, configPath)
-	if !strings.Contains(string(enabled), `code-switch = {`) || strings.Contains(string(enabled), "[model_providers") {
+	if !strings.Contains(string(enabled), `portico = {`) || strings.Contains(string(enabled), "[model_providers") {
 		t.Fatalf("应在原 inline parent 内创建 provider: %s", enabled)
 	}
 	if err := m.DisableProxy(); err != nil {
@@ -257,7 +257,7 @@ func TestCodexDisableKeepsUserContentAddedToNewProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 	restored := string(readTestConfig(t, configPath))
-	if !strings.Contains(restored, "[model_providers.code-switch]") || !strings.Contains(restored, `custom = "user"`) {
+	if !strings.Contains(restored, "[model_providers.portico]") || !strings.Contains(restored, `custom = "user"`) {
 		t.Fatalf("用户加入新 provider 的内容必须保留: %s", restored)
 	}
 	for _, managed := range []string{"model_provider =", "base_url =", "wire_api =", "requires_openai_auth ="} {

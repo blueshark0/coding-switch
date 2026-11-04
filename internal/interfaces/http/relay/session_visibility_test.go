@@ -5,11 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	sessionapp "codeswitch/internal/sessions/application"
-	sessioninfra "codeswitch/internal/sessions/infrastructure"
-	"codeswitch/internal/shared/kernel"
 	"github.com/gin-gonic/gin"
+	routingdomain "portico/internal/routing/domain"
+	sessionapp "portico/internal/sessions/application"
+	sessioninfra "portico/internal/sessions/infrastructure"
+	"portico/internal/shared/kernel"
 )
 
 func TestCodexBackgroundTaskKeepsBindingAndRecordsVisibility(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/pelletier/go-toml/v2"
 )
 
-// Codex 的 MCP 条目写入 ~/.codex/config.toml 的 [mcp_servers.code-switch]。
+// Codex 的 MCP 条目写入 ~/.codex/config.toml 的 [mcp_servers.portico]。
 // 注意 config.toml 不做环境变量插值，所以鉴权头用静态 http_headers 而不是
 // bearer_token_env_var——占位 token 不是真密钥，静态写入最简单可靠。
 
@@ -63,9 +63,11 @@ func (m *CodexManager) InjectMcp() error {
 		servers = make(map[string]any)
 	}
 	payload := m.mcpEntryPayload()
-	if reflect.DeepEqual(servers[mcpEntryName], payload) {
+	_, hasLegacy := servers[legacyMcpEntryName]
+	if reflect.DeepEqual(servers[mcpEntryName], payload) && !hasLegacy {
 		return nil
 	}
+	delete(servers, legacyMcpEntryName)
 	servers[mcpEntryName] = payload
 	raw["mcp_servers"] = servers
 	return m.writeRawConfig(settingsPath, raw)
@@ -87,10 +89,13 @@ func (m *CodexManager) RemoveMcp() error {
 		return err
 	}
 	servers, _ := raw["mcp_servers"].(map[string]any)
-	if _, ok := servers[mcpEntryName]; !ok {
+	_, hasCurrent := servers[mcpEntryName]
+	_, hasLegacy := servers[legacyMcpEntryName]
+	if !hasCurrent && !hasLegacy {
 		return nil
 	}
 	delete(servers, mcpEntryName)
+	delete(servers, legacyMcpEntryName)
 	if len(servers) == 0 {
 		delete(raw, "mcp_servers")
 	} else {

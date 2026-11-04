@@ -43,13 +43,13 @@ func TestCodexInjectIntoMissingFile(t *testing.T) {
 		t.Fatalf("InjectMcp: %v", err)
 	}
 	content := readCodexConfig(t)
-	if !strings.Contains(content, "[mcp_servers.code-switch]") {
+	if !strings.Contains(content, "[mcp_servers.portico]") {
 		t.Fatalf("缺少 mcp_servers 条目: %q", content)
 	}
 	if !strings.Contains(content, "http://127.0.0.1:18100/mcp") {
 		t.Fatalf("缺少 url: %q", content)
 	}
-	if !strings.Contains(content, "Bearer code-switch") {
+	if !strings.Contains(content, "Bearer portico") {
 		t.Fatalf("缺少鉴权头: %q", content)
 	}
 	if strings.Contains(content, "\n[mcp_servers]\n") || strings.HasPrefix(content, "[mcp_servers]\n") {
@@ -89,9 +89,37 @@ func TestCodexInjectPreservesExistingContent(t *testing.T) {
 	if _, ok := servers["user-own"]; !ok {
 		t.Fatalf("用户既有 MCP 条目丢失: %v", servers)
 	}
-	entry, _ := servers["code-switch"].(map[string]any)
+	entry, _ := servers["portico"].(map[string]any)
 	if entry["url"] != "http://127.0.0.1:18100/mcp" {
 		t.Fatalf("网关条目失真: %v", entry)
+	}
+}
+
+func TestCodexInjectReplacesLegacyEntry(t *testing.T) {
+	m := newCodexManager(t)
+	seed := "[mcp_servers.code-switch]\nurl = \"http://127.0.0.1:18100/mcp\"\n\n[mcp_servers.user-own]\ncommand = \"x\"\n"
+	if err := os.MkdirAll(filepath.Dir(codexConfigPath(t)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(codexConfigPath(t), []byte(seed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.InjectMcp(); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := m.readRawConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	servers := raw["mcp_servers"].(map[string]any)
+	if _, ok := servers[legacyMcpEntryName]; ok {
+		t.Fatal("旧 MCP 条目应被移除")
+	}
+	if _, ok := servers[mcpEntryName]; !ok {
+		t.Fatal("新 MCP 条目应被注入")
+	}
+	if _, ok := servers["user-own"]; !ok {
+		t.Fatal("用户条目应保留")
 	}
 }
 

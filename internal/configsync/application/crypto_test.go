@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	configsyncdomain "codeswitch/internal/configsync/domain"
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	configsyncdomain "portico/internal/configsync/domain"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func sampleSnapshot() configsyncdomain.ConfigSnapshot {

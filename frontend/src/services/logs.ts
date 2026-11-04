@@ -4,7 +4,7 @@ import {
   ListRequestLogs,
   ProviderDailyStats,
   StatsSince,
-} from '../../bindings/codeswitch/internal/interfaces/wails/observabilityfacade'
+} from '../../bindings/portico/internal/interfaces/wails/observabilityfacade'
 import type {
   HeatmapStat,
   LogStats,
@@ -12,7 +12,7 @@ import type {
   ProviderDailyStat,
   RequestLog,
   RequestLogPage,
-} from '../../bindings/codeswitch/internal/observability/domain/models'
+} from '../../bindings/portico/internal/observability/domain/models'
 
 export type {
   HeatmapStat,

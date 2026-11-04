@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	sessiondomain "codeswitch/internal/sessions/domain"
+	sessiondomain "portico/internal/sessions/domain"
 )
 
 type sessionRepoStub struct {

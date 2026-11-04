@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"codeswitch/internal/shared/kernel"
+	"portico/internal/shared/kernel"
 )
 
 type AppPreferences struct {

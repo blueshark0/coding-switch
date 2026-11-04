@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	"portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 type Repository interface {

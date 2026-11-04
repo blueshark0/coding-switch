@@ -339,7 +339,7 @@
       "currentProvider": "当前供应商",
       "none": "未设置",
       "switch": "切换配置",
-      "relay": "接入 Code Switch",
+      "relay": "接入 Portico",
       "toggleFailed": "切换接入状态失败"
     },
     "frequent": {
@@ -824,7 +824,7 @@
       "injected": "已写入本地配置 · 重启 {client} 后生效",
       "notInjected": "尚未写入 {client} 本地配置",
       "toggle": "切换 {client} 的 MCP 注入",
-      "help": "注入或取消只修改 Code Switch 管理的 MCP 配置项，不影响客户端其他 MCP 配置；变更后需重启对应 CLI。"
+      "help": "注入或取消只修改 Portico 管理的 MCP 配置项，不影响客户端其他 MCP 配置；变更后需重启对应 CLI。"
     },
     "list": {
       "title": "已配置的服务",

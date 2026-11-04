@@ -16,13 +16,13 @@ func TestJSONFieldEditsPreserveStructureAndOrder(t *testing.T) {
   "a": {"nested": true}
 }`)
 	updated, err := applyJSONFieldEdits(input, []jsonFieldEdit{
-		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"code-switch"`, Present: true},
+		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"portico"`, Present: true},
 		{Path: "env.ANTHROPIC_BASE_URL", Raw: `"http://127.0.0.1:18100"`, Present: true},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := strings.Replace(string(input), `"old"`, `"code-switch"`, 1)
+	expected := strings.Replace(string(input), `"old"`, `"portico"`, 1)
 	expected = strings.Replace(expected, `"http://old"`, `"http://127.0.0.1:18100"`, 1)
 	if string(updated) != expected {
 		t.Fatalf("除目标值外不应改变任何字节:\n--- got ---\n%s\n--- want ---\n%s", updated, expected)
@@ -32,13 +32,13 @@ func TestJSONFieldEditsPreserveStructureAndOrder(t *testing.T) {
 func TestJSONFieldEditsInsertAndDeleteWithoutReordering(t *testing.T) {
 	input := []byte(`{"before":1,"env":{"keep":2},"after":3}`)
 	updated, err := applyJSONFieldEdits(input, []jsonFieldEdit{
-		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"code-switch"`, Present: true},
+		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"portico"`, Present: true},
 		{Path: "env.ANTHROPIC_BASE_URL", Raw: `"url"`, Present: true},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := `{"before":1,"env":{"keep":2,"ANTHROPIC_AUTH_TOKEN":"code-switch","ANTHROPIC_BASE_URL":"url"},"after":3}`
+	expected := `{"before":1,"env":{"keep":2,"ANTHROPIC_AUTH_TOKEN":"portico","ANTHROPIC_BASE_URL":"url"},"after":3}`
 	if string(updated) != expected {
 		t.Fatalf("插入不应改变已有结构: got %s want %s", updated, expected)
 	}
@@ -55,9 +55,9 @@ func TestJSONFieldEditsInsertAndDeleteWithoutReordering(t *testing.T) {
 }
 
 func TestJSONFieldEditsSemanticEqualKeepsRawRepresentation(t *testing.T) {
-	input := []byte(`{"env":{"ANTHROPIC_AUTH_TOKEN":"code-switch"}}`)
+	input := []byte(`{"env":{"ANTHROPIC_AUTH_TOKEN":"portico"}}`)
 	updated, err := applyJSONFieldEdits(input, []jsonFieldEdit{
-		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"code-switch"`, Present: true},
+		{Path: "env.ANTHROPIC_AUTH_TOKEN", Raw: `"portico"`, Present: true},
 	})
 	if err != nil {
 		t.Fatal(err)

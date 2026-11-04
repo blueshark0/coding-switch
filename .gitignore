@@ -7,4 +7,4 @@ bin
 .idea/
 /build/linux/appimage/build
 /build/linux/appimage/appicon.png
-/build/linux/appimage/CodeSwitch
+/build/linux/appimage/Portico

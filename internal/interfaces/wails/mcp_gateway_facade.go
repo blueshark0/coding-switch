@@ -3,9 +3,9 @@ package wails
 import (
 	"context"
 
-	mcpapp "codeswitch/internal/mcpgateway/application"
-	mcpdomain "codeswitch/internal/mcpgateway/domain"
-	platformproxyapp "codeswitch/internal/platformproxy/application"
+	mcpapp "portico/internal/mcpgateway/application"
+	mcpdomain "portico/internal/mcpgateway/domain"
+	platformproxyapp "portico/internal/platformproxy/application"
 )
 
 // McpGatewayFacade 暴露 MCP 网关管理与 CLI 注入能力给前端。

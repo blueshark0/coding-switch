@@ -1,8 +1,8 @@
-import { TailAppLog } from '../../bindings/codeswitch/internal/interfaces/wails/applogfacade'
+import { TailAppLog } from '../../bindings/portico/internal/interfaces/wails/applogfacade'
 import type {
   AppLogChunk,
   AppLogEntry,
-} from '../../bindings/codeswitch/internal/observability/domain/models'
+} from '../../bindings/portico/internal/observability/domain/models'
 
 export type { AppLogChunk, AppLogEntry }
 

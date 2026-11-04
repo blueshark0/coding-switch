@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	observabilityinfra "codeswitch/internal/observability/infrastructure"
+	observabilityinfra "portico/internal/observability/infrastructure"
 
 	"github.com/daodao97/xgo/xdb"
 )

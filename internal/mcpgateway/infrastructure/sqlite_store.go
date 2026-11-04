@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"codeswitch/internal/mcpgateway/domain"
-	"codeswitch/internal/shared/storage"
+	"portico/internal/mcpgateway/domain"
+	"portico/internal/shared/storage"
 
 	"github.com/daodao97/xgo/xdb"
 )

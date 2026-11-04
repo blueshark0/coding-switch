@@ -1,7 +1,7 @@
 package wails
 
 import (
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 // AppLogTailer 是 facade 对 app.log 读取的窄依赖（由

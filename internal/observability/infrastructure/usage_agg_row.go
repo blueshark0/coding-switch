@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	modelpricing "codeswitch/resources/model-pricing"
+	modelpricing "portico/resources/model-pricing"
 )
 
 // usageAggRow 是三条聚合统计（HeatmapStats/StatsSince/ProviderDailyStats）

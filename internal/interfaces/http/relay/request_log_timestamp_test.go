@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 func TestEnqueueRequestLogStampsCompletionTime(t *testing.T) {

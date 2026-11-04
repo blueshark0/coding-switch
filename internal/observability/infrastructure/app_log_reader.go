@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 const (

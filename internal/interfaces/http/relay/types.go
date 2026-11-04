@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/gin-gonic/gin"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 type relayRouteOptions struct {

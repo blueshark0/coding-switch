@@ -1,4 +1,4 @@
-# Code Switch
+# Portico
 
 集中管理 Claude Code、Codex 与 Gemini 供应商
 
@@ -21,9 +21,9 @@
 - /gemini/v1beta/* 以及 /gemini/v1/* 以 Gemini API 格式转发到配置的 Gemini 供应商
 
 请求会优先命中当前会话已绑定的 provider；如果没有会话绑定，则转发到该平台的默认 provider。
-当已绑定 provider 已被删除、禁用或与当前请求不兼容时，Code Switch 会自动清理这条失效绑定，并回退到当前默认 provider 重新建立绑定。
+当已绑定 provider 已被删除、禁用或与当前请求不兼容时，Portico 会自动清理这条失效绑定，并回退到当前默认 provider 重新建立绑定。
 
-以上流程让 cli 看到的是一个固定的本地地址，而真实请求会被 Code Switch 透明地路由到你在应用里维护的供应商列表
+以上流程让 cli 看到的是一个固定的本地地址，而真实请求会被 Portico 透明地路由到你在应用里维护的供应商列表
 
 ## 下载
 
@@ -31,10 +31,10 @@
 
 
 ## 预览
-![亮色主界面](resources/images/code-switch.png)
-![暗色主界面](resources/images/code-swtich-dark.png)
-![日志亮色](resources/images/code-switch-logs.png)
-![日志暗色](resources/images/code-switch-logs-dark.png)
+![亮色主界面](resources/images/portico.png)
+![暗色主界面](resources/images/portico-dark.png)
+![日志亮色](resources/images/portico-logs.png)
+![日志暗色](resources/images/portico-logs-dark.png)
 
 ## 开发准备
 - Go 1.26+
@@ -72,10 +72,10 @@ wails3 task dev
 
 ## 发布
 脚本 `scripts/publish_release.sh v0.1.0` 将自动打包并上传以下资产（macOS 会分别构建 arm64 与 amd64）：
-- `codeswitch-macos-arm64.zip`
-- `codeswitch-macos-amd64.zip`
-- `codeswitch-arm64-installer.exe`
-- `codeswitch.exe`
+- `portico-macos-arm64.zip`
+- `portico-macos-amd64.zip`
+- `portico-arm64-installer.exe`
+- `portico.exe`
 
 若要手动发布，可执行：
 ```bash

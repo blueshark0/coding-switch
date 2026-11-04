@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: SyncSettings = {
   endpoint: '',
   username: '',
   appPassword: '',
-  remotePath: '/CodeSwitch',
+  remotePath: '/Portico',
   syncPassphrase: '',
 }
 
@@ -59,7 +59,7 @@ const currentSnapshot = () =>
     endpoint: form.endpoint.trim().replace(/\/+$/, ''),
     username: form.username.trim(),
     appPassword: form.appPassword,
-    remotePath: form.remotePath.trim() || '/CodeSwitch',
+    remotePath: form.remotePath.trim() || '/Portico',
     syncPassphrase: form.syncPassphrase,
   })
 
@@ -86,7 +86,7 @@ const applyForm = (settings: SyncSettings) => {
   form.endpoint = settings.endpoint ?? ''
   form.username = settings.username ?? ''
   form.appPassword = settings.appPassword ?? ''
-  form.remotePath = settings.remotePath ?? '/CodeSwitch'
+  form.remotePath = settings.remotePath ?? '/Portico'
   form.syncPassphrase = settings.syncPassphrase ?? ''
   savedSnapshot.value = currentSnapshot()
 }

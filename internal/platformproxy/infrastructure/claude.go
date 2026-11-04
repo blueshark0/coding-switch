@@ -9,13 +9,14 @@ import (
 	"strings"
 	"sync"
 
-	platformproxydomain "codeswitch/internal/platformproxy/domain"
+	platformproxydomain "portico/internal/platformproxy/domain"
 )
 
 const (
 	claudeSettingsDir      = ".claude"
 	claudeSettingsFileName = "settings.json"
-	claudeAuthTokenValue   = "code-switch"
+	claudeAuthTokenValue   = "portico"
+	legacyAuthTokenValue   = "code-switch"
 )
 
 var claudeProxyFieldPaths = []string{
@@ -37,6 +38,10 @@ func (m *ClaudeManager) ProxyStatus() (platformproxydomain.Status, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.proxyStatus()
+}
+
+func isManagedPlaceholderToken(value, current string) bool {
+	return strings.EqualFold(value, current) || strings.EqualFold(value, legacyAuthTokenValue)
 }
 
 func (m *ClaudeManager) proxyStatus() (platformproxydomain.Status, error) {
@@ -63,7 +68,7 @@ func (m *ClaudeManager) proxyStatus() (platformproxydomain.Status, error) {
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return status, nil
 	}
-	status.Enabled = strings.EqualFold(payload.Env["ANTHROPIC_AUTH_TOKEN"], claudeAuthTokenValue) &&
+	status.Enabled = isManagedPlaceholderToken(payload.Env["ANTHROPIC_AUTH_TOKEN"], claudeAuthTokenValue) &&
 		strings.EqualFold(payload.Env["ANTHROPIC_BASE_URL"], m.baseURL())
 	return status, nil
 }

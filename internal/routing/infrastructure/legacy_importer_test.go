@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"codeswitch/internal/shared/kernel"
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"
+	"portico/internal/shared/kernel"
 )
 
 func newLegacyImporterTestStore(t *testing.T) (*SQLiteStore, *sql.DB) {

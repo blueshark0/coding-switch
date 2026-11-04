@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"codeswitch/internal/routing/domain"
+	"portico/internal/routing/domain"
 )
 
 // ProviderProbeResult 供应商连通性探测结果。

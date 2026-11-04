@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeswitch/internal/shared/kernel"
+	"portico/internal/shared/kernel"
 )
 
 func resolverTestProfile() RouteProfile {

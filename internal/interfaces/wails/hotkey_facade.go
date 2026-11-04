@@ -1,7 +1,7 @@
 package wails
 
 import (
-	hotkeydomain "codeswitch/internal/hotkeys/domain"
+	hotkeydomain "portico/internal/hotkeys/domain"
 )
 
 // HotkeyRepository 是 facade 对快捷键存储的窄依赖（由

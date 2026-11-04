@@ -3,8 +3,8 @@ package infrastructure
 import (
 	"testing"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	"codeswitch/internal/shared/kernel"
+	observabilitydomain "portico/internal/observability/domain"
+	"portico/internal/shared/kernel"
 )
 
 func TestGetTokenParserSelectsPlatformParser(t *testing.T) {

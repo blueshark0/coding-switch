@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 
-	"codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	"portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func (s *SQLiteStore) GetProfile(ctx context.Context, platform kernel.Platform) (domain.RouteProfile, error) {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func (s *Server) validateConfig() []string {

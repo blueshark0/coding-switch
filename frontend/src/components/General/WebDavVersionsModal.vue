@@ -35,7 +35,7 @@ const updatedAtText = computed(() => {
     <div class="wv">
       <div class="wv-path">
         <p class="wv-path-label">{{ t('settingsPage.versions.remotePath') }}</p>
-        <p class="wv-path-value cs-mono">{{ remotePath || '/CodeSwitch' }}</p>
+        <p class="wv-path-value cs-mono">{{ remotePath || '/Portico' }}</p>
       </div>
 
       <div v-if="meta?.exists" class="wv-snapshot wv-snapshot--latest">

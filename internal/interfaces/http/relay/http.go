@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	routingdomain "codeswitch/internal/routing/domain"
-	"codeswitch/internal/shared/kernel"
 	"github.com/gin-gonic/gin"
+	observabilitydomain "portico/internal/observability/domain"
+	routingdomain "portico/internal/routing/domain"
+	"portico/internal/shared/kernel"
 )
 
 func (s *Server) readRequestBody(c *gin.Context) ([]byte, error) {

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"codeswitch/internal/mcpgateway/domain"
+	"portico/internal/mcpgateway/domain"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -144,7 +144,7 @@ func NewAggregator(repo Repository, opts AggregatorOptions) *Aggregator {
 	}
 	a.connect = connect
 	a.mcpServer = mcp.NewServer(
-		&mcp.Implementation{Name: "code-switch", Version: opts.AppVersion},
+		&mcp.Implementation{Name: "portico", Version: opts.AppVersion},
 		&mcp.ServerOptions{
 			HasTools:                  true, // 工具在客户端 Connect 之后动态注册，capability 不能靠推断
 			SupportedProtocolVersions: supportedProtocolVersions,

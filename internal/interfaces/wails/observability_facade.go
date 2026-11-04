@@ -1,7 +1,7 @@
 package wails
 
 import (
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 )
 
 // ObservabilityQueries 是 facade 对请求日志查询的窄依赖（由

@@ -3,7 +3,7 @@ package application
 import (
 	"context"
 
-	"codeswitch/internal/mcpgateway/domain"
+	"portico/internal/mcpgateway/domain"
 )
 
 // Service MCP 服务配置的 CRUD 入口，写操作成功后触发聚合器同步。

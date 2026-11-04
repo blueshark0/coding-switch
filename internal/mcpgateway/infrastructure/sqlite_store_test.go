@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeswitch/internal/mcpgateway/domain"
+	"portico/internal/mcpgateway/domain"
 
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"

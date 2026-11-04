@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	sessiondomain "codeswitch/internal/sessions/domain"
+	sessiondomain "portico/internal/sessions/domain"
 )
 
 type Repository interface {

@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"codeswitch/internal/shared/storage"
+	"portico/internal/shared/storage"
 )
 
 const proxyStateVersion = 1

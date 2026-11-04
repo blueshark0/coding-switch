@@ -4,8 +4,8 @@ import (
 	"log"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	sessionapp "codeswitch/internal/sessions/application"
+	observabilitydomain "portico/internal/observability/domain"
+	sessionapp "portico/internal/sessions/application"
 )
 
 // SessionUsageQuerier 返回指定平台有效会话的 request_log 聚合，见

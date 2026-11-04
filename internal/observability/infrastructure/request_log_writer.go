@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	"codeswitch/internal/shared/storage"
-	modelpricing "codeswitch/resources/model-pricing"
+	observabilitydomain "portico/internal/observability/domain"
+	"portico/internal/shared/storage"
+	modelpricing "portico/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 )

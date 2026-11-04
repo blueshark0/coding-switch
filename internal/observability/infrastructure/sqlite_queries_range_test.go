@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeswitch/internal/shared/storage"
-	modelpricing "codeswitch/resources/model-pricing"
+	"portico/internal/shared/storage"
+	modelpricing "portico/resources/model-pricing"
 
 	"github.com/daodao97/xgo/xdb"
 	_ "modernc.org/sqlite"

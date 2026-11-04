@@ -273,7 +273,7 @@ export const useLogsDashboard = ({ t }: UseLogsDashboardOptions) => {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `code-switch-logs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`
+      anchor.download = `portico-logs-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`
       anchor.click()
       URL.revokeObjectURL(url)
       showToast(t('logsPage.messages.exported', { count: all.length }))

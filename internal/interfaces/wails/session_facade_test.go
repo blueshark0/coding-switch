@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"testing"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
-	sessionapp "codeswitch/internal/sessions/application"
-	sessiondomain "codeswitch/internal/sessions/domain"
+	observabilitydomain "portico/internal/observability/domain"
+	sessionapp "portico/internal/sessions/application"
+	sessiondomain "portico/internal/sessions/domain"
 )
 
 type sessionListRepo struct {

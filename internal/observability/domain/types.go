@@ -94,7 +94,7 @@ type ProviderDailyStat struct {
 	CostTotal          float64 `json:"cost_total"`
 }
 
-// AppLogEntry 是 ~/.code-switch/app.log 中的一条日志（续行已合并进 Message）。
+// AppLogEntry 是 ~/.portico/app.log 中的一条日志（续行已合并进 Message）。
 type AppLogEntry struct {
 	Time    string `json:"time"`    // "2026/07/08 18:27:22"，原样字符串；孤儿续行为 ""
 	Source  string `json:"source"`  // "logging.go:23"（log.Lshortfile）

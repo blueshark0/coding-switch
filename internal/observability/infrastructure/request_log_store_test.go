@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	observabilitydomain "codeswitch/internal/observability/domain"
+	observabilitydomain "portico/internal/observability/domain"
 
 	_ "modernc.org/sqlite"
 )

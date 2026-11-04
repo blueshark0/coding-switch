@@ -3,8 +3,8 @@ package wails
 import (
 	"context"
 
-	configsyncapp "codeswitch/internal/configsync/application"
-	configsyncdomain "codeswitch/internal/configsync/domain"
+	configsyncapp "portico/internal/configsync/application"
+	configsyncdomain "portico/internal/configsync/domain"
 )
 
 type ConfigSyncFacade struct {

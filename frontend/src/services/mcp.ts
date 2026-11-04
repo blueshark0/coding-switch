@@ -10,13 +10,13 @@ import {
   SetEnabled,
   Statuses,
   TestConnection,
-} from '../../bindings/codeswitch/internal/interfaces/wails/mcpgatewayfacade'
+} from '../../bindings/portico/internal/interfaces/wails/mcpgatewayfacade'
 import {
   McpServer,
   ServerType,
   type TestResult,
-} from '../../bindings/codeswitch/internal/mcpgateway/domain/models'
-import type { ToolInfo, UpstreamStatus } from '../../bindings/codeswitch/internal/mcpgateway/application/models'
+} from '../../bindings/portico/internal/mcpgateway/domain/models'
+import type { ToolInfo, UpstreamStatus } from '../../bindings/portico/internal/mcpgateway/application/models'
 
 export type McpServerRecord = McpServer
 export type { TestResult, ToolInfo, UpstreamStatus }

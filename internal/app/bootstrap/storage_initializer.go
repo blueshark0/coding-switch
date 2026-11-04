@@ -8,12 +8,12 @@ import (
 	"os"
 	"sync"
 
-	configsyncinfra "codeswitch/internal/configsync/infrastructure"
-	mcpgatewayinfra "codeswitch/internal/mcpgateway/infrastructure"
-	observabilityinfra "codeswitch/internal/observability/infrastructure"
-	routinginfra "codeswitch/internal/routing/infrastructure"
-	sessionsinfra "codeswitch/internal/sessions/infrastructure"
-	"codeswitch/internal/shared/storage"
+	configsyncinfra "portico/internal/configsync/infrastructure"
+	mcpgatewayinfra "portico/internal/mcpgateway/infrastructure"
+	observabilityinfra "portico/internal/observability/infrastructure"
+	routinginfra "portico/internal/routing/infrastructure"
+	sessionsinfra "portico/internal/sessions/infrastructure"
+	"portico/internal/shared/storage"
 )
 
 type Initializer struct {

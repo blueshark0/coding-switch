@@ -6,11 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"portico/internal/shared/storage"
 	modelpricing "portico/resources/model-pricing"
-
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
 )
 
 func TestListRequestLogs_FiltersByNaturalDayRange(t *testing.T) {
@@ -353,23 +349,7 @@ func setupRangeQueryTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	dbPath := filepath.Join(t.TempDir(), "request_log.db")
-	if err := xdb.Init(map[string]*xdb.Config{
-		storage.RequestLogDBName: {
-			Name:   storage.RequestLogDBName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(storage.RequestLogDBName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRequestLogTestDB(t, dbPath, 0, 0)
 	if err := EnsureRequestLogTableWithDB(db); err != nil {
 		t.Fatalf("EnsureRequestLogTableWithDB: %v", err)
 	}

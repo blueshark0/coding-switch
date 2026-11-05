@@ -41,6 +41,7 @@ func (i *Initializer) Initialize() error {
 		return err
 	}
 	if err := i.ensureSchemas(); err != nil {
+		_ = storage.CloseConnections()
 		return err
 	}
 	if err := i.runMigrations(); err != nil {

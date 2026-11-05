@@ -6,8 +6,6 @@ import (
 
 	configsyncdomain "portico/internal/configsync/domain"
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 type SQLiteStore struct {
@@ -26,7 +24,7 @@ func NewSQLiteStoreWithDBName(dbName string) *SQLiteStore {
 }
 
 func (s *SQLiteStore) EnsureSchema() error {
-	db, err := xdb.DB(s.dbName)
+	db, err := storage.DB(s.dbName)
 	if err != nil {
 		return err
 	}
@@ -62,7 +60,7 @@ func ensureSyncSettingsColumns(db *sql.DB) error {
 }
 
 func (s *SQLiteStore) GetSettings(ctx context.Context) (configsyncdomain.SyncSettings, error) {
-	db, err := xdb.DB(s.dbName)
+	db, err := storage.DB(s.dbName)
 	if err != nil {
 		return configsyncdomain.SyncSettings{}, err
 	}
@@ -84,7 +82,7 @@ func (s *SQLiteStore) GetSettings(ctx context.Context) (configsyncdomain.SyncSet
 }
 
 func (s *SQLiteStore) SaveSettings(ctx context.Context, settings configsyncdomain.SyncSettings) (configsyncdomain.SyncSettings, error) {
-	db, err := xdb.DB(s.dbName)
+	db, err := storage.DB(s.dbName)
 	if err != nil {
 		return configsyncdomain.SyncSettings{}, err
 	}

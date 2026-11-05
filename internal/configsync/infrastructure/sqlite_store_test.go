@@ -6,32 +6,26 @@ import (
 	"testing"
 
 	configsyncdomain "portico/internal/configsync/domain"
-
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
+	"portico/internal/shared/storage"
 )
 
 func TestSQLiteStoreEnsureSchema_MigratesLegacySyncSettingsColumns(t *testing.T) {
 	dbName := "configsync_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
+	if err := storage.OpenConnection(storage.ConnectionConfig{
+		Name:   dbName,
+		Driver: "sqlite",
+		DSN:    dbPath,
 	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
+		t.Fatalf("open test database: %v", err)
 	}
+	t.Cleanup(func() { _ = storage.CloseConnection(dbName) })
 
-	db, err := xdb.DB(dbName)
+	db, err := storage.DB(dbName)
 	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
+		t.Fatalf("get test database: %v", err)
 	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
 
 	if _, err := db.Exec(`
 		CREATE TABLE sync_settings (

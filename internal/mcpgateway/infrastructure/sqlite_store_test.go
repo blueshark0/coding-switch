@@ -7,9 +7,7 @@ import (
 	"testing"
 
 	"portico/internal/mcpgateway/domain"
-
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
+	"portico/internal/shared/storage"
 )
 
 func newTestStore(t *testing.T) *SQLiteStore {
@@ -18,20 +16,14 @@ func newTestStore(t *testing.T) *SQLiteStore {
 	dbName := "mcpgateway_test_" + strings.NewReplacer("/", "_", " ", "_").Replace(t.Name())
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
+	if err := storage.OpenConnection(storage.ConnectionConfig{
+		Name:   dbName,
+		Driver: "sqlite",
+		DSN:    dbPath,
 	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
+		t.Fatalf("open test database: %v", err)
 	}
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
+	t.Cleanup(func() { _ = storage.CloseConnection(dbName) })
 
 	store := NewSQLiteStoreWithDBName(dbName)
 	if err := store.EnsureSchema(); err != nil {

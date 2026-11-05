@@ -5,32 +5,13 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
-
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
 )
 
 func TestSQLiteStoreEnsureSchema_MigratesLegacyAppPreferencesColumns(t *testing.T) {
 	dbName := "routing_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRoutingTestDB(t, dbName, dbPath)
 
 	if _, err := db.Exec(`
 		CREATE TABLE app_preferences (
@@ -85,23 +66,7 @@ func TestSQLiteStoreEnsureSchema_CreatesDefaultAppPreferencesRow(t *testing.T) {
 	dbName := "routing_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRoutingTestDB(t, dbName, dbPath)
 
 	if _, err := db.Exec(`
 		CREATE TABLE app_preferences (
@@ -142,23 +107,7 @@ func TestSQLiteStoreEnsureSchema_MigratesLegacyProviderColumns(t *testing.T) {
 	dbName := "routing_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRoutingTestDB(t, dbName, dbPath)
 
 	if _, err := db.Exec(`
 		CREATE TABLE providers (

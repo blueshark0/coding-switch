@@ -4,8 +4,7 @@ import (
 	"strings"
 
 	observabilitydomain "portico/internal/observability/domain"
-
-	"github.com/daodao97/xgo/xdb"
+	"portico/internal/shared/storage"
 )
 
 // ListSessionRequestLogs 返回本地保留期内一个会话的全部结构化请求记录，
@@ -16,10 +15,14 @@ func (q *SQLiteQueries) ListSessionRequestLogs(platform string, sessionID string
 	if platform == "" || sessionID == "" {
 		return []observabilitydomain.RequestLog{}, nil
 	}
-	records, err := requestLogModel().Selects(
-		xdb.WhereEq("platform", platform),
-		xdb.WhereEq("session_id", sessionID),
-		xdb.OrderByDesc("id"),
+	db, err := storage.DB(storage.RequestLogDBName)
+	if err != nil {
+		return nil, err
+	}
+	logs, err := q.queryRequestLogs(db,
+		"SELECT "+requestLogSelectColumns+" FROM request_log WHERE platform = ? AND session_id = ? ORDER BY id DESC",
+		platform,
+		sessionID,
 	)
 	if err != nil {
 		if isNoSuchTableErr(err) {
@@ -27,5 +30,5 @@ func (q *SQLiteQueries) ListSessionRequestLogs(platform string, sessionID string
 		}
 		return nil, err
 	}
-	return q.requestLogsFromRecords(records), nil
+	return logs, nil
 }

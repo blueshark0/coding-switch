@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -175,6 +176,9 @@ func (c *Container) Shutdown() {
 		}
 		if c.hotkeyService != nil {
 			_ = c.hotkeyService.Close()
+		}
+		if err := storage.CloseConnections(); err != nil {
+			log.Printf("关闭数据库连接失败: %v", err)
 		}
 		if c.logFile != nil {
 			_ = c.logFile.Close()

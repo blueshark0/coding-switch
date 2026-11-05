@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
 	"portico/internal/shared/kernel"
 )
 
@@ -18,23 +16,7 @@ func newLegacyImporterTestStore(t *testing.T) (*SQLiteStore, *sql.DB) {
 	dbName := "routing_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "app.db")
 
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {
-			Name:   dbName,
-			Driver: "sqlite",
-			DSN:    dbPath,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRoutingTestDB(t, dbName, dbPath)
 
 	store := NewSQLiteStoreWithDBName(dbName)
 	if err := store.EnsureSchema(); err != nil {

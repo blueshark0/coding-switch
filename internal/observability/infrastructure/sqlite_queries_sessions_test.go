@@ -6,33 +6,12 @@ import (
 	"testing"
 
 	observabilitydomain "portico/internal/observability/domain"
-	"portico/internal/shared/storage"
 	modelpricing "portico/resources/model-pricing"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 func TestSessionUsageForSessions_AggregatesPerSession(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "request_log.db")
-	if err := xdb.Init(map[string]*xdb.Config{
-		storage.RequestLogDBName: {
-			Name:        storage.RequestLogDBName,
-			Driver:      "sqlite",
-			DSN:         dbPath,
-			MaxOpenConn: 1,
-			MaxIdleConn: 1,
-		},
-	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
-	}
-
-	db, err := xdb.DB(storage.RequestLogDBName)
-	if err != nil {
-		t.Fatalf("xdb.DB: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
+	db := openRequestLogTestDB(t, dbPath, 1, 1)
 	if err := EnsureRequestLogTableWithDB(db); err != nil {
 		t.Fatalf("EnsureRequestLogTableWithDB: %v", err)
 	}

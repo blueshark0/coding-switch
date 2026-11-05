@@ -6,8 +6,6 @@ import (
 
 	observabilitydomain "portico/internal/observability/domain"
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 // SessionUsageForSessions aggregates only the active bindings requested by the
@@ -30,7 +28,7 @@ func (q *SQLiteQueries) SessionUsageForSessions(platform string, sessionIDs []st
 		return result, nil
 	}
 
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return nil, err
 	}

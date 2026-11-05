@@ -1,10 +1,6 @@
 package infrastructure
 
-import (
-	"strings"
-
-	"github.com/daodao97/xgo/xdb"
-)
+import "strings"
 
 const (
 	requestLogHTTPStatusAll     = "all"
@@ -27,19 +23,8 @@ func normalizeRequestLogHTTPStatus(httpStatus string) string {
 	}
 }
 
-// httpStatusWhereOptions 把响应码过滤下推为 http_code 列上的 SQL 条件（xdb 查询用）。
-func httpStatusWhereOptions(httpStatus string) []xdb.Option {
-	switch httpStatus {
-	case requestLogHTTPStatusSuccess:
-		return []xdb.Option{xdb.WhereEq("http_code", requestLogHTTPStatusSuccessCode)}
-	case requestLogHTTPStatusFailed:
-		return []xdb.Option{xdb.WhereGte("http_code", 400)}
-	default:
-		return nil
-	}
-}
-
-// httpStatusSQLClause 是 httpStatusWhereOptions 的原生 SQL 版本（统计聚合查询用）。
+// httpStatusSQLClause 把响应码过滤下推为 http_code 列上的 SQL 条件，
+// 返回追加到 WHERE 的子句与对应参数。
 func httpStatusSQLClause(httpStatus string) (string, []any) {
 	switch httpStatus {
 	case requestLogHTTPStatusSuccess:

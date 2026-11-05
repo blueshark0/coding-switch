@@ -8,8 +8,6 @@ import (
 	observabilitydomain "portico/internal/observability/domain"
 	"portico/internal/shared/storage"
 	modelpricing "portico/resources/model-pricing"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 // RequestLogWriter 在写入前按当时定价物化 total_cost/has_pricing，
@@ -79,7 +77,7 @@ func insertRequestLogsWithRetry(logs []*observabilitydomain.RequestLog) error {
 }
 
 func insertRequestLogs(logs []*observabilitydomain.RequestLog) error {
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return err
 	}

@@ -1,10 +1,6 @@
 package infrastructure
 
-import (
-	"strings"
-
-	"github.com/daodao97/xgo/xdb"
-)
+import "strings"
 
 const (
 	requestLogCostTierAll    = "all"
@@ -59,24 +55,9 @@ func classifyRequestLogCostTier(hasPricing bool, totalCost float64) string {
 	}
 }
 
-// costTierWhereOptions 把费用档位过滤下推为落库 total_cost 列上的 SQL 条件
-// （xdb 查询用）。tier 过滤依赖写入时物化的 total_cost/has_pricing，
-// 不再把时间范围内全量日志载入内存逐行算费。
-func costTierWhereOptions(costTier string) []xdb.Option {
-	switch costTier {
-	case requestLogCostTierLow:
-		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereLt("total_cost", costTierLowMax)}
-	case requestLogCostTierMedium:
-		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereGte("total_cost", costTierLowMax), xdb.WhereLte("total_cost", costTierMediumMax)}
-	case requestLogCostTierHigh:
-		return []xdb.Option{xdb.WhereEq("has_pricing", 1), xdb.WhereGt("total_cost", costTierMediumMax)}
-	default:
-		return nil
-	}
-}
-
-// costTierSQLClause 是 costTierWhereOptions 的原生 SQL 版本（统计聚合查询用），
-// 返回追加到 WHERE 的子句与对应参数。
+// costTierSQLClause 把费用档位过滤下推为落库 total_cost 列上的 SQL 条件，
+// 返回追加到 WHERE 的子句与对应参数。tier 过滤依赖写入时物化的
+// total_cost/has_pricing，不再把时间范围内全量日志载入内存逐行算费。
 func costTierSQLClause(costTier string) (string, []any) {
 	switch costTier {
 	case requestLogCostTierLow:

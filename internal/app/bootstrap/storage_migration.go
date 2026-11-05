@@ -6,19 +6,18 @@ import (
 	"strings"
 
 	observabilityinfra "portico/internal/observability/infrastructure"
-
-	"github.com/daodao97/xgo/xdb"
+	"portico/internal/shared/storage"
 )
 
 func migrateLegacyTables(srcDBName, destDBName, destPath, table string) error {
 	if destPath == "" {
 		return fmt.Errorf("目标数据库路径为空: %s", table)
 	}
-	srcDB, err := xdb.DB(srcDBName)
+	srcDB, err := storage.DB(srcDBName)
 	if err != nil {
 		return err
 	}
-	destDB, err := xdb.DB(destDBName)
+	destDB, err := storage.DB(destDBName)
 	if err != nil {
 		return err
 	}
@@ -97,7 +96,7 @@ func isNoSuchTableErr(err error) bool {
 }
 
 func ensureRequestLogSchema(dbName string) error {
-	db, err := xdb.DB(dbName)
+	db, err := storage.DB(dbName)
 	if err != nil {
 		return err
 	}

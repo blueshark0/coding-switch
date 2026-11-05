@@ -9,8 +9,6 @@ import (
 	sessiondomain "portico/internal/sessions/domain"
 	"portico/internal/shared/kernel"
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 type SQLiteRepository struct {
@@ -25,7 +23,7 @@ func NewSQLiteRepository(dbName string) *SQLiteRepository {
 }
 
 func (r *SQLiteRepository) EnsureSchema() error {
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return err
 	}
@@ -36,7 +34,7 @@ func (r *SQLiteRepository) GetSessionProvider(platform, sessionID string) (strin
 	if sessionID == "" {
 		return "", nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return "", fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -69,7 +67,7 @@ func (r *SQLiteRepository) BindSessionToProvider(platform, sessionID, providerNa
 	if sessionID == "" || providerName == "" {
 		return nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -97,7 +95,7 @@ func (r *SQLiteRepository) UpdateSessionSuccess(platform, sessionID string) erro
 	if sessionID == "" {
 		return nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -115,7 +113,7 @@ func (r *SQLiteRepository) RecordSessionBackground(platform, sessionID string, b
 	if sessionID == "" {
 		return nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -139,7 +137,7 @@ func (r *SQLiteRepository) RecordSessionBackground(platform, sessionID string, b
 }
 
 func (r *SQLiteRepository) CleanExpiredSessions() error {
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -170,7 +168,7 @@ func (r *SQLiteRepository) GetProviderSessions(platform, providerName string) ([
 	if platform == "" || providerName == "" {
 		return []sessiondomain.SessionBinding{}, nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -185,7 +183,7 @@ func (r *SQLiteRepository) GetPlatformSessions(platform string) ([]sessiondomain
 	if platform == "" {
 		return []sessiondomain.SessionBinding{}, nil
 	}
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return nil, fmt.Errorf("获取数据库连接失败: %w", err)
 	}
@@ -197,7 +195,7 @@ func (r *SQLiteRepository) GetPlatformSessions(platform string) ([]sessiondomain
 }
 
 func (r *SQLiteRepository) UnbindSession(platform, sessionID string) error {
-	db, err := xdb.DB(r.dbName)
+	db, err := storage.DB(r.dbName)
 	if err != nil {
 		return fmt.Errorf("获取数据库连接失败: %w", err)
 	}

@@ -9,8 +9,6 @@ import (
 
 	"portico/internal/mcpgateway/domain"
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 // SQLiteStore mcp_servers 表的 SQLite 实现，落在 app.db（storage.CoreDBName）。
@@ -30,7 +28,7 @@ func NewSQLiteStoreWithDBName(dbName string) *SQLiteStore {
 }
 
 func (s *SQLiteStore) EnsureSchema() error {
-	db, err := xdb.DB(s.dbName)
+	db, err := storage.DB(s.dbName)
 	if err != nil {
 		return err
 	}
@@ -53,7 +51,7 @@ func (s *SQLiteStore) EnsureSchema() error {
 }
 
 func (s *SQLiteStore) db() (*sql.DB, error) {
-	return xdb.DB(s.dbName)
+	return storage.DB(s.dbName)
 }
 
 // List 按 position 升序返回全部 MCP 服务配置。

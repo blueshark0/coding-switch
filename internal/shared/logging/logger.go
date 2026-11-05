@@ -3,14 +3,12 @@ package logging
 import (
 	"io"
 	"log"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"portico/internal/shared/storage"
 
-	"github.com/daodao97/xgo/xlog"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -41,12 +39,6 @@ func Setup() io.WriteCloser {
 	}
 	bufferedLogger := newAsyncWriter(logger, appLogQueueSize, appLogBufferSize, appLogFlushInterval)
 
-	// xgo 的 xlog 默认是 DEBUG -> stdout，可能打印 SQL、完整请求体和凭证。
-	// 应用已有自己的日志管道，第三方日志统一写入 io.Discard；级别设为 Error
-	// 让 DEBUG/INFO/WARN 在 handler 处直接禁用，避免无谓的格式化开销。
-	// 注意 SetLogger 内部会调用 slog.SetDefault，必须先于下面的 log.SetOutput，
-	// 否则标准 log 包会被重定向而不再写入 app.log。
-	xlog.SetLogger(slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError})))
 	log.SetOutput(io.MultiWriter(os.Stdout, bufferedLogger))
 	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 	log.Printf("日志系统初始化成功，日志文件: %s", logger.Filename)

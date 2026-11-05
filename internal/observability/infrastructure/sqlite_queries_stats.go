@@ -8,8 +8,6 @@ import (
 
 	observabilitydomain "portico/internal/observability/domain"
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapStat, error) {
@@ -30,7 +28,7 @@ func (q *SQLiteQueries) HeatmapStats(days int) ([]observabilitydomain.HeatmapSta
 		rangeStart = rangeStart.Add(-time.Duration(totalHours-1) * time.Hour)
 	}
 
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +119,7 @@ func (q *SQLiteQueries) StatsSince(platform string, provider string, rangeKey st
 	}
 	seriesBuckets, bucketIndexes := newStatsSeriesBuckets(rangeSpec)
 
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return stats, err
 	}
@@ -285,7 +283,7 @@ func (q *SQLiteQueries) ProviderDailyStats(platform string) ([]observabilitydoma
 	start := startOfDay(time.Now())
 	end := start.Add(24 * time.Hour)
 
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return nil, err
 	}

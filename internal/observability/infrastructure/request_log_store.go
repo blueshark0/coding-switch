@@ -8,11 +8,8 @@ import (
 	"sync"
 	"time"
 
-	observabilitydomain "portico/internal/observability/domain"
 	"portico/internal/shared/storage"
 	modelpricing "portico/resources/model-pricing"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 const RequestLogRetentionDays = 30
@@ -21,35 +18,11 @@ const requestLogCheckpointThreshold = 1000
 
 var requestLogWriteMu sync.Mutex
 
-func requestLogModel() xdb.Model {
-	return xdb.New("request_log", xdb.WithConn(storage.RequestLogDBName))
-}
-
 func boolToInt(b bool) int {
 	if b {
 		return 1
 	}
 	return 0
-}
-
-func recordFromRequestLog(logEntry *observabilitydomain.RequestLog) xdb.Record {
-	return xdb.Record{
-		"platform":            logEntry.Platform,
-		"model":               logEntry.Model,
-		"provider":            logEntry.Provider,
-		"http_code":           logEntry.HttpCode,
-		"input_tokens":        logEntry.InputTokens,
-		"output_tokens":       logEntry.OutputTokens,
-		"cache_create_tokens": logEntry.CacheCreateTokens,
-		"cache_read_tokens":   logEntry.CacheReadTokens,
-		"reasoning_tokens":    logEntry.ReasoningTokens,
-		"is_stream":           boolToInt(logEntry.IsStream),
-		"is_fast":             boolToInt(logEntry.IsFast),
-		"duration_sec":        logEntry.DurationSec,
-		"ttft_sec":            logEntry.TTFTSec,
-		"created_at":          requestLogCreatedAt(logEntry.CreatedAt),
-		"session_id":          logEntry.SessionID,
-	}
 }
 
 func requestLogCreatedAt(createdAt string) string {
@@ -63,7 +36,7 @@ func CleanupOldRequestLogs(retentionDays int) error {
 	if retentionDays <= 0 {
 		return nil
 	}
-	db, err := xdb.DB(storage.RequestLogDBName)
+	db, err := storage.DB(storage.RequestLogDBName)
 	if err != nil {
 		return err
 	}

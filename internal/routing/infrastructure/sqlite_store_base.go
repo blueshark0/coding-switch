@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
 )
 
 const (
@@ -30,7 +28,7 @@ func NewSQLiteStoreWithDBName(dbName string) *SQLiteStore {
 }
 
 func (s *SQLiteStore) EnsureSchema() error {
-	db, err := xdb.DB(s.dbName)
+	db, err := storage.DB(s.dbName)
 	if err != nil {
 		return err
 	}
@@ -134,5 +132,5 @@ func decodeJSONMap[T any](raw string, target *T) error {
 }
 
 func queryDB(dbName string) (*sql.DB, error) {
-	return xdb.DB(dbName)
+	return storage.DB(dbName)
 }

@@ -27,7 +27,7 @@
 
 ## 下载
 
-[macOS](https://github.com/daodao97/code-swtich/releases) | [windows](https://github.com/daodao97/code-swtich/releases) 
+[macOS](https://github.com/blueshark0/coding-switch/releases) | [windows](https://github.com/blueshark0/coding-switch/releases)
 
 
 ## 预览

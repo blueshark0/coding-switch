@@ -1,10 +1,6 @@
 package bootstrap
 
-import (
-	"portico/internal/shared/storage"
-
-	"github.com/daodao97/xgo/xdb"
-)
+import "portico/internal/shared/storage"
 
 func (i *Initializer) initConnections() error {
 	appDBPath, err := storage.AppDataPath("app.db")
@@ -20,7 +16,7 @@ func (i *Initializer) initConnections() error {
 		return err
 	}
 
-	return xdb.Inits([]xdb.Config{
+	return storage.OpenConnections([]storage.ConnectionConfig{
 		{
 			Name:        storage.CoreDBName,
 			Driver:      "sqlite",

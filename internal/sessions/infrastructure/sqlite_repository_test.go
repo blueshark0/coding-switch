@@ -4,8 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/daodao97/xgo/xdb"
-	_ "modernc.org/sqlite"
+	"portico/internal/shared/storage"
 )
 
 func TestSQLiteRepositoryOnlyListsMainSessions(t *testing.T) {
@@ -66,16 +65,16 @@ func TestSQLiteRepositoryOnlyListsMainSessions(t *testing.T) {
 func TestSQLiteRepositorySchemaUpgradeKeepsLegacySessionsVisible(t *testing.T) {
 	dbName := "sessions_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "session.db")
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {Name: dbName, Driver: "sqlite", DSN: dbPath},
+	if err := storage.OpenConnection(storage.ConnectionConfig{
+		Name: dbName, Driver: "sqlite", DSN: dbPath,
 	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
+		t.Fatalf("open test database: %v", err)
 	}
-	db, err := xdb.DB(dbName)
+	t.Cleanup(func() { _ = storage.CloseConnection(dbName) })
+	db, err := storage.DB(dbName)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
 
 	_, err = db.Exec(`CREATE TABLE session_provider_binding (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,19 +110,15 @@ func newSessionRepositoryForTest(t *testing.T) (*SQLiteRepository, func()) {
 	t.Helper()
 	dbName := "sessions_test_" + t.Name()
 	dbPath := filepath.Join(t.TempDir(), "session.db")
-	if err := xdb.Init(map[string]*xdb.Config{
-		dbName: {Name: dbName, Driver: "sqlite", DSN: dbPath},
+	if err := storage.OpenConnection(storage.ConnectionConfig{
+		Name: dbName, Driver: "sqlite", DSN: dbPath,
 	}); err != nil {
-		t.Fatalf("xdb.Init: %v", err)
+		t.Fatalf("open test database: %v", err)
 	}
-	db, err := xdb.DB(dbName)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Cleanup(func() { _ = storage.CloseConnection(dbName) })
 	repo := NewSQLiteRepository(dbName)
 	if err := repo.EnsureSchema(); err != nil {
-		db.Close()
 		t.Fatal(err)
 	}
-	return repo, func() { _ = db.Close() }
+	return repo, func() { _ = storage.CloseConnection(dbName) }
 }

@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	observabilitydomain "portico/internal/observability/domain"
-
 	_ "modernc.org/sqlite"
 )
 
@@ -87,30 +85,21 @@ func TestEnsureRequestLogTableWithDB_MigratesLegacySchema(t *testing.T) {
 	}
 }
 
-func TestRecordFromRequestLog_SetsCreatedAt(t *testing.T) {
-	record := recordFromRequestLog(&observabilitydomain.RequestLog{
-		Platform: "desktop",
-		Model:    "gpt-4.1",
-		Provider: "openai",
-	})
+func TestRequestLogCreatedAt_SetsCreatedAt(t *testing.T) {
+	value := requestLogCreatedAt("")
 
-	value, ok := record["created_at"].(string)
-	if !ok || value == "" {
-		t.Fatalf("expected created_at string, got %#v", record["created_at"])
+	if value == "" {
+		t.Fatal("expected generated created_at string")
 	}
 	if _, err := time.Parse(timeLayout, value); err != nil {
 		t.Fatalf("parse generated created_at %q: %v", value, err)
 	}
 }
 
-func TestRecordFromRequestLog_PreservesCreatedAt(t *testing.T) {
+func TestRequestLogCreatedAt_PreservesCreatedAt(t *testing.T) {
 	const createdAt = "2026-03-16 08:00:00"
 
-	record := recordFromRequestLog(&observabilitydomain.RequestLog{
-		CreatedAt: createdAt,
-	})
-
-	if got := record["created_at"]; got != createdAt {
-		t.Fatalf("expected created_at %q, got %#v", createdAt, got)
+	if got := requestLogCreatedAt(createdAt); got != createdAt {
+		t.Fatalf("expected created_at %q, got %q", createdAt, got)
 	}
 }

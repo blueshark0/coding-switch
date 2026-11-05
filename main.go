@@ -16,6 +16,9 @@ var assets embed.FS
 //go:embed assets/icon.png assets/icon-dark.png
 var trayIcons embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func main() {
 	container, err := appbootstrap.Initialize(AppVersion)
 	if err != nil {
@@ -27,6 +30,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "Portico",
 		Description: "Claude Code and Codex provider manager",
+		Icon:        appIcon,
 		Services: container.ApplicationServices(
 			application.NewService(versionService),
 		),

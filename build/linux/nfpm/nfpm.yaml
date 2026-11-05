@@ -19,7 +19,7 @@ release: "1"
 contents:
   - src: "./bin/Portico"
     dst: "/usr/local/bin/Portico"
-  - src: "./build/appicon.png"
+  - src: "./build/appicon-128.png"
     dst: "/usr/share/icons/hicolor/128x128/apps/Portico.png"
   - src: "./build/linux/Portico.desktop"
     dst: "/usr/share/applications/Portico.desktop"
